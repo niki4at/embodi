@@ -7,14 +7,15 @@ import {
   useQuery,
 } from 'convex/react'
 import { api } from '@/convex/_generated/api'
-import { useSSO, useAuth } from '@clerk/clerk-expo'
-import * as Linking from 'expo-linking'
+import { useAuth } from '@clerk/clerk-expo'
 
 import { HelloWave } from '@/components/hello-wave'
 import ParallaxScrollView from '@/components/parallax-scroll-view'
 import { ThemedText } from '@/components/themed-text'
 import { ThemedView } from '@/components/themed-view'
 import { Link } from 'expo-router'
+import LoginScreen from '@/components/login-screen'
+import LoadingScreen from '@/components/loading-screen'
 
 export default function HomeScreen() {
   return (
@@ -104,41 +105,14 @@ export default function HomeScreen() {
       </Authenticated>
 
       <Unauthenticated>
-        <ThemedView style={styles.stepContainer}>
-          <ThemedText>Please sign in</ThemedText>
-          <SignInButtons />
-        </ThemedView>
+        <LoginScreen />
       </Unauthenticated>
 
       <AuthLoading>
-        <ThemedView style={styles.stepContainer}>
-          <ThemedText>Loading…</ThemedText>
-        </ThemedView>
+        <LoadingScreen />
       </AuthLoading>
     </>
   )
-}
-
-function SignInButtons() {
-  const { startSSOFlow } = useSSO()
-
-  const onGooglePress = async () => {
-    try {
-      const redirectUrl = Linking.createURL('/sso-callback')
-      const { createdSessionId, setActive } = await startSSOFlow({
-        strategy: 'oauth_google',
-        redirectUrl,
-        authSessionOptions: { showInRecents: true },
-      })
-      if (createdSessionId) {
-        await setActive?.({ session: createdSessionId })
-      }
-    } catch (err) {
-      console.error('OAuth error', err)
-    }
-  }
-
-  return <Button title="Sign in with Google" onPress={onGooglePress} />
 }
 
 function SignOutButton() {
