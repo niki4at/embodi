@@ -11,7 +11,13 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 
-export default function LoadingScreen() {
+interface LoadingScreenProps {
+  message?: string
+}
+
+export default function LoadingScreen({
+  message = 'Loading your experience',
+}: LoadingScreenProps) {
   const scale = useSharedValue(0.8)
   const opacity = useSharedValue(0.4)
   const rotate = useSharedValue(0)
@@ -81,7 +87,7 @@ export default function LoadingScreen() {
             <Animated.View style={[styles.dot, dot3Style]} />
           </View>
 
-          <Text style={styles.loadingText}>Loading your experience</Text>
+          <Text style={styles.loadingText}>{message}</Text>
         </View>
       </LinearGradient>
     </View>

@@ -1,0 +1,155 @@
+Business idea
+
+BodyMap — personalised training that meets your body where it is
+
+—----------------------------------------------------------------------------------------------------------------------------
+Mission : Prevent people from getting diseases physically and mentally 
+
+How an app helps you beat the myth, and meet the truth ! 
+
+First objective of the app is to solve one problem first 
+
+The plan 
+
+North Star (12–18 months):
+“Launch BodyMap in the UAE, reach 50k monthly active users, and achieve a 30% reduction in self-reported pain/injury flare-ups for target cohorts and improve their physical engagement by (check past papers for that).”
+
+Write it daily (present tense) + 3 micro-moves you’ll take that day.
+
+
+Questions to uncover your “bright spots”:
+What do users hate? Users typically dislike clunky, text-heavy, generic plans with confusing guidance and unclear medical caveats that heighten fear of injury and drive drop-off. BioMed Central+2ScienceDirect+2
+What are competitors unwilling to do? Many avoid the cost and complexity of clinician-reviewed contraindications, accessibility-by-default features and pain-aware progressions, even though inclusive, safety-led design measurably improves usability and reach. Glance+2PMC+2
+What breaks your heart? People quitting after a niggle flares—or feeling excluded by “perfect body” aesthetics—when fear of injury and lack of knowledge are known, solvable barriers to staying active. BioMed Central+1
+What do you believe that others don’t? A body-centred interface where “the body is the menu,” with delightful safety and accessibility by default, will beat long lists and expand the addressable market.
+
+Narrow, winnable beachhead (pick one first):
+Runners with recurrent calf/hip issues training for 5–10k OR
+Desk workers with low-back or neck discomfort seeking pain-aware mobility.
+
+
+Minimum core circle:
+Clinical advisor (physio/sports therapist) — reviews contraindications, red flags, and capsule library.                     -lyane
+Accessible-by-design product designer — nails the calm visuals, captions, high contrast, left-hand mode.     -lyane Use Figma or Canva Whiteboard to mock the flow:
+Body tap → Capsule cards → Session list → Adaptive feedback
+You can later show this to developers or investors.
+
+Founding engineer — builds the tappable 3D body + session engine + simple adaptivity loop (RPE/pain inputs).  -nick
+
+
+
+
+MVP scope (single cohort):
+Tap-to-target 3D body (hips/calves/lower back only to start).
+
+
+Capsules: 30–40 moves with micro-animations, purpose, time, kit, and clear modifications
+
+
+Session builder with animated bubbles + auto-timers.
+
+
+Adaptive next step from 3 inputs post-session: RPE, pain (0–10), sleep quality → up/down-titrate volume or swap to gentler variant.
+
+
+Accessibility basics: captions, audio cues, high contrast, left-hand toggle.
+
+
+Plain-English safety rails: “Green/Amber/Red” logic with “why/what instead”.
+
+30-day winnable plan
+Week 1 – Define & design
+Lock the beachhead user and North Star metric.
+
+
+Finalise contraindication rules for that body region with your clinical advisor.
+
+
+Prototype the 3D tap map + 10 capsule cards in Figma; test with 5 target users.
+
+
+Week 2 – Build the loop
+Implement capsule player (timer, cues, micro-animation).
+
+
+Build check-in card (RPE, pain, sleep) → simple rules engine for progression.
+
+
+Seed copy tone: “Light brace. Exhale on effort.”
+
+
+Week 3 – Safety & polish
+Add swap suggestions (“90/90 Transitions” instead of deep lunge).
+
+
+Ship high-contrast + captions; test with a screen reader.
+
+
+Clinical pass over all capsules and flags.
+
+
+Week 4 – Private beta (20–30 users)
+Recruit from one local running club or one physio clinic’s newsletter.
+
+
+Instrument metrics. Ship fast fixes.
+
+
+
+
+—----------------------------------------------------------------------------------------------------------------------------
+BodyMap is a visually-led fitness app that turns your health info and goals into a safe, tailored training plan. Whether you’re preparing for a marathon or navigating a condition that makes exercise tricky, BodyMap helps you train smarter, not harder, through an intuitive, body-centred interface.
+How it works
+Smart onboarding
+You share your goal (e.g., “sub-4 marathon”, “move pain-free at work”), current activity level, injuries, diagnoses (optional), medications (optional), and time available. The app adapts recommendations in real time—flagging any red-flags and offering clinician-approved alternatives where needed.
+Tap-to-target 3D body map
+A clean human body visual lets you tap the area you want to work (e.g., calves, hips, lower back). You can also choose by goal (stamina, mobility, strength, recovery) or mode (run, yoga, Pilates, physio, breathwork).
+Exercise “capsules”
+For each target, you’ll see swipeable capsules, short cards with:
+• a looping micro-animation of the movement (a “living” stick-figure or model)
+• purpose (e.g., “glute med activation for knee tracking”)
+• difficulty, time, and equipment needed
+• modifications/contraindications for common conditions (e.g., low-back pain, asthma)
+Your session at a glance
+Selected capsules drop into a session list with small animated “bubbles” that preview each move. Press play and BodyMap guides you through timing, pacing, breath cues, and form tips. For yoga flows, the preview shows the pose sequence with alignment notes tailored to your inputs.
+Adaptive progression
+After each session, quick check-ins (RPE, pain/discomfort, fatigue, sleep, HR if available) adjust your next dose—nudging load up or down and swapping exercises if needed.
+
+Why it helps
+For runners: periodised plans with strength, mobility, and recovery built in—objectively balancing miles with injury-prevention work (hips, calves, feet, core).
+For people with health conditions: safer pathways with clearly marked alternatives and “why this is okay/not okay” explanations. Everything is accessible-first.
+Design principles
+Calm, cinematic visuals: soft gradients, high-contrast accessibility modes, and friendly micro-animations instead of walls of text.
+Direct manipulation: the body is the menu. Tap, zoom, rotate; learn by seeing.
+Plain-English coaching: short, supportive cues (“Light brace. Exhale on effort.”).
+Inclusive by default: gender-neutral body options, varied body types, wheelchair/low-impact modes.
+Safety & trust
+Clinical guardrails: evidence-based defaults, clear contraindication tags, and “ask a clinician” prompts for red-flags.
+Not medical advice: transparent disclaimers and signposting to professional care when appropriate.
+Privacy: all health data is user-controlled, locally encrypted, and never shared without consent.
+Key features (MVP)
+Tap-to-target 3D body with goal filters
+Exercise capsules with animations + modifications
+Session builder with animated bubbles and auto-timers
+Adaptive progression using simple feedback loops
+Modes: Marathon Build, Foundations (pain-aware), Mobility Reset, Breath & Recovery
+Accessibility: captions, audio cues, high-contrast, left-hand mode
+Later additions
+Wearable integrations (HR, cadence, HRV)
+Coach/physio portal to assign capsules and review adherence
+Community “paths” (e.g., Couch-to-10k with Asthma) moderated by professionals
+In-app form check using the phone camera (privacy-preserving, on-device)
+Sample microcopy
+“Hips feel tight today? Swap ‘Deep Lunge’ for ‘90/90 Transitions’—same goal, gentler on the back.”
+“Green light for today’s run. Keep RPE 6–7; add ‘Calf Isometrics’ after.”
+One-liner
+BodyMap makes training visual, personal, and safe—so you can reach big goals even with a sensitive body.
+
+Features 
+
+Demographics 
+
+Add smoking/alcohol
+Period tracker 
+
+

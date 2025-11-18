@@ -21,6 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
 import { useSSO, useSignIn } from '@clerk/clerk-expo'
 import * as Linking from 'expo-linking'
+import LoadingScreen from './loading-screen'
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('')
@@ -28,6 +29,8 @@ export default function LoginScreen() {
   const [emailFocused, setEmailFocused] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
+  const [authMessage, setAuthMessage] = useState('')
 
   const { startSSOFlow } = useSSO()
   const { signIn, setActive } = useSignIn()
@@ -55,6 +58,8 @@ export default function LoginScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
       setIsLoading(true)
+      setIsAuthenticating(true)
+      setAuthMessage('Signing you in...')
 
       const signInAttempt = await signIn?.create({
         identifier: email,
@@ -66,10 +71,12 @@ export default function LoginScreen() {
       } else {
         console.error('Sign in failed:', signInAttempt)
         Alert.alert('Error', 'Sign in failed. Please try again.')
+        setIsAuthenticating(false)
       }
     } catch (err: any) {
       console.error('Sign in error:', err)
       Alert.alert('Error', err?.errors?.[0]?.message || 'Sign in failed. Please check your credentials.')
+      setIsAuthenticating(false)
     } finally {
       setIsLoading(false)
     }
@@ -78,51 +85,75 @@ export default function LoginScreen() {
   const handleAppleSignIn = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      setIsAuthenticating(true)
+      setAuthMessage('Signing in with Apple...')
+      
       const redirectUrl = Linking.createURL('/sso-callback')
       const { createdSessionId, setActive } = await startSSOFlow({
         strategy: 'oauth_apple',
         redirectUrl,
         authSessionOptions: { showInRecents: true },
       })
+      
       if (createdSessionId) {
+        setAuthMessage('Completing sign in...')
         await setActive?.({ session: createdSessionId })
+      } else {
+        setIsAuthenticating(false)
       }
     } catch (err) {
       console.error('OAuth error', err)
+      setIsAuthenticating(false)
     }
   }
 
   const handleGoogleSignIn = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      setIsAuthenticating(true)
+      setAuthMessage('Signing in with Google...')
+      
       const redirectUrl = Linking.createURL('/sso-callback')
       const { createdSessionId, setActive } = await startSSOFlow({
         strategy: 'oauth_google',
         redirectUrl,
         authSessionOptions: { showInRecents: true },
       })
+      
       if (createdSessionId) {
+        setAuthMessage('Completing sign in...')
         await setActive?.({ session: createdSessionId })
+      } else {
+        setIsAuthenticating(false)
       }
     } catch (err) {
       console.error('OAuth error', err)
+      setIsAuthenticating(false)
     }
   }
 
   const handleFacebookSignIn = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      setIsAuthenticating(true)
+      setAuthMessage('Signing in with Facebook...')
+      
       const redirectUrl = Linking.createURL('/sso-callback')
       const { createdSessionId, setActive } = await startSSOFlow({
         strategy: 'oauth_facebook',
         redirectUrl,
         authSessionOptions: { showInRecents: true },
       })
+      
       if (createdSessionId) {
+        setAuthMessage('Completing sign in...')
         await setActive?.({ session: createdSessionId })
+      } else {
+        setIsAuthenticating(false)
       }
     } catch (err) {
       console.error('OAuth error', err)
+      setIsAuthenticating(false)
     }
   }
 
@@ -172,6 +203,10 @@ export default function LoginScreen() {
 
   const handleSignInPressOut = () => {
     signInScale.value = withSpring(1)
+  }
+
+  if (isAuthenticating) {
+    return <LoadingScreen message={authMessage} />
   }
 
   return (
