@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -9,13 +9,18 @@ import {
 } from 'react-native'
 import Animated, {
   FadeInDown,
+  cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
 import { OnboardingData } from './onboarding-screen'
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity)
 
 interface StepThreeProps {
   data: OnboardingData
@@ -49,8 +54,57 @@ export default function StepThree({ data, updateData, onNext, onSkip, onBack }: 
   const [medicationsFocused, setMedicationsFocused] = useState(false)
   const buttonScale = useSharedValue(1)
 
+  // Shadow opacity values - start at 0, fade in after position animations complete
+  const injuriesShadowOpacity = useSharedValue(0)
+  const conditionsShadowOpacity = useSharedValue(0)
+  const inputShadowOpacity = useSharedValue(0)
+  const buttonShadowOpacity = useSharedValue(0)
+
+  useEffect(() => {
+    // Injuries: delay 200ms + 600ms duration = 800ms
+    injuriesShadowOpacity.value = withDelay(800, withTiming(1, { duration: 300 }))
+    
+    // Conditions: delay 300ms + 600ms duration = 900ms
+    conditionsShadowOpacity.value = withDelay(900, withTiming(1, { duration: 300 }))
+    
+    // Input: delay 400ms + 600ms duration = 1000ms
+    inputShadowOpacity.value = withDelay(1000, withTiming(1, { duration: 300 }))
+    
+    // Button: appears without delay, fade in immediately
+    buttonShadowOpacity.value = withTiming(1, { duration: 300 })
+  }, [injuriesShadowOpacity, conditionsShadowOpacity, inputShadowOpacity, buttonShadowOpacity])
+
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: buttonShadowOpacity.value * 0.3,
+    shadowRadius: 12,
+    elevation: buttonShadowOpacity.value * 8,
+  }))
+
+  const injuryShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: injuriesShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: injuriesShadowOpacity.value * 2,
+  }))
+
+  const conditionShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: conditionsShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: conditionsShadowOpacity.value * 2,
+  }))
+
+  const inputShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: inputShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: inputShadowOpacity.value * 2,
   }))
 
   const handleButtonPressIn = () => {
@@ -81,6 +135,32 @@ export default function StepThree({ data, updateData, onNext, onSkip, onBack }: 
     }
   }
 
+  const fadeOutShadows = useCallback(() => {
+    cancelAnimation(injuriesShadowOpacity)
+    cancelAnimation(conditionsShadowOpacity)
+    cancelAnimation(inputShadowOpacity)
+    cancelAnimation(buttonShadowOpacity)
+    injuriesShadowOpacity.value = 0
+    conditionsShadowOpacity.value = 0
+    inputShadowOpacity.value = 0
+    buttonShadowOpacity.value = 0
+  }, [buttonShadowOpacity, conditionsShadowOpacity, injuriesShadowOpacity, inputShadowOpacity])
+
+  const handleNextPress = () => {
+    fadeOutShadows()
+    onNext()
+  }
+
+  const handleSkipPress = () => {
+    fadeOutShadows()
+    onSkip()
+  }
+
+  const handleBackPress = () => {
+    fadeOutShadows()
+    onBack()
+  }
+
   return (
     <View style={styles.container}>
       <Animated.View entering={FadeInDown.delay(100).duration(600).springify()}>
@@ -99,11 +179,12 @@ export default function StepThree({ data, updateData, onNext, onSkip, onBack }: 
         <Text style={styles.hint}>Select all that apply</Text>
         <View style={styles.chipGrid}>
           {commonInjuries.map((injury) => (
-            <TouchableOpacity
+            <AnimatedTouchableOpacity
               key={injury}
               style={[
                 styles.chip,
                 data.injuries.includes(injury) && styles.chipSelected,
+                injuryShadowStyle,
               ]}
               onPress={() => handleInjuryToggle(injury)}
               activeOpacity={0.7}
@@ -116,7 +197,7 @@ export default function StepThree({ data, updateData, onNext, onSkip, onBack }: 
               >
                 {injury}
               </Text>
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
           ))}
         </View>
       </Animated.View>
@@ -130,11 +211,12 @@ export default function StepThree({ data, updateData, onNext, onSkip, onBack }: 
         <Text style={styles.hint}>Select all that apply</Text>
         <View style={styles.chipGrid}>
           {commonConditions.map((condition) => (
-            <TouchableOpacity
+            <AnimatedTouchableOpacity
               key={condition}
               style={[
                 styles.chip,
                 data.conditions.includes(condition) && styles.chipSelected,
+                conditionShadowStyle,
               ]}
               onPress={() => handleConditionToggle(condition)}
               activeOpacity={0.7}
@@ -147,7 +229,7 @@ export default function StepThree({ data, updateData, onNext, onSkip, onBack }: 
               >
                 {condition}
               </Text>
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
           ))}
         </View>
       </Animated.View>
@@ -158,10 +240,11 @@ export default function StepThree({ data, updateData, onNext, onSkip, onBack }: 
         style={styles.inputWrapper}
       >
         <Text style={styles.label}>Current medications (optional)</Text>
-        <View
+        <Animated.View
           style={[
             styles.inputContainer,
             medicationsFocused && styles.inputContainerFocused,
+            inputShadowStyle,
           ]}
         >
           <TextInput
@@ -177,7 +260,7 @@ export default function StepThree({ data, updateData, onNext, onSkip, onBack }: 
             onBlur={() => setMedicationsFocused(false)}
             multiline
           />
-        </View>
+        </Animated.View>
       </Animated.View>
 
       {/* Spacer */}
@@ -185,13 +268,13 @@ export default function StepThree({ data, updateData, onNext, onSkip, onBack }: 
 
       {/* Buttons */}
       <View style={styles.buttonsContainer}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
 
         <Animated.View style={[styles.nextButtonWrapper, buttonAnimatedStyle]}>
           <Pressable
-            onPress={onNext}
+            onPress={handleNextPress}
             onPressIn={handleButtonPressIn}
             onPressOut={handleButtonPressOut}
           >
@@ -207,7 +290,7 @@ export default function StepThree({ data, updateData, onNext, onSkip, onBack }: 
         </Animated.View>
       </View>
 
-      <TouchableOpacity onPress={onSkip} style={styles.skipButton}>
+      <TouchableOpacity onPress={handleSkipPress} style={styles.skipButton}>
         <Text style={styles.skipButtonText}>Skip this step</Text>
       </TouchableOpacity>
     </View>
@@ -258,9 +341,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   chipSelected: {
     borderColor: '#f97316',
@@ -288,14 +369,11 @@ const styles = StyleSheet.create({
     minHeight: 80,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   inputContainerFocused: {
     borderColor: '#6366f1',
     shadowColor: '#6366f1',
-    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
   },
@@ -339,9 +417,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#4f46e5',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
     shadowRadius: 12,
-    elevation: 8,
   },
   nextButtonText: {
     color: '#ffffff',

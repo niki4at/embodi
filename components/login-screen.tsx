@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -15,13 +15,17 @@ import Animated, {
   FadeInUp,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
 import { useSSO, useSignIn } from '@clerk/clerk-expo'
 import * as Linking from 'expo-linking'
 import LoadingScreen from './loading-screen'
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity)
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('')
@@ -38,6 +42,23 @@ export default function LoginScreen() {
   const emailScale = useSharedValue(1)
   const passwordScale = useSharedValue(1)
   const signInScale = useSharedValue(1)
+
+  // Shadow opacity values - start at 0, fade in after position animations complete
+  const inputsShadowOpacity = useSharedValue(0)
+  const signInShadowOpacity = useSharedValue(0)
+  const socialShadowOpacity = useSharedValue(0)
+
+  useEffect(() => {
+    // Email: delay 200ms + 800ms duration = 1000ms
+    // Password: delay 300ms + 800ms duration = 1100ms
+    inputsShadowOpacity.value = withDelay(1100, withTiming(1, { duration: 300 }))
+    
+    // Sign In button: delay 500ms + 800ms duration = 1300ms
+    signInShadowOpacity.value = withDelay(1300, withTiming(1, { duration: 300 }))
+    
+    // Social buttons: delay 700ms + 800ms duration = 1500ms
+    socialShadowOpacity.value = withDelay(1500, withTiming(1, { duration: 300 }))
+  }, [inputsShadowOpacity, signInShadowOpacity, socialShadowOpacity])
 
   const onEmailFocus = () => {
     setEmailFocused(true)
@@ -171,14 +192,37 @@ export default function LoginScreen() {
 
   const emailAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: emailScale.value }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: inputsShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: inputsShadowOpacity.value * 2,
   }))
 
   const passwordAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: passwordScale.value }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: inputsShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: inputsShadowOpacity.value * 2,
   }))
 
   const signInAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: signInScale.value }],
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: signInShadowOpacity.value * 0.3,
+    shadowRadius: 12,
+    elevation: signInShadowOpacity.value * 8,
+  }))
+
+  const socialShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: socialShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: socialShadowOpacity.value * 2,
   }))
 
   const handleEmailPressIn = () => {
@@ -236,33 +280,32 @@ export default function LoginScreen() {
               entering={FadeInDown.delay(200).duration(800).springify()}
               style={styles.inputWrapper}
             >
-              <Animated.View style={emailAnimatedStyle}>
-                <Pressable
-                  onPressIn={handleEmailPressIn}
-                  onPressOut={handleEmailPressOut}
-                  style={styles.inputPressable}
+              <Pressable
+                onPressIn={handleEmailPressIn}
+                onPressOut={handleEmailPressOut}
+                style={styles.inputPressable}
+              >
+                <Animated.View
+                  style={[
+                    styles.inputContainer,
+                    emailFocused && styles.inputContainerFocused,
+                    emailAnimatedStyle,
+                  ]}
                 >
-                  <View
-                    style={[
-                      styles.inputContainer,
-                      emailFocused && styles.inputContainerFocused,
-                    ]}
-                  >
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Email"
-                      placeholderTextColor="#9ca3af"
-                      value={email}
-                      onChangeText={setEmail}
-                      onFocus={onEmailFocus}
-                      onBlur={() => setEmailFocused(false)}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoComplete="email"
-                    />
-                  </View>
-                </Pressable>
-              </Animated.View>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email"
+                    placeholderTextColor="#9ca3af"
+                    value={email}
+                    onChangeText={setEmail}
+                    onFocus={onEmailFocus}
+                    onBlur={() => setEmailFocused(false)}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                  />
+                </Animated.View>
+              </Pressable>
             </Animated.View>
 
             {/* Password Input */}
@@ -270,33 +313,32 @@ export default function LoginScreen() {
               entering={FadeInDown.delay(300).duration(800).springify()}
               style={styles.inputWrapper}
             >
-              <Animated.View style={passwordAnimatedStyle}>
-                <Pressable
-                  onPressIn={handlePasswordPressIn}
-                  onPressOut={handlePasswordPressOut}
-                  style={styles.inputPressable}
+              <Pressable
+                onPressIn={handlePasswordPressIn}
+                onPressOut={handlePasswordPressOut}
+                style={styles.inputPressable}
+              >
+                <Animated.View
+                  style={[
+                    styles.inputContainer,
+                    passwordFocused && styles.inputContainerFocused,
+                    passwordAnimatedStyle,
+                  ]}
                 >
-                  <View
-                    style={[
-                      styles.inputContainer,
-                      passwordFocused && styles.inputContainerFocused,
-                    ]}
-                  >
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Password"
-                      placeholderTextColor="#9ca3af"
-                      value={password}
-                      onChangeText={setPassword}
-                      onFocus={onPasswordFocus}
-                      onBlur={() => setPasswordFocused(false)}
-                      secureTextEntry
-                      autoCapitalize="none"
-                      autoComplete="password"
-                    />
-                  </View>
-                </Pressable>
-              </Animated.View>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Password"
+                    placeholderTextColor="#9ca3af"
+                    value={password}
+                    onChangeText={setPassword}
+                    onFocus={onPasswordFocus}
+                    onBlur={() => setPasswordFocused(false)}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoComplete="password"
+                  />
+                </Animated.View>
+              </Pressable>
             </Animated.View>
 
             {/* Forgot Password */}
@@ -349,29 +391,29 @@ export default function LoginScreen() {
               entering={FadeInDown.delay(700).duration(800).springify()}
               style={styles.socialButtonsContainer}
             >
-              <TouchableOpacity
-                style={styles.socialButton}
+              <AnimatedTouchableOpacity
+                style={[styles.socialButton, socialShadowStyle]}
                 onPress={handleAppleSignIn}
                 activeOpacity={0.8}
               >
                 <Text style={styles.socialButtonText}>Apple</Text>
-              </TouchableOpacity>
+              </AnimatedTouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.socialButton}
+              <AnimatedTouchableOpacity
+                style={[styles.socialButton, socialShadowStyle]}
                 onPress={handleFacebookSignIn}
                 activeOpacity={0.8}
               >
                 <Text style={styles.socialButtonText}>Facebook</Text>
-              </TouchableOpacity>
+              </AnimatedTouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.socialButton}
+              <AnimatedTouchableOpacity
+                style={[styles.socialButton, socialShadowStyle]}
                 onPress={handleGoogleSignIn}
                 activeOpacity={0.8}
               >
                 <Text style={styles.socialButtonText}>Google</Text>
-              </TouchableOpacity>
+              </AnimatedTouchableOpacity>
             </Animated.View>
 
             {/* Register Link */}
@@ -446,14 +488,11 @@ const styles = StyleSheet.create({
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   inputContainerFocused: {
     borderColor: '#6366f1',
     shadowColor: '#6366f1',
-    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
   },
@@ -482,9 +521,7 @@ const styles = StyleSheet.create({
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.3,
     shadowRadius: 12,
-    elevation: 8,
   },
   signInButtonText: {
     color: '#ffffff',
@@ -524,9 +561,7 @@ const styles = StyleSheet.create({
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   socialButtonText: {
     fontSize: 16,

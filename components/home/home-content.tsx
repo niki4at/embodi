@@ -3,7 +3,7 @@ import { useAuth } from '@clerk/clerk-expo'
 import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
-import React from 'react'
+import React, { useEffect } from 'react'
 import {
   Pressable,
   ScrollView,
@@ -17,8 +17,13 @@ import Animated, {
   FadeInUp,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated'
+
+const AnimatedTouchableOpacity =
+  Animated.createAnimatedComponent(TouchableOpacity)
 
 export default function HomeContent() {
   const onboardingData = useQuery(api.onboarding.getOnboarding)
@@ -27,8 +32,87 @@ export default function HomeContent() {
 
   const aiCardScale = useSharedValue(1)
 
+  // Shadow opacity values - start at 0, fade in after position animations complete
+  const headerShadowOpacity = useSharedValue(0)
+  const aiCardShadowOpacity = useSharedValue(0)
+  const statsShadowOpacity = useSharedValue(0)
+  const actionsShadowOpacity = useSharedValue(0)
+  const focusShadowOpacity = useSharedValue(0)
+
+  useEffect(() => {
+    // Fade in shadows after their respective entering animations complete
+    // Header: FadeInUp 600ms
+    headerShadowOpacity.value = withDelay(600, withTiming(1, { duration: 300 }))
+
+    // AI Card: FadeInDown 100ms delay + 600ms duration = 700ms
+    aiCardShadowOpacity.value = withDelay(700, withTiming(1, { duration: 300 }))
+
+    // Stats: FadeInDown 200ms delay + 600ms duration = 800ms
+    statsShadowOpacity.value = withDelay(800, withTiming(1, { duration: 300 }))
+
+    // Actions: FadeInDown 300ms delay + 600ms duration = 900ms
+    actionsShadowOpacity.value = withDelay(
+      900,
+      withTiming(1, { duration: 300 })
+    )
+
+    // Focus: FadeInDown 400ms delay + 600ms duration = 1000ms
+    focusShadowOpacity.value = withDelay(1000, withTiming(1, { duration: 300 }))
+  }, [
+    headerShadowOpacity,
+    aiCardShadowOpacity,
+    statsShadowOpacity,
+    actionsShadowOpacity,
+    focusShadowOpacity,
+  ])
+
   const aiCardAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: aiCardScale.value }],
+    shadowColor: '#f97316',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: aiCardShadowOpacity.value * 0.3,
+    shadowRadius: 16,
+    elevation: aiCardShadowOpacity.value * 12,
+  }))
+
+  const headerShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: headerShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: headerShadowOpacity.value * 2,
+  }))
+
+  const statsShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: statsShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: statsShadowOpacity.value * 2,
+  }))
+
+  const actionsShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: actionsShadowOpacity.value * 0.3,
+    shadowRadius: 12,
+    elevation: actionsShadowOpacity.value * 8,
+  }))
+
+  const secondaryActionShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: actionsShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: actionsShadowOpacity.value * 2,
+  }))
+
+  const focusShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: focusShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: focusShadowOpacity.value * 2,
   }))
 
   const handleAICardPressIn = () => {
@@ -86,13 +170,13 @@ export default function HomeContent() {
                   Training that meets your body where it is
                 </Text>
               </View>
-              <TouchableOpacity
-                style={styles.settingsButton}
+              <AnimatedTouchableOpacity
+                style={[styles.settingsButton, headerShadowStyle]}
                 onPress={handleSignOut}
                 activeOpacity={0.7}
               >
                 <Text style={styles.settingsIcon}>⚙️</Text>
-              </TouchableOpacity>
+              </AnimatedTouchableOpacity>
             </View>
           </Animated.View>
 
@@ -116,7 +200,7 @@ export default function HomeContent() {
                   </View>
                   <Text style={styles.aiTitle}>Your AI Training Partner</Text>
                   <Text style={styles.aiDescription}>
-                    Share how you're feeling today. Your data is private,
+                    Share how you&apos;re feeling today. Your data is private,
                     encrypted, and only used to create your safest, most
                     effective plan.
                   </Text>
@@ -140,7 +224,7 @@ export default function HomeContent() {
           >
             <Text style={styles.sectionTitle}>Your Progress</Text>
             <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
+              <Animated.View style={[styles.statCard, statsShadowStyle]}>
                 <LinearGradient
                   colors={['#eef2ff', '#e0e7ff']}
                   style={styles.statGradient}
@@ -149,9 +233,9 @@ export default function HomeContent() {
                   <Text style={styles.statLabel}>Day Streak</Text>
                   <Text style={styles.statEmoji}>🔥</Text>
                 </LinearGradient>
-              </View>
+              </Animated.View>
 
-              <View style={styles.statCard}>
+              <Animated.View style={[styles.statCard, statsShadowStyle]}>
                 <LinearGradient
                   colors={['#f0fdf4', '#dcfce7']}
                   style={styles.statGradient}
@@ -160,9 +244,9 @@ export default function HomeContent() {
                   <Text style={styles.statLabel}>Sessions</Text>
                   <Text style={styles.statEmoji}>💪</Text>
                 </LinearGradient>
-              </View>
+              </Animated.View>
 
-              <View style={styles.statCard}>
+              <Animated.View style={[styles.statCard, statsShadowStyle]}>
                 <LinearGradient
                   colors={['#fef3c7', '#fde68a']}
                   style={styles.statGradient}
@@ -171,9 +255,9 @@ export default function HomeContent() {
                   <Text style={styles.statLabel}>Avg Energy</Text>
                   <Text style={styles.statEmoji}>⚡</Text>
                 </LinearGradient>
-              </View>
+              </Animated.View>
 
-              <View style={styles.statCard}>
+              <Animated.View style={[styles.statCard, statsShadowStyle]}>
                 <LinearGradient
                   colors={['#fce7f3', '#fbcfe8']}
                   style={styles.statGradient}
@@ -182,7 +266,7 @@ export default function HomeContent() {
                   <Text style={styles.statLabel}>Pain Score</Text>
                   <Text style={styles.statEmoji}>😊</Text>
                 </LinearGradient>
-              </View>
+              </Animated.View>
             </View>
           </Animated.View>
 
@@ -193,8 +277,8 @@ export default function HomeContent() {
           >
             <Text style={styles.sectionTitle}>Quick Start</Text>
 
-            <TouchableOpacity
-              style={styles.primaryAction}
+            <AnimatedTouchableOpacity
+              style={[styles.primaryAction, actionsShadowStyle]}
               onPress={handleStartSession}
               activeOpacity={0.8}
             >
@@ -207,7 +291,7 @@ export default function HomeContent() {
                 <View style={styles.actionContent}>
                   <View>
                     <Text style={styles.primaryActionTitle}>
-                      Start Today's Session
+                      Start Today&apos;s Session
                     </Text>
                     <Text style={styles.primaryActionSubtitle}>
                       Based on your energy and recovery
@@ -216,11 +300,11 @@ export default function HomeContent() {
                   <Text style={styles.actionArrow}>→</Text>
                 </View>
               </LinearGradient>
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
 
             <View style={styles.secondaryActions}>
-              <TouchableOpacity
-                style={styles.secondaryAction}
+              <AnimatedTouchableOpacity
+                style={[styles.secondaryAction, secondaryActionShadowStyle]}
                 onPress={handleBodyMap}
                 activeOpacity={0.8}
               >
@@ -231,10 +315,10 @@ export default function HomeContent() {
                     Target specific areas
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </AnimatedTouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.secondaryAction}
+              <AnimatedTouchableOpacity
+                style={[styles.secondaryAction, secondaryActionShadowStyle]}
                 activeOpacity={0.8}
               >
                 <View style={styles.secondaryActionContent}>
@@ -244,7 +328,7 @@ export default function HomeContent() {
                     View your journey
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </AnimatedTouchableOpacity>
             </View>
           </Animated.View>
 
@@ -255,7 +339,7 @@ export default function HomeContent() {
           >
             <Text style={styles.sectionTitle}>Recommended for You</Text>
 
-            <View style={styles.capsuleCard}>
+            <Animated.View style={[styles.capsuleCard, focusShadowStyle]}>
               <View style={styles.capsuleHeader}>
                 <View>
                   <Text style={styles.capsuleTitle}>Hip Mobility Flow</Text>
@@ -277,9 +361,9 @@ export default function HomeContent() {
                   <Text style={styles.tagText}>Beginner-friendly</Text>
                 </View>
               </View>
-            </View>
+            </Animated.View>
 
-            <View style={styles.capsuleCard}>
+            <Animated.View style={[styles.capsuleCard, focusShadowStyle]}>
               <View style={styles.capsuleHeader}>
                 <View>
                   <Text style={styles.capsuleTitle}>Breath & Recovery</Text>
@@ -301,7 +385,7 @@ export default function HomeContent() {
                   <Text style={styles.tagText}>All levels</Text>
                 </View>
               </View>
-            </View>
+            </Animated.View>
           </Animated.View>
 
           {/* Safety Message */}
@@ -374,9 +458,7 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   settingsIcon: {
     fontSize: 20,
@@ -387,9 +469,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#f97316',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
     shadowRadius: 16,
-    elevation: 12,
   },
   aiGradient: {
     padding: 24,
@@ -452,9 +532,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   statGradient: {
     padding: 16,
@@ -484,9 +562,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     shadowColor: '#4f46e5',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
     shadowRadius: 12,
-    elevation: 8,
   },
   primaryActionGradient: {
     padding: 20,
@@ -522,9 +598,7 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   secondaryActionContent: {
     padding: 16,
@@ -557,9 +631,7 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   capsuleHeader: {
     flexDirection: 'row',

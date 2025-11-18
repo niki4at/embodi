@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -9,13 +9,18 @@ import {
 } from 'react-native'
 import Animated, {
   FadeInDown,
+  cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
 import { OnboardingData } from './onboarding-screen'
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity)
 
 interface StepTwoProps {
   data: OnboardingData
@@ -45,8 +50,57 @@ export default function StepTwo({ data, updateData, onNext, onSkip, onBack }: St
   const [goalFocused, setGoalFocused] = useState(false)
   const buttonScale = useSharedValue(1)
 
+  // Shadow opacity values - start at 0, fade in after position animations complete
+  const inputShadowOpacity = useSharedValue(0)
+  const activityShadowOpacity = useSharedValue(0)
+  const timeShadowOpacity = useSharedValue(0)
+  const buttonShadowOpacity = useSharedValue(0)
+
+  useEffect(() => {
+    // Goal input: delay 200ms + 600ms duration = 800ms
+    inputShadowOpacity.value = withDelay(800, withTiming(1, { duration: 300 }))
+    
+    // Activity: delay 300ms + 600ms duration = 900ms
+    activityShadowOpacity.value = withDelay(900, withTiming(1, { duration: 300 }))
+    
+    // Time: delay 400ms + 600ms duration = 1000ms
+    timeShadowOpacity.value = withDelay(1000, withTiming(1, { duration: 300 }))
+    
+    // Button: delay 500ms + 600ms duration = 1100ms
+    buttonShadowOpacity.value = withDelay(1100, withTiming(1, { duration: 300 }))
+  }, [inputShadowOpacity, activityShadowOpacity, timeShadowOpacity, buttonShadowOpacity])
+
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: buttonShadowOpacity.value * 0.3,
+    shadowRadius: 12,
+    elevation: buttonShadowOpacity.value * 8,
+  }))
+
+  const inputShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: inputShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: inputShadowOpacity.value * 2,
+  }))
+
+  const activityShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: activityShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: activityShadowOpacity.value * 2,
+  }))
+
+  const timeShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: timeShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: timeShadowOpacity.value * 2,
   }))
 
   const handleButtonPressIn = () => {
@@ -74,6 +128,32 @@ export default function StepTwo({ data, updateData, onNext, onSkip, onBack }: St
 
   const canProceed = data.goal.trim().length > 0 && data.activityLevel !== null
 
+  const fadeOutShadows = useCallback(() => {
+    cancelAnimation(inputShadowOpacity)
+    cancelAnimation(activityShadowOpacity)
+    cancelAnimation(timeShadowOpacity)
+    cancelAnimation(buttonShadowOpacity)
+    inputShadowOpacity.value = 0
+    activityShadowOpacity.value = 0
+    timeShadowOpacity.value = 0
+    buttonShadowOpacity.value = 0
+  }, [activityShadowOpacity, buttonShadowOpacity, inputShadowOpacity, timeShadowOpacity])
+
+  const handleNextPress = () => {
+    fadeOutShadows()
+    onNext()
+  }
+
+  const handleSkipPress = () => {
+    fadeOutShadows()
+    onSkip()
+  }
+
+  const handleBackPress = () => {
+    fadeOutShadows()
+    onBack()
+  }
+
   return (
     <View style={styles.container}>
       <Animated.View entering={FadeInDown.delay(100).duration(600).springify()}>
@@ -89,7 +169,7 @@ export default function StepTwo({ data, updateData, onNext, onSkip, onBack }: St
         style={styles.inputWrapper}
       >
         <Text style={styles.label}>What is your main goal?</Text>
-        <View style={[styles.inputContainer, goalFocused && styles.inputContainerFocused]}>
+        <Animated.View style={[styles.inputContainer, goalFocused && styles.inputContainerFocused, inputShadowStyle]}>
           <TextInput
             style={styles.input}
             placeholder="e.g., Run a 5k, Move pain-free, Build strength"
@@ -103,7 +183,7 @@ export default function StepTwo({ data, updateData, onNext, onSkip, onBack }: St
             onBlur={() => setGoalFocused(false)}
             multiline
           />
-        </View>
+        </Animated.View>
       </Animated.View>
 
       {/* Activity Level */}
@@ -114,11 +194,12 @@ export default function StepTwo({ data, updateData, onNext, onSkip, onBack }: St
         <Text style={styles.label}>Current activity level</Text>
         <View style={styles.activityOptions}>
           {activityLevels.map((level, index) => (
-            <TouchableOpacity
+            <AnimatedTouchableOpacity
               key={level.id}
               style={[
                 styles.activityOption,
                 data.activityLevel === level.id && styles.activityOptionSelected,
+                activityShadowStyle,
               ]}
               onPress={() => handleActivitySelect(level.id)}
               activeOpacity={0.7}
@@ -139,7 +220,7 @@ export default function StepTwo({ data, updateData, onNext, onSkip, onBack }: St
               >
                 {level.description}
               </Text>
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
           ))}
         </View>
       </Animated.View>
@@ -153,11 +234,12 @@ export default function StepTwo({ data, updateData, onNext, onSkip, onBack }: St
         <Text style={styles.hint}>Select all that work for you</Text>
         <View style={styles.timeOptions}>
           {timeOptions.map((time) => (
-            <TouchableOpacity
+            <AnimatedTouchableOpacity
               key={time.id}
               style={[
                 styles.timeChip,
                 data.timeAvailable.includes(time.id) && styles.timeChipSelected,
+                timeShadowStyle,
               ]}
               onPress={() => handleTimeSelect(time.id)}
               activeOpacity={0.7}
@@ -170,7 +252,7 @@ export default function StepTwo({ data, updateData, onNext, onSkip, onBack }: St
               >
                 {time.label}
               </Text>
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
           ))}
         </View>
       </Animated.View>
@@ -180,13 +262,13 @@ export default function StepTwo({ data, updateData, onNext, onSkip, onBack }: St
 
       {/* Buttons */}
       <View style={styles.buttonsContainer}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
 
         <Animated.View style={[styles.nextButtonWrapper, buttonAnimatedStyle]}>
           <Pressable
-            onPress={onNext}
+            onPress={handleNextPress}
             onPressIn={handleButtonPressIn}
             onPressOut={handleButtonPressOut}
             disabled={!canProceed}
@@ -203,7 +285,7 @@ export default function StepTwo({ data, updateData, onNext, onSkip, onBack }: St
         </Animated.View>
       </View>
 
-      <TouchableOpacity onPress={onSkip} style={styles.skipButton}>
+      <TouchableOpacity onPress={handleSkipPress} style={styles.skipButton}>
         <Text style={styles.skipButtonText}>Skip this step</Text>
       </TouchableOpacity>
     </View>
@@ -250,14 +332,11 @@ const styles = StyleSheet.create({
     minHeight: 54,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   inputContainerFocused: {
     borderColor: '#6366f1',
     shadowColor: '#6366f1',
-    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
   },
@@ -281,9 +360,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   activityOptionSelected: {
     borderColor: '#6366f1',
@@ -319,9 +396,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   timeChipSelected: {
     borderColor: '#6366f1',
@@ -370,9 +445,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#4f46e5',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
     shadowRadius: 12,
-    elevation: 8,
   },
   nextButtonText: {
     color: '#ffffff',

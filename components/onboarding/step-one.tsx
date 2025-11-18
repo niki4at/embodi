@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -9,13 +9,18 @@ import {
 } from 'react-native'
 import Animated, {
   FadeInDown,
+  cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
 import { OnboardingData } from './onboarding-screen'
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity)
 
 interface StepOneProps {
   data: OnboardingData
@@ -30,8 +35,45 @@ export default function StepOne({ data, updateData, onNext, onSkip }: StepOnePro
 
   const buttonScale = useSharedValue(1)
 
+  // Shadow opacity values - start at 0, fade in after position animations complete
+  const inputsShadowOpacity = useSharedValue(0)
+  const genderShadowOpacity = useSharedValue(0)
+  const buttonShadowOpacity = useSharedValue(0)
+
+  useEffect(() => {
+    // Name & Age inputs: delays 200ms and 300ms + 600ms duration = 800ms and 900ms
+    inputsShadowOpacity.value = withDelay(900, withTiming(1, { duration: 300 }))
+    
+    // Gender: delay 400ms + 600ms duration = 1000ms
+    genderShadowOpacity.value = withDelay(1000, withTiming(1, { duration: 300 }))
+    
+    // Button: delay 500ms + 600ms duration = 1100ms
+    buttonShadowOpacity.value = withDelay(1100, withTiming(1, { duration: 300 }))
+  }, [inputsShadowOpacity, genderShadowOpacity, buttonShadowOpacity])
+
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: buttonShadowOpacity.value * 0.3,
+    shadowRadius: 12,
+    elevation: buttonShadowOpacity.value * 8,
+  }))
+
+  const inputShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: inputsShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: inputsShadowOpacity.value * 2,
+  }))
+
+  const genderShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: genderShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: genderShadowOpacity.value * 2,
   }))
 
   const handleButtonPressIn = () => {
@@ -45,6 +87,25 @@ export default function StepOne({ data, updateData, onNext, onSkip }: StepOnePro
   const handleGenderSelect = (gender: 'male' | 'female' | 'prefer-not-to-say') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     updateData({ gender })
+  }
+
+  const fadeOutShadows = useCallback(() => {
+    cancelAnimation(inputsShadowOpacity)
+    cancelAnimation(genderShadowOpacity)
+    cancelAnimation(buttonShadowOpacity)
+    inputsShadowOpacity.value = 0
+    genderShadowOpacity.value = 0
+    buttonShadowOpacity.value = 0
+  }, [buttonShadowOpacity, genderShadowOpacity, inputsShadowOpacity])
+
+  const handleNextPress = () => {
+    fadeOutShadows()
+    onNext()
+  }
+
+  const handleSkipPress = () => {
+    fadeOutShadows()
+    onSkip()
   }
 
   const canProceed = data.name.trim().length > 0 && data.age.trim().length > 0
@@ -61,7 +122,7 @@ export default function StepOne({ data, updateData, onNext, onSkip }: StepOnePro
         style={styles.inputWrapper}
       >
         <Text style={styles.label}>Name</Text>
-        <View style={[styles.inputContainer, nameFocused && styles.inputContainerFocused]}>
+        <Animated.View style={[styles.inputContainer, nameFocused && styles.inputContainerFocused, inputShadowStyle]}>
           <TextInput
             style={styles.input}
             placeholder="Your name"
@@ -76,7 +137,7 @@ export default function StepOne({ data, updateData, onNext, onSkip }: StepOnePro
             autoCapitalize="words"
             autoComplete="name"
           />
-        </View>
+        </Animated.View>
       </Animated.View>
 
       {/* Age Input */}
@@ -85,7 +146,7 @@ export default function StepOne({ data, updateData, onNext, onSkip }: StepOnePro
         style={styles.inputWrapper}
       >
         <Text style={styles.label}>Age</Text>
-        <View style={[styles.inputContainer, ageFocused && styles.inputContainerFocused]}>
+        <Animated.View style={[styles.inputContainer, ageFocused && styles.inputContainerFocused, inputShadowStyle]}>
           <TextInput
             style={styles.input}
             placeholder="Your age"
@@ -100,7 +161,7 @@ export default function StepOne({ data, updateData, onNext, onSkip }: StepOnePro
             keyboardType="number-pad"
             maxLength={3}
           />
-        </View>
+        </Animated.View>
       </Animated.View>
 
       {/* Gender Selection */}
@@ -110,10 +171,11 @@ export default function StepOne({ data, updateData, onNext, onSkip }: StepOnePro
       >
         <Text style={styles.label}>Gender</Text>
         <View style={styles.genderOptions}>
-          <TouchableOpacity
+          <AnimatedTouchableOpacity
             style={[
               styles.genderOption,
               data.gender === 'male' && styles.genderOptionSelected,
+              genderShadowStyle,
             ]}
             onPress={() => handleGenderSelect('male')}
             activeOpacity={0.7}
@@ -134,12 +196,13 @@ export default function StepOne({ data, updateData, onNext, onSkip }: StepOnePro
             >
               Male
             </Text>
-          </TouchableOpacity>
+          </AnimatedTouchableOpacity>
 
-          <TouchableOpacity
+          <AnimatedTouchableOpacity
             style={[
               styles.genderOption,
               data.gender === 'female' && styles.genderOptionSelected,
+              genderShadowStyle,
             ]}
             onPress={() => handleGenderSelect('female')}
             activeOpacity={0.7}
@@ -160,12 +223,13 @@ export default function StepOne({ data, updateData, onNext, onSkip }: StepOnePro
             >
               Female
             </Text>
-          </TouchableOpacity>
+          </AnimatedTouchableOpacity>
 
-          <TouchableOpacity
+          <AnimatedTouchableOpacity
             style={[
               styles.genderOption,
               data.gender === 'prefer-not-to-say' && styles.genderOptionSelected,
+              genderShadowStyle,
             ]}
             onPress={() => handleGenderSelect('prefer-not-to-say')}
             activeOpacity={0.7}
@@ -186,7 +250,7 @@ export default function StepOne({ data, updateData, onNext, onSkip }: StepOnePro
             >
               Prefer not to say
             </Text>
-          </TouchableOpacity>
+          </AnimatedTouchableOpacity>
         </View>
       </Animated.View>
 
@@ -197,7 +261,7 @@ export default function StepOne({ data, updateData, onNext, onSkip }: StepOnePro
       <Animated.View entering={FadeInDown.delay(500).duration(600).springify()}>
         <Animated.View style={buttonAnimatedStyle}>
           <Pressable
-            onPress={onNext}
+            onPress={handleNextPress}
             onPressIn={handleButtonPressIn}
             onPressOut={handleButtonPressOut}
             disabled={!canProceed}
@@ -216,7 +280,7 @@ export default function StepOne({ data, updateData, onNext, onSkip }: StepOnePro
 
       {/* Skip Button */}
       <Animated.View entering={FadeInDown.delay(600).duration(600).springify()}>
-        <TouchableOpacity onPress={onSkip} style={styles.skipButton}>
+        <TouchableOpacity onPress={handleSkipPress} style={styles.skipButton}>
           <Text style={styles.skipButtonText}>Skip this step</Text>
         </TouchableOpacity>
       </Animated.View>
@@ -253,14 +317,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   inputContainerFocused: {
     borderColor: '#6366f1',
     shadowColor: '#6366f1',
-    shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
   },
@@ -286,9 +347,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   genderOptionSelected: {
     borderColor: '#6366f1',
@@ -333,9 +392,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#4f46e5',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
     shadowRadius: 12,
-    elevation: 8,
   },
   nextButtonText: {
     color: '#ffffff',

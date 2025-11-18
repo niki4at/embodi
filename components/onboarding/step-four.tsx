@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
-import React from 'react'
+import React, { useCallback, useEffect } from 'react'
 import {
   Pressable,
   StyleSheet,
@@ -10,11 +10,16 @@ import {
 } from 'react-native'
 import Animated, {
   FadeInDown,
+  cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated'
 import { OnboardingData } from './onboarding-screen'
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity)
 
 interface StepFourProps {
   data: OnboardingData
@@ -33,8 +38,57 @@ export default function StepFour({
 }: StepFourProps) {
   const buttonScale = useSharedValue(1)
 
+  // Shadow opacity values - start at 0, fade in after position animations complete
+  const smokingShadowOpacity = useSharedValue(0)
+  const alcoholShadowOpacity = useSharedValue(0)
+  const periodShadowOpacity = useSharedValue(0)
+  const buttonShadowOpacity = useSharedValue(0)
+
+  useEffect(() => {
+    // Smoking: delay 200ms + 600ms duration = 800ms
+    smokingShadowOpacity.value = withDelay(800, withTiming(1, { duration: 300 }))
+    
+    // Alcohol: delay 300ms + 600ms duration = 900ms
+    alcoholShadowOpacity.value = withDelay(900, withTiming(1, { duration: 300 }))
+    
+    // Period: delay 400ms + 600ms duration = 1000ms
+    periodShadowOpacity.value = withDelay(1000, withTiming(1, { duration: 300 }))
+    
+    // Button: appears without delay, fade in immediately
+    buttonShadowOpacity.value = withTiming(1, { duration: 300 })
+  }, [smokingShadowOpacity, alcoholShadowOpacity, periodShadowOpacity, buttonShadowOpacity])
+
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: buttonShadowOpacity.value * 0.3,
+    shadowRadius: 12,
+    elevation: buttonShadowOpacity.value * 8,
+  }))
+
+  const smokingShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: smokingShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: smokingShadowOpacity.value * 2,
+  }))
+
+  const alcoholShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: alcoholShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: alcoholShadowOpacity.value * 2,
+  }))
+
+  const periodShadowStyle = useAnimatedStyle(() => ({
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: periodShadowOpacity.value * 0.05,
+    shadowRadius: 8,
+    elevation: periodShadowOpacity.value * 2,
   }))
 
   const handleButtonPressIn = () => {
@@ -64,6 +118,32 @@ export default function StepFour({
 
   const showPeriodTracker = data.gender === 'female'
 
+  const fadeOutShadows = useCallback(() => {
+    cancelAnimation(smokingShadowOpacity)
+    cancelAnimation(alcoholShadowOpacity)
+    cancelAnimation(periodShadowOpacity)
+    cancelAnimation(buttonShadowOpacity)
+    smokingShadowOpacity.value = 0
+    alcoholShadowOpacity.value = 0
+    periodShadowOpacity.value = 0
+    buttonShadowOpacity.value = 0
+  }, [alcoholShadowOpacity, buttonShadowOpacity, periodShadowOpacity, smokingShadowOpacity])
+
+  const handleNextPress = () => {
+    fadeOutShadows()
+    onNext()
+  }
+
+  const handleSkipPress = () => {
+    fadeOutShadows()
+    onSkip()
+  }
+
+  const handleBackPress = () => {
+    fadeOutShadows()
+    onBack()
+  }
+
   return (
     <View style={styles.container}>
       <Animated.View entering={FadeInDown.delay(100).duration(600).springify()}>
@@ -86,11 +166,12 @@ export default function StepFour({
             { id: 'former', label: 'Former smoker' },
             { id: 'current', label: 'Current smoker' },
           ].map((option) => (
-            <TouchableOpacity
+            <AnimatedTouchableOpacity
               key={option.id}
               style={[
                 styles.option,
                 data.smoking === option.id && styles.optionSelected,
+                smokingShadowStyle,
               ]}
               onPress={() => handleSmokingSelect(option.id as any)}
               activeOpacity={0.7}
@@ -113,7 +194,7 @@ export default function StepFour({
               >
                 {option.label}
               </Text>
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
           ))}
         </View>
       </Animated.View>
@@ -130,11 +211,12 @@ export default function StepFour({
             { id: 'occasionally', label: 'Occasionally' },
             { id: 'regularly', label: 'Regularly' },
           ].map((option) => (
-            <TouchableOpacity
+            <AnimatedTouchableOpacity
               key={option.id}
               style={[
                 styles.option,
                 data.alcohol === option.id && styles.optionSelected,
+                alcoholShadowStyle,
               ]}
               onPress={() => handleAlcoholSelect(option.id as any)}
               activeOpacity={0.7}
@@ -157,7 +239,7 @@ export default function StepFour({
               >
                 {option.label}
               </Text>
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
           ))}
         </View>
       </Animated.View>
@@ -168,10 +250,11 @@ export default function StepFour({
           entering={FadeInDown.delay(400).duration(600).springify()}
           style={styles.sectionWrapper}
         >
-          <TouchableOpacity
+          <AnimatedTouchableOpacity
             style={[
               styles.periodOption,
               data.trackPeriod && styles.periodOptionSelected,
+              periodShadowStyle,
             ]}
             onPress={handlePeriodToggle}
             activeOpacity={0.7}
@@ -202,7 +285,7 @@ export default function StepFour({
             >
               {data.trackPeriod && <Text style={styles.checkmark}>✓</Text>}
             </View>
-          </TouchableOpacity>
+          </AnimatedTouchableOpacity>
         </Animated.View>
       )}
 
@@ -221,13 +304,13 @@ export default function StepFour({
 
       {/* Buttons */}
       <View style={styles.buttonsContainer}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
 
         <Animated.View style={[styles.nextButtonWrapper, buttonAnimatedStyle]}>
           <Pressable
-            onPress={onNext}
+            onPress={handleNextPress}
             onPressIn={handleButtonPressIn}
             onPressOut={handleButtonPressOut}
           >
@@ -243,7 +326,7 @@ export default function StepFour({
         </Animated.View>
       </View>
 
-      <TouchableOpacity onPress={onSkip} style={styles.skipButton}>
+      <TouchableOpacity onPress={handleSkipPress} style={styles.skipButton}>
         <Text style={styles.skipButtonText}>Skip this step</Text>
       </TouchableOpacity>
     </View>
@@ -289,9 +372,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   optionSelected: {
     borderColor: '#6366f1',
@@ -337,9 +418,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
   },
   periodOptionSelected: {
     borderColor: '#ec4899',
@@ -432,9 +511,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#059669',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
     shadowRadius: 12,
-    elevation: 8,
   },
   nextButtonText: {
     color: '#ffffff',
