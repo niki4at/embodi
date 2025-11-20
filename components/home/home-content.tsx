@@ -1,9 +1,10 @@
 import { api } from '@/convex/_generated/api'
 import { useAuth } from '@clerk/clerk-expo'
-import { useMutation, useQuery } from 'convex/react'
+import { useAction, useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
-import React, { useEffect } from 'react'
+import { router, type Href } from 'expo-router'
+import React, { useEffect, useState } from 'react'
 import {
   Pressable,
   ScrollView,
@@ -28,7 +29,10 @@ const AnimatedTouchableOpacity =
 export default function HomeContent() {
   const onboardingData = useQuery(api.onboarding.getOnboarding)
   const deleteOnboarding = useMutation(api.onboarding.deleteOnboarding)
+  const generatePlan = useAction(api.trainer.generatePlanAndInsights)
+  const createSession = useMutation(api.trainer.createSessionFromPlan)
   const { signOut } = useAuth()
+  const [isStarting, setIsStarting] = useState(false)
 
   const aiCardScale = useSharedValue(1)
 
@@ -123,9 +127,31 @@ export default function HomeContent() {
     aiCardScale.value = withSpring(1)
   }
 
-  const handleStartSession = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    // TODO: Navigate to session start
+  const handleStartSession = async () => {
+    if (isStarting) return
+    setIsStarting(true)
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      const plan = await generatePlan({})
+      const sessionId = await createSession({
+        goal: plan.goal,
+        modality: plan.modality,
+        durationMin: plan.durationMin,
+        plan: plan.plan,
+        healthFacts: plan.healthFacts,
+        citations: plan.citations,
+      })
+      const sessionHref = {
+        pathname: '/session',
+        params: { sessionId: String(sessionId) },
+      } as unknown as Href
+      router.push(sessionHref)
+    } catch (error) {
+      console.error('Failed to start session', error)
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+    } finally {
+      setIsStarting(false)
+    }
   }
 
   const handleBodyMap = () => {
@@ -291,10 +317,12 @@ export default function HomeContent() {
                 <View style={styles.actionContent}>
                   <View>
                     <Text style={styles.primaryActionTitle}>
-                      Start Today&apos;s Session
+                      {isStarting
+                        ? 'Building your session...'
+                        : "Start Today's Session"}
                     </Text>
                     <Text style={styles.primaryActionSubtitle}>
-                      Based on your energy and recovery
+                      Personalized plan with live coaching
                     </Text>
                   </View>
                   <Text style={styles.actionArrow}>→</Text>

@@ -39,6 +39,27 @@ Run `npm run deploy` to [deploy to production](https://docs.expo.dev/eas/workflo
 
 Expo offers hosting for websites and API functions via EAS Hosting. See the [Getting Started](https://docs.expo.dev/eas/hosting/get-started/) guide to learn more.
 
+## Environment keys
+
+Create a local env file by copying `env.example`:
+
+```bash
+cp env.example .env.local
+```
+
+Fill in the values:
+
+- `OPEN_API_KEY`: required OpenAI key for plan generation, health facts, and coaching comments.
+- `SEMANTIC_SCHOLAR_API_KEY`: optional key that increases Semantic Scholar rate limits.
+
+Convex deployments also need these secrets. Set them via the Convex CLI so server-side actions can read them:
+
+```bash
+npx convex env set OPEN_API_KEY sk-*****
+npx convex env set SEMANTIC_SCHOLAR_API_KEY your-key # optional
+```
+
+Restart `npx convex dev` after updating env variables.
 
 ## Get a fresh project
 
