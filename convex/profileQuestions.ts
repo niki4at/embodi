@@ -289,6 +289,79 @@ export const markGenerationFailed = internalMutation({
   },
 })
 
+// Internal mutation to append a single question during streaming generation
+export const appendProfileQuestion = internalMutation({
+  args: {
+    userId: v.string(),
+    question: v.object({
+      id: v.string(),
+      category: v.string(),
+      questionText: v.string(),
+      answerType: v.union(
+        v.literal('slider'),
+        v.literal('single'),
+        v.literal('multi'),
+        v.literal('text')
+      ),
+      options: v.optional(v.array(v.string())),
+      sliderMin: v.optional(v.number()),
+      sliderMax: v.optional(v.number()),
+      sliderLabels: v.optional(v.array(v.string())),
+    }),
+  },
+  handler: async (ctx, { userId, question }) => {
+    const existing = await ctx.db
+      .query('profile_questions')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!existing) {
+      console.error('[appendProfileQuestion] No profile_questions record found')
+      return
+    }
+
+    const updatedQuestions = [...existing.questions, question]
+    await ctx.db.patch(existing._id, {
+      questions: updatedQuestions,
+      updatedAt: Date.now(),
+    })
+
+    console.log(
+      `[appendProfileQuestion] Appended question ${updatedQuestions.length} for user ${userId}`
+    )
+  },
+})
+
+// Internal mutation to mark questions as ready after streaming completes
+export const markProfileQuestionsReady = internalMutation({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, { userId }) => {
+    const existing = await ctx.db
+      .query('profile_questions')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!existing) {
+      console.error(
+        '[markProfileQuestionsReady] No profile_questions record found'
+      )
+      return
+    }
+
+    await ctx.db.patch(existing._id, {
+      status: 'ready',
+      totalCount: existing.questions.length,
+      updatedAt: Date.now(),
+    })
+
+    console.log(
+      `[markProfileQuestionsReady] Marked ${existing.questions.length} questions as ready for user ${userId}`
+    )
+  },
+})
+
 // Main action to generate personalized profile questions using AI (for user-triggered calls)
 export const generateProfileQuestions = action({
   args: {},
@@ -408,7 +481,7 @@ export const generateProfileQuestionsForUser = internalAction({
   },
 })
 
-// Shared logic for generating questions
+// Shared logic for generating questions with streaming persistence
 async function generateQuestionsInternal(
   ctx: ActionCtx,
   userId: string,
@@ -437,13 +510,16 @@ async function generateQuestionsInternal(
   }
 
   try {
-    // Generate questions using AI
-    const questions = await generateQuestionsWithAI(profile)
-
-    // Update the profile questions record
-    await ctx.runMutation(internal.profileQuestions.updateProfileQuestions, {
+    // Generate questions using AI with streaming persistence
+    const questions = await generateQuestionsWithAIStreaming(
+      ctx,
       userId,
-      questions,
+      profile
+    )
+
+    // Mark as ready once all questions are generated
+    await ctx.runMutation(internal.profileQuestions.markProfileQuestionsReady, {
+      userId,
     })
 
     return questions
@@ -1107,13 +1183,11 @@ export const getProfileAnswer = query({
   },
 })
 
-// AI question generation function using function calling
-async function generateQuestionsWithAI(
-  profile: OnboardingProfile
-): Promise<ProfileQuestion[]> {
-  const client = getOpenAI()
-  const model = getOpenAIModel()
-
+// Helper function to build prompts for question generation
+function buildQuestionPrompts(profile: OnboardingProfile): {
+  systemPrompt: string
+  userPrompt: string
+} {
   // Build rich context from ALL onboarding data
   const ageNum = parseInt(profile.age, 10) || 30
   const ageContext =
@@ -1237,25 +1311,137 @@ BUILD 10-12 QUESTIONS covering:
 
 Make ${profile.name} feel understood. Reference their specific goal: "${profile.goal}". Ask questions that help design their perfect program.`
 
+  return { systemPrompt, userPrompt }
+}
+
+// Helper to process a single tool call and persist the question
+async function processToolCallAndPersist(
+  ctx: ActionCtx,
+  userId: string,
+  name: string,
+  argsString: string,
+  questions: ProfileQuestion[]
+): Promise<{ question: ProfileQuestion | null; shouldFinish: boolean }> {
+  try {
+    const args = JSON.parse(argsString)
+    let question: ProfileQuestion | null = null
+    let shouldFinish = false
+
+    switch (name) {
+      case 'add_slider_question':
+        question = {
+          id: args.id || createId('q-slider'),
+          category: args.category,
+          questionText: args.questionText,
+          answerType: 'slider',
+          sliderMin: args.min,
+          sliderMax: args.max,
+          sliderLabels: [args.minLabel, args.midLabel, args.maxLabel],
+        }
+        break
+
+      case 'add_single_choice_question':
+        question = {
+          id: args.id || createId('q-single'),
+          category: args.category,
+          questionText: args.questionText,
+          answerType: 'single',
+          options: args.options,
+        }
+        break
+
+      case 'add_multi_choice_question':
+        question = {
+          id: args.id || createId('q-multi'),
+          category: args.category,
+          questionText: args.questionText,
+          answerType: 'multi',
+          options: args.options,
+        }
+        break
+
+      case 'add_text_question':
+        question = {
+          id: args.id || createId('q-text'),
+          category: args.category,
+          questionText: args.questionText,
+          answerType: 'text',
+        }
+        break
+
+      case 'finish_questions':
+        shouldFinish = true
+        break
+    }
+
+    // Persist the question immediately so UI updates in real-time
+    if (question) {
+      questions.push(question)
+      await ctx.runMutation(internal.profileQuestions.appendProfileQuestion, {
+        userId,
+        question,
+      })
+    }
+
+    return { question, shouldFinish }
+  } catch (error) {
+    console.error(`Error processing tool call ${name}:`, error)
+    return { question: null, shouldFinish: false }
+  }
+}
+
+// AI question generation with TRUE streaming - saves each question as soon as OpenAI generates it
+async function generateQuestionsWithAIStreaming(
+  ctx: ActionCtx,
+  userId: string,
+  profile: OnboardingProfile
+): Promise<ProfileQuestion[]> {
+  const client = getOpenAI()
+  const model = getOpenAIModel()
+
+  const { systemPrompt, userPrompt } = buildQuestionPrompts(profile)
+
   const questions: ProfileQuestion[] = []
   let continueLoop = true
   let iterations = 0
   const maxIterations = 20
 
-  // Use responses API with tools
-  let response = await client.responses.create({
-    model,
-    tools: questionTools,
-    input: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-  })
+  console.log(
+    '[generateQuestionsWithAIStreaming] Starting question generation with model:',
+    model
+  )
+
+  // Use responses API with tools - process each response and persist immediately
+  let response
+  try {
+    response = await client.responses.create({
+      model,
+      tools: questionTools,
+      input: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    })
+    console.log(
+      '[generateQuestionsWithAIStreaming] Initial response received, output items:',
+      response.output.length
+    )
+    console.log(
+      '[generateQuestionsWithAIStreaming] Output types:',
+      response.output.map((o) => o.type)
+    )
+  } catch (apiError) {
+    console.error(
+      '[generateQuestionsWithAIStreaming] API call failed:',
+      apiError
+    )
+    throw apiError
+  }
 
   while (continueLoop && iterations < maxIterations) {
     iterations++
 
-    // Check for tool calls in the response - OpenAI Responses API uses call_id
+    // Check for tool calls in the response
     const toolCalls = response.output.filter(
       (
         item
@@ -1267,8 +1453,12 @@ Make ${profile.name} feel understood. Reference their specific goal: "${profile.
       } => item.type === 'function_call'
     )
 
+    console.log(
+      `[generateQuestionsWithAIStreaming] Iteration ${iterations}: ${toolCalls.length} tool calls, names:`,
+      toolCalls.map((t) => t.name)
+    )
+
     if (toolCalls.length === 0) {
-      // No more tool calls, we're done
       break
     }
 
@@ -1278,124 +1468,31 @@ Make ${profile.name} feel understood. Reference their specific goal: "${profile.
       output: string
     }[] = []
 
-    // Process each tool call - MUST provide output for every single one
+    // Process each tool call and persist IMMEDIATELY
     for (const toolCall of toolCalls) {
-      try {
-        const args = JSON.parse(toolCall.arguments)
+      const { shouldFinish } = await processToolCallAndPersist(
+        ctx,
+        userId,
+        toolCall.name,
+        toolCall.arguments,
+        questions
+      )
 
-        switch (toolCall.name) {
-          case 'add_slider_question':
-            questions.push({
-              id: args.id || createId('q-slider'),
-              category: args.category,
-              questionText: args.questionText,
-              answerType: 'slider',
-              sliderMin: args.min,
-              sliderMax: args.max,
-              sliderLabels: [args.minLabel, args.midLabel, args.maxLabel],
-            })
-            toolResults.push({
-              type: 'function_call_output',
-              call_id: toolCall.call_id,
-              output: JSON.stringify({
-                success: true,
-                questionCount: questions.length,
-              }),
-            })
-            break
+      toolResults.push({
+        type: 'function_call_output',
+        call_id: toolCall.call_id,
+        output: JSON.stringify({
+          success: true,
+          questionCount: questions.length,
+        }),
+      })
 
-          case 'add_single_choice_question':
-            questions.push({
-              id: args.id || createId('q-single'),
-              category: args.category,
-              questionText: args.questionText,
-              answerType: 'single',
-              options: args.options,
-            })
-            toolResults.push({
-              type: 'function_call_output',
-              call_id: toolCall.call_id,
-              output: JSON.stringify({
-                success: true,
-                questionCount: questions.length,
-              }),
-            })
-            break
-
-          case 'add_multi_choice_question':
-            questions.push({
-              id: args.id || createId('q-multi'),
-              category: args.category,
-              questionText: args.questionText,
-              answerType: 'multi',
-              options: args.options,
-            })
-            toolResults.push({
-              type: 'function_call_output',
-              call_id: toolCall.call_id,
-              output: JSON.stringify({
-                success: true,
-                questionCount: questions.length,
-              }),
-            })
-            break
-
-          case 'add_text_question':
-            questions.push({
-              id: args.id || createId('q-text'),
-              category: args.category,
-              questionText: args.questionText,
-              answerType: 'text',
-            })
-            toolResults.push({
-              type: 'function_call_output',
-              call_id: toolCall.call_id,
-              output: JSON.stringify({
-                success: true,
-                questionCount: questions.length,
-              }),
-            })
-            break
-
-          case 'finish_questions':
-            continueLoop = false
-            toolResults.push({
-              type: 'function_call_output',
-              call_id: toolCall.call_id,
-              output: JSON.stringify({
-                success: true,
-                totalQuestions: questions.length,
-              }),
-            })
-            break
-
-          default:
-            toolResults.push({
-              type: 'function_call_output',
-              call_id: toolCall.call_id,
-              output: JSON.stringify({
-                error: `Unknown function: ${toolCall.name}`,
-              }),
-            })
-        }
-      } catch (parseError) {
-        // MUST always provide output for every tool call, even on error
-        console.error(
-          `Error processing tool call ${toolCall.name}:`,
-          parseError
-        )
-        toolResults.push({
-          type: 'function_call_output',
-          call_id: toolCall.call_id,
-          output: JSON.stringify({
-            error: 'Failed to parse arguments',
-            details: String(parseError),
-          }),
-        })
+      if (shouldFinish) {
+        continueLoop = false
+        break
       }
     }
 
-    // If we got finish_questions, we're done - no need to continue
     if (!continueLoop) break
 
     // Continue the conversation with tool results
@@ -1406,6 +1503,10 @@ Make ${profile.name} feel understood. Reference their specific goal: "${profile.
       input: toolResults,
     })
   }
+
+  console.log(
+    `[generateQuestionsWithAIStreaming] Finished with ${questions.length} questions`
+  )
 
   if (questions.length === 0) {
     throw new Error('AI_GENERATION_FAILED')

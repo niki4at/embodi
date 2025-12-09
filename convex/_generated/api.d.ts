@@ -11,6 +11,7 @@
 import type * as citations from "../citations.js";
 import type * as messages from "../messages.js";
 import type * as onboarding from "../onboarding.js";
+import type * as openai from "../openai.js";
 import type * as profileQuestions from "../profileQuestions.js";
 import type * as trainer from "../trainer.js";
 
@@ -24,6 +25,7 @@ declare const fullApi: ApiFromModules<{
   citations: typeof citations;
   messages: typeof messages;
   onboarding: typeof onboarding;
+  openai: typeof openai;
   profileQuestions: typeof profileQuestions;
   trainer: typeof trainer;
 }>;

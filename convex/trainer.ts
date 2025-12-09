@@ -3,8 +3,17 @@ import type {
   ResponseCreateParamsNonStreaming,
   ResponseFormatTextJSONSchemaConfig,
 } from 'openai/resources/responses/responses'
-import { api } from './_generated/api'
-import { action, mutation, query } from './_generated/server'
+import { api, internal } from './_generated/api'
+import type { Id } from './_generated/dataModel'
+import {
+  action,
+  ActionCtx,
+  internalAction,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from './_generated/server'
 import {
   distillCitationsForProfile,
   searchCitationsForProfile,
@@ -253,6 +262,230 @@ export const createSessionFromPlan = mutation({
   },
 })
 
+// Create a pending session immediately, returning ID so user can navigate while generation happens
+export const createPendingSession = mutation({
+  args: {},
+  handler: async (ctx): Promise<Id<'workout_sessions'>> => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    // Get user profile for placeholder goal directly from DB
+    const onboarding = await ctx.db
+      .query('onboarding')
+      .withIndex('by_userId', (q) => q.eq('userId', identity.subject))
+      .first()
+    const goal = onboarding?.goal || 'Your personalized session'
+
+    const now = Date.now()
+    const sessionId = await ctx.db.insert('workout_sessions', {
+      userId: identity.subject,
+      goal,
+      modality: 'generating...',
+      durationMin: 0,
+      status: 'generating',
+      plan: [],
+      healthFacts: [],
+      citations: [],
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    // Schedule the background generation with userId for auth-free queries
+    await ctx.scheduler.runAfter(0, internal.trainer.generateSessionPlan, {
+      sessionId,
+      userId: identity.subject,
+    })
+
+    return sessionId
+  },
+})
+
+// Internal mutation to update session metadata as generation progresses
+export const updateSessionMetadata = internalMutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    goal: v.optional(v.string()),
+    modality: v.optional(v.string()),
+    durationMin: v.optional(v.number()),
+    healthFacts: v.optional(v.array(factArg)),
+    citations: v.optional(v.array(citationArg)),
+  },
+  handler: async (ctx, { sessionId, ...updates }) => {
+    const session = await ctx.db.get(sessionId)
+    if (!session) return
+
+    const patch: Record<string, unknown> = { updatedAt: Date.now() }
+    if (updates.goal !== undefined) patch.goal = updates.goal
+    if (updates.modality !== undefined) patch.modality = updates.modality
+    if (updates.durationMin !== undefined)
+      patch.durationMin = updates.durationMin
+    if (updates.healthFacts !== undefined)
+      patch.healthFacts = updates.healthFacts
+    if (updates.citations !== undefined) patch.citations = updates.citations
+
+    await ctx.db.patch(sessionId, patch)
+  },
+})
+
+// Internal mutation to append a single exercise to the session plan
+export const appendSessionExercise = internalMutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    exercise: exerciseArg,
+  },
+  handler: async (ctx, { sessionId, exercise }) => {
+    const session = await ctx.db.get(sessionId)
+    if (!session) return
+
+    const updatedPlan = [...session.plan, exercise]
+    await ctx.db.patch(sessionId, {
+      plan: updatedPlan,
+      updatedAt: Date.now(),
+    })
+
+    console.log(
+      `[appendSessionExercise] Added exercise ${updatedPlan.length}: ${exercise.name}`
+    )
+  },
+})
+
+// Internal mutation to mark session as ready
+export const markSessionGenerated = internalMutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+  },
+  handler: async (ctx, { sessionId }) => {
+    const session = await ctx.db.get(sessionId)
+    if (!session) return
+
+    await ctx.db.patch(sessionId, {
+      status: 'generated',
+      updatedAt: Date.now(),
+    })
+
+    console.log(
+      `[markSessionGenerated] Session ${sessionId} ready with ${session.plan.length} exercises`
+    )
+  },
+})
+
+// Internal mutation to mark session generation as failed
+export const markSessionFailed = internalMutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+  },
+  handler: async (ctx, { sessionId }) => {
+    await ctx.db.patch(sessionId, {
+      status: 'failed',
+      updatedAt: Date.now(),
+    })
+  },
+})
+
+// Internal query to get onboarding by userId (for use in scheduled actions without auth)
+export const getOnboardingByUserId = internalQuery({
+  args: { userId: v.string() },
+  handler: async (ctx, { userId }) => {
+    return await ctx.db
+      .query('onboarding')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+  },
+})
+
+// Internal query to get extended profile by userId (for use in scheduled actions without auth)
+export const getExtendedProfileByUserId = internalQuery({
+  args: { userId: v.string() },
+  handler: async (ctx, { userId }) => {
+    return await ctx.db
+      .query('extended_profile')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+  },
+})
+
+// Background action to generate the session plan
+export const generateSessionPlan = internalAction({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    userId: v.string(),
+  },
+  handler: async (ctx, { sessionId, userId }) => {
+    try {
+      // Use internal queries with userId since we don't have auth context
+      const profileDoc = await ctx.runQuery(
+        internal.trainer.getOnboardingByUserId,
+        { userId }
+      )
+      if (!profileDoc) {
+        throw new Error('Onboarding data missing')
+      }
+
+      const profile: Profile = {
+        name: profileDoc.name,
+        age: profileDoc.age,
+        gender: profileDoc.gender,
+        goal: profileDoc.goal,
+        activityLevel: profileDoc.activityLevel,
+        timeAvailable: profileDoc.timeAvailable,
+        injuries: profileDoc.injuries,
+        conditions: profileDoc.conditions,
+        medications: profileDoc.medications,
+        smoking: profileDoc.smoking,
+        alcohol: profileDoc.alcohol,
+      }
+
+      // Get the extended profile summary if available
+      const extendedProfile = await ctx.runQuery(
+        internal.trainer.getExtendedProfileByUserId,
+        { userId }
+      )
+      const profileSummary = extendedProfile?.profileSummary || null
+
+      // Fetch citations and health facts first (these are quick)
+      const citations = await searchCitationsForProfile(profile)
+      const healthFacts = await distillCitationsForProfile(profile, citations)
+
+      // Update session with health facts and citations right away
+      await ctx.runMutation(internal.trainer.updateSessionMetadata, {
+        sessionId,
+        healthFacts,
+        citations,
+      })
+
+      // Generate the workout plan with streaming
+      const planPayload = await buildWorkoutPlanStreaming(
+        ctx,
+        sessionId,
+        profile,
+        citations,
+        healthFacts,
+        profileSummary
+      )
+
+      // Update final metadata
+      await ctx.runMutation(internal.trainer.updateSessionMetadata, {
+        sessionId,
+        goal: planPayload.goalFocus || profile.goal,
+        modality: planPayload.modality,
+        durationMin: planPayload.durationMin,
+      })
+
+      // Mark as ready
+      await ctx.runMutation(internal.trainer.markSessionGenerated, {
+        sessionId,
+      })
+    } catch (error) {
+      console.error('Failed to generate session plan:', error)
+      await ctx.runMutation(internal.trainer.markSessionFailed, {
+        sessionId,
+      })
+    }
+  },
+})
+
 export const logSet = mutation({
   args: {
     sessionId: v.id('workout_sessions'),
@@ -394,6 +627,136 @@ export const getSessionWithSets = query({
     return { session, sets }
   },
 })
+
+// Exercise tools for streaming function calling
+const exerciseTools = [
+  {
+    type: 'function' as const,
+    name: 'set_session_metadata',
+    description:
+      'Set the session goal, modality, and duration. Call this first before adding exercises.',
+    strict: true,
+    parameters: {
+      type: 'object' as const,
+      additionalProperties: false,
+      properties: {
+        goalFocus: {
+          type: 'string',
+          description: 'The main focus/goal of this session',
+        },
+        modality: {
+          type: 'string',
+          description:
+            'The training modality (e.g., strength, cardio, mobility)',
+        },
+        durationMin: {
+          type: 'number',
+          description: 'Total session duration in minutes',
+        },
+      },
+      required: ['goalFocus', 'modality', 'durationMin'],
+    },
+  },
+  {
+    type: 'function' as const,
+    name: 'add_exercise',
+    description:
+      'Add an exercise to the workout plan. Call this for each exercise in order.',
+    strict: true,
+    parameters: {
+      type: 'object' as const,
+      additionalProperties: false,
+      properties: {
+        id: {
+          type: 'string',
+          description: 'Unique ID for this exercise (e.g., ex-1, ex-2)',
+        },
+        name: { type: 'string', description: 'Exercise name' },
+        bodyPart: { type: 'string', description: 'Primary body part targeted' },
+        modality: {
+          type: 'string',
+          description: 'Exercise modality (strength, cardio, mobility, etc.)',
+        },
+        instructions: {
+          type: 'string',
+          description: 'Clear instructions for performing the exercise',
+        },
+        equipment: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Required equipment',
+        },
+        targetSets: { type: 'integer', description: 'Number of sets' },
+        targetReps: {
+          type: 'array',
+          items: { type: 'integer' },
+          description: 'Rep range [min, max] or single value',
+        },
+        tempo: {
+          type: 'string',
+          description: 'Tempo notation (e.g., 3-1-2-1)',
+        },
+        restSec: {
+          type: 'integer',
+          description: 'Rest between sets in seconds',
+        },
+        durationMin: {
+          type: 'number',
+          description: 'Duration for timed exercises',
+        },
+        intensityCue: {
+          type: 'string',
+          description: 'Intensity guidance (e.g., RPE, % max)',
+        },
+        contraindications: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Who should avoid this exercise',
+        },
+        cues: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Coaching cues for proper form',
+        },
+        trackingMetric: {
+          type: 'string',
+          enum: ['weight_reps', 'duration', 'distance', 'breath', 'custom'],
+          description: 'How to track progress',
+        },
+      },
+      required: [
+        'id',
+        'name',
+        'bodyPart',
+        'modality',
+        'instructions',
+        'equipment',
+        'targetSets',
+        'targetReps',
+        'tempo',
+        'restSec',
+        'cues',
+        'trackingMetric',
+        'durationMin',
+        'intensityCue',
+        'contraindications',
+      ],
+    },
+  },
+  {
+    type: 'function' as const,
+    name: 'finish_plan',
+    description:
+      'Call this when you have added all exercises to complete the workout plan.',
+    strict: true,
+    parameters: {
+      type: 'object' as const,
+      additionalProperties: false,
+      properties: {},
+      required: [] as string[],
+    },
+  },
+]
 
 async function buildWorkoutPlan(
   profile: Profile,
@@ -559,6 +922,259 @@ Plans must account for sex, age, injuries, conditions, medications, and lifestyl
   } catch (error) {
     console.error('Failed to generate plan, using fallback', error)
     return fallbackPlan(profile)
+  }
+}
+
+// TRUE streaming version - persists each exercise as OpenAI generates it
+async function buildWorkoutPlanStreaming(
+  ctx: ActionCtx,
+  sessionId: Id<'workout_sessions'>,
+  profile: Profile,
+  citations: Citation[],
+  facts: Fact[],
+  profileSummary: string | null
+): Promise<{ goalFocus: string; modality: string; durationMin: number }> {
+  const client = getOpenAI()
+  const model = getOpenAIModel()
+
+  // Build the system prompt - enhanced when we have a profile summary
+  const systemPromptText = profileSummary
+    ? `You are an AI trainer who programs deeply personalised sessions based on comprehensive client assessments.
+
+You have access to a detailed client profile summary that includes their pain levels, energy patterns, sleep quality, motivation, barriers, and training preferences. USE THIS INFORMATION to create a session that:
+- Respects their current pain/discomfort levels and avoids aggravating movements
+- Matches their energy and recovery state
+- Aligns with their stated preferences and what motivates them
+- Addresses their specific barriers and challenges
+- Progresses appropriately for their confidence level
+
+Plans must account for sex, age, injuries, conditions, medications, and lifestyle. Use proven approaches and cue breath, tempo, and intent.
+
+IMPORTANT: Use the provided tools to build the plan step by step:
+1. First call set_session_metadata with the goal, modality, and duration
+2. Then call add_exercise for each exercise (aim for 6-10 exercises)
+3. Finally call finish_plan when done`
+    : `You are an AI trainer who programs personalised sessions. Plans must account for sex, age, injuries, conditions, medications, and lifestyle. Use proven approaches and cue breath, tempo, and intent.
+
+IMPORTANT: Use the provided tools to build the plan step by step:
+1. First call set_session_metadata with the goal, modality, and duration
+2. Then call add_exercise for each exercise (aim for 6-10 exercises)
+3. Finally call finish_plan when done`
+
+  // Build the user prompt
+  const userPromptParts: string[] = []
+
+  if (profileSummary) {
+    userPromptParts.push(
+      '=== CLIENT PROFILE ===',
+      profileSummary,
+      '=== END PROFILE ==='
+    )
+  } else {
+    userPromptParts.push('Profile JSON:', JSON.stringify(profile))
+  }
+
+  userPromptParts.push(
+    '\nRelevant health facts:',
+    JSON.stringify(facts),
+    '\nCitations (for awareness, do not invent new IDs):',
+    JSON.stringify(citations),
+    '\nCreate a personalized workout plan for this client. Call set_session_metadata first, then add_exercise for each exercise, then finish_plan.'
+  )
+
+  // Track metadata and exercises
+  let metadata = {
+    goalFocus: profile.goal,
+    modality: inferModality(profile),
+    durationMin: estimateDuration(profile),
+  }
+  let exerciseCount = 0
+  let continueLoop = true
+  let iterations = 0
+  const maxIterations = 15
+
+  try {
+    console.log('[buildWorkoutPlanStreaming] Starting with model:', model)
+
+    // Use responses API with tools - non-streaming approach that works
+    let response = await client.responses.create({
+      model,
+      tools: exerciseTools,
+      input: [
+        { role: 'system', content: systemPromptText },
+        { role: 'user', content: userPromptParts.join('\n') },
+      ],
+    })
+
+    console.log(
+      '[buildWorkoutPlanStreaming] Initial response, output items:',
+      response.output.length
+    )
+
+    while (continueLoop && iterations < maxIterations) {
+      iterations++
+
+      // Check for tool calls in the response
+      const toolCalls = response.output.filter(
+        (
+          item
+        ): item is {
+          type: 'function_call'
+          call_id: string
+          name: string
+          arguments: string
+        } => item.type === 'function_call'
+      )
+
+      console.log(
+        `[buildWorkoutPlanStreaming] Iteration ${iterations}: ${toolCalls.length} tool calls`
+      )
+
+      if (toolCalls.length === 0) {
+        break
+      }
+
+      const toolResults: {
+        type: 'function_call_output'
+        call_id: string
+        output: string
+      }[] = []
+
+      // Process each tool call and persist IMMEDIATELY
+      for (const toolCall of toolCalls) {
+        try {
+          const args = JSON.parse(toolCall.arguments)
+
+          switch (toolCall.name) {
+            case 'set_session_metadata':
+              metadata = {
+                goalFocus: args.goalFocus || profile.goal,
+                modality: args.modality || inferModality(profile),
+                durationMin: args.durationMin || estimateDuration(profile),
+              }
+              await ctx.runMutation(internal.trainer.updateSessionMetadata, {
+                sessionId,
+                goal: metadata.goalFocus,
+                modality: metadata.modality,
+                durationMin: metadata.durationMin,
+              })
+              console.log(
+                `[buildWorkoutPlanStreaming] Set metadata: ${metadata.goalFocus}`
+              )
+              break
+
+            case 'add_exercise': {
+              exerciseCount++
+              const exercise = normalizeExercise(args)
+              await ctx.runMutation(internal.trainer.appendSessionExercise, {
+                sessionId,
+                exercise,
+              })
+              console.log(
+                `[buildWorkoutPlanStreaming] Added exercise ${exerciseCount}: ${exercise.name}`
+              )
+              break
+            }
+
+            case 'finish_plan':
+              continueLoop = false
+              console.log(
+                `[buildWorkoutPlanStreaming] Plan complete with ${exerciseCount} exercises`
+              )
+              break
+          }
+
+          toolResults.push({
+            type: 'function_call_output',
+            call_id: toolCall.call_id,
+            output: JSON.stringify({ success: true, exerciseCount }),
+          })
+        } catch (parseError) {
+          console.error(
+            `Error processing tool call ${toolCall.name}:`,
+            parseError
+          )
+          toolResults.push({
+            type: 'function_call_output',
+            call_id: toolCall.call_id,
+            output: JSON.stringify({ error: 'Failed to parse' }),
+          })
+        }
+      }
+
+      if (!continueLoop) break
+
+      // Continue the conversation with tool results
+      response = await client.responses.create({
+        model,
+        tools: exerciseTools,
+        previous_response_id: response.id,
+        input: toolResults,
+      })
+    }
+
+    // If no exercises were added, use fallback
+    if (exerciseCount === 0) {
+      console.warn('No exercises generated, using fallback')
+      const fallback = fallbackPlan(profile)
+      for (const exercise of fallback.exercises) {
+        await ctx.runMutation(internal.trainer.appendSessionExercise, {
+          sessionId,
+          exercise,
+        })
+      }
+      return {
+        goalFocus: fallback.goalFocus,
+        modality: fallback.modality,
+        durationMin: fallback.durationMin,
+      }
+    }
+
+    return metadata
+  } catch (error) {
+    console.error('Failed to generate plan, using fallback', error)
+    const fallback = fallbackPlan(profile)
+    for (const exercise of fallback.exercises) {
+      await ctx.runMutation(internal.trainer.appendSessionExercise, {
+        sessionId,
+        exercise,
+      })
+    }
+    return {
+      goalFocus: fallback.goalFocus,
+      modality: fallback.modality,
+      durationMin: fallback.durationMin,
+    }
+  }
+}
+
+// Helper to normalize a single exercise from tool call args
+function normalizeExercise(args: Partial<ExercisePlan>): ExercisePlan {
+  const trackingMetric = args.trackingMetric || 'weight_reps'
+  const modality = args.modality || 'strength'
+  const defaultReps =
+    trackingMetric === 'duration'
+      ? [1]
+      : trackingMetric === 'breath'
+        ? [5]
+        : [10, 12]
+
+  return {
+    id: args.id || `ex-${Date.now()}`,
+    name: args.name || 'Exercise',
+    bodyPart: args.bodyPart || 'full body',
+    modality,
+    instructions: args.instructions || '',
+    equipment: args.equipment || [],
+    targetSets: args.targetSets || 3,
+    targetReps: args.targetReps || defaultReps,
+    tempo: args.tempo || '2-0-2-0',
+    restSec: args.restSec || 60,
+    durationMin: args.durationMin,
+    intensityCue: args.intensityCue,
+    contraindications: args.contraindications,
+    cues: args.cues || [],
+    trackingMetric,
   }
 }
 

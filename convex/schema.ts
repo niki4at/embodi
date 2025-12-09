@@ -105,9 +105,11 @@ export default defineSchema({
     modality: v.string(),
     durationMin: v.number(),
     status: v.union(
+      v.literal('generating'),
       v.literal('generated'),
       v.literal('in-progress'),
-      v.literal('completed')
+      v.literal('completed'),
+      v.literal('failed')
     ),
     plan: v.array(exerciseShape),
     healthFacts: v.array(factShape),

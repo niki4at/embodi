@@ -1,7 +1,7 @@
-import { api } from '@/convex/_generated/api'
 import { ProfileCompletionBanner } from '@/components/profile-completion'
+import { api } from '@/convex/_generated/api'
 import { useAuth } from '@clerk/clerk-expo'
-import { useAction, useMutation, useQuery } from 'convex/react'
+import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
 import { router, type Href } from 'expo-router'
@@ -30,8 +30,7 @@ const AnimatedTouchableOpacity =
 export default function HomeContent() {
   const onboardingData = useQuery(api.onboarding.getOnboarding)
   const deleteOnboarding = useMutation(api.onboarding.deleteOnboarding)
-  const generatePlan = useAction(api.trainer.generatePlanAndInsights)
-  const createSession = useMutation(api.trainer.createSessionFromPlan)
+  const createPendingSession = useMutation(api.trainer.createPendingSession)
   const { signOut } = useAuth()
   const [isStarting, setIsStarting] = useState(false)
 
@@ -133,15 +132,11 @@ export default function HomeContent() {
     setIsStarting(true)
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      const plan = await generatePlan({})
-      const sessionId = await createSession({
-        goal: plan.goal,
-        modality: plan.modality,
-        durationMin: plan.durationMin,
-        plan: plan.plan,
-        healthFacts: plan.healthFacts,
-        citations: plan.citations,
-      })
+
+      // Create a pending session and navigate immediately (optimistic navigation)
+      // The session will generate in the background while user sees the session screen
+      const sessionId = await createPendingSession({})
+
       const sessionHref = {
         pathname: '/session',
         params: { sessionId: String(sessionId) },
@@ -212,7 +207,9 @@ export default function HomeContent() {
           </Animated.View>
 
           {/* Profile Completion Banner */}
-          <ProfileCompletionBanner onStartQuestions={handleStartProfileQuestions} />
+          <ProfileCompletionBanner
+            onStartQuestions={handleStartProfileQuestions}
+          />
 
           {/* AI Assistant Card */}
           <Animated.View

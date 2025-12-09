@@ -249,6 +249,32 @@ export default function SessionScreen() {
     )
   }
 
+  // Handle failed session generation
+  if (session.status === 'failed') {
+    return (
+      <LinearGradient colors={['#fef3f2', '#ffffff']} style={styles.gradient}>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.centered}>
+            <Text style={styles.failedEmoji}>⚠️</Text>
+            <Text style={styles.failedTitle}>Session generation failed</Text>
+            <Text style={styles.failedSubtitle}>
+              Something went wrong. Please go back and try again.
+            </Text>
+            <TouchableOpacity 
+              style={styles.failedBackButton} 
+              onPress={() => router.back()}
+            >
+              <Text style={styles.failedBackButtonText}>← Go back</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+    )
+  }
+
+  const isGenerating = session.status === 'generating'
+  const hasExercises = planExercises.length > 0
+
   return (
     <LinearGradient colors={['#fef3f2', '#ffffff']} style={styles.gradient}>
       <SafeAreaView style={styles.safeArea}>
@@ -265,26 +291,46 @@ export default function SessionScreen() {
             </TouchableOpacity>
             <Text style={styles.sessionTitle}>{session.goal}</Text>
             <Text style={styles.sessionMeta}>
-              {session.modality} · {session.durationMin} min
+              {isGenerating 
+                ? 'Building your personalized session...' 
+                : `${session.modality} · ${session.durationMin} min`}
             </Text>
 
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: progressWidth }]} />
-            </View>
-            <Text style={styles.progressLabel}>
-              {sets.length}/{totalTargetSets} sets logged
-            </Text>
+            {!isGenerating && (
+              <>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: progressWidth }]} />
+                </View>
+                <Text style={styles.progressLabel}>
+                  {sets.length}/{totalTargetSets} sets logged
+                </Text>
+              </>
+            )}
 
-            <TouchableOpacity
-              onPress={() => setShowCitations(true)}
-              style={styles.healthFactButton}
-            >
-              <Text style={styles.healthFactText}>
-                Health facts & citations →
-              </Text>
-            </TouchableOpacity>
+            {isGenerating && (
+              <View style={styles.generatingIndicator}>
+                <ActivityIndicator size="small" color="#6366f1" />
+                <Text style={styles.generatingText}>
+                  {hasExercises 
+                    ? `${planExercises.length} exercise${planExercises.length > 1 ? 's' : ''} ready, loading more...`
+                    : 'Creating your exercises...'}
+                </Text>
+              </View>
+            )}
+
+            {session.healthFacts.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setShowCitations(true)}
+                style={styles.healthFactButton}
+              >
+                <Text style={styles.healthFactText}>
+                  Health facts & citations →
+                </Text>
+              </TouchableOpacity>
+            )}
           </Animated.View>
 
+          {/* Show exercises as they stream in */}
           {planExercises.map((exercise) => (
             <WorkoutCard
               key={exercise.id}
@@ -296,6 +342,22 @@ export default function SessionScreen() {
               onPrefetchComment={handleBeforeSet}
             />
           ))}
+          
+          {/* Show skeleton cards while generating and no exercises yet */}
+          {isGenerating && !hasExercises && (
+            <>
+              <View style={styles.skeletonCard}>
+                <View style={styles.skeletonTitle} />
+                <View style={styles.skeletonBody} />
+                <View style={styles.skeletonBody} />
+              </View>
+              <View style={styles.skeletonCard}>
+                <View style={styles.skeletonTitle} />
+                <View style={styles.skeletonBody} />
+                <View style={styles.skeletonBody} />
+              </View>
+            </>
+          )}
 
           <View style={styles.feedbackCard}>
             <Text style={styles.feedbackTitle}>
@@ -462,9 +524,73 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 32,
   },
   errorText: {
     color: '#dc2626',
     fontSize: 16,
+  },
+  // Failed state styles
+  failedEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  failedTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#dc2626',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  failedSubtitle: {
+    fontSize: 15,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  failedBackButton: {
+    backgroundColor: '#4f46e5',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  failedBackButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  // Generating state styles
+  generatingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+    paddingVertical: 8,
+  },
+  generatingText: {
+    fontSize: 14,
+    color: '#6366f1',
+    fontWeight: '500',
+  },
+  // Skeleton card styles
+  skeletonCard: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+  },
+  skeletonTitle: {
+    width: '60%',
+    height: 24,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  skeletonBody: {
+    width: '100%',
+    height: 16,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 6,
+    marginBottom: 8,
   },
 })

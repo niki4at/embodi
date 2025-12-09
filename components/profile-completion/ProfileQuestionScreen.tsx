@@ -179,8 +179,11 @@ export default function ProfileQuestionScreen() {
         })
       }
 
-      // Check if this was the last question
-      if (currentQuestionIndex >= questions.length - 1) {
+      const isAtEnd = currentQuestionIndex >= questions.length - 1
+      const isReady = profileQuestions?.status === 'ready'
+
+      // Only complete if we're at the end AND questions are fully generated
+      if (isAtEnd && isReady) {
         // Batch save ALL local answers before completing (for reliability)
         const allAnswers = Object.entries(localAnswers)
           .filter(([, value]) => value !== undefined)
@@ -197,10 +200,11 @@ export default function ProfileQuestionScreen() {
         await completeProfile({})
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
         router.back()
-      } else {
+      } else if (!isAtEnd) {
         // Move to next question
         setCurrentQuestionIndex((prev) => prev + 1)
       }
+      // If isAtEnd but still generating, do nothing - UI will update when more questions arrive
     } catch (error) {
       console.error('Failed to submit answer:', error)
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
@@ -220,7 +224,12 @@ export default function ProfileQuestionScreen() {
 
   const handleSkip = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    if (currentQuestionIndex >= questions.length - 1) {
+    
+    const isAtEnd = currentQuestionIndex >= questions.length - 1
+    const isReady = profileQuestions?.status === 'ready'
+    
+    // Only complete if at end AND questions are fully generated
+    if (isAtEnd && isReady) {
       try {
         // Batch save ALL local answers before completing
         const allAnswers = Object.entries(localAnswers)
@@ -239,12 +248,14 @@ export default function ProfileQuestionScreen() {
       } catch (error) {
         console.error('Failed to complete profile:', error)
       }
-    } else {
+    } else if (!isAtEnd) {
       setCurrentQuestionIndex((prev) => prev + 1)
     }
+    // If isAtEnd but still generating, do nothing - wait for more questions
   }
 
-  if (!profileQuestions || profileQuestions.status !== 'ready') {
+  // Show failed state with back button
+  if (profileQuestions?.status === 'failed') {
     return (
       <SafeAreaView style={styles.container}>
         <LinearGradient
@@ -252,7 +263,40 @@ export default function ProfileQuestionScreen() {
           style={styles.gradient}
         >
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading questions...</Text>
+            <Text style={styles.failedEmoji}>⚠️</Text>
+            <Text style={styles.failedTitle}>Something went wrong</Text>
+            <Text style={styles.failedSubtitle}>
+              We couldn't generate your questions. Go back to retry.
+            </Text>
+            <TouchableOpacity 
+              style={styles.failedBackButton} 
+              onPress={() => router.back()}
+            >
+              <Text style={styles.failedBackButtonText}>← Go back</Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </SafeAreaView>
+    )
+  }
+
+  // Show loading when no data yet or generating with no questions available
+  const isGenerating = profileQuestions?.status === 'generating'
+  const hasQuestions = questions.length > 0
+  
+  if (!profileQuestions || (isGenerating && !hasQuestions)) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#0f0f23', '#1a1a2e']}
+          style={styles.gradient}
+        >
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingEmoji}>✨</Text>
+            <Text style={styles.loadingTitle}>Personalizing your questions...</Text>
+            <Text style={styles.loadingSubtitle}>
+              Creating questions tailored to your goals
+            </Text>
           </View>
         </LinearGradient>
       </SafeAreaView>
@@ -263,12 +307,23 @@ export default function ProfileQuestionScreen() {
     return null
   }
 
+  // Use questions.length for progress while generating (totalCount may be 0)
+  // Once ready, totalCount is accurate
+  const totalQuestions = profileQuestions.status === 'ready' 
+    ? profileQuestions.totalCount 
+    : questions.length
+  
   const progress =
-    questions.length > 0
-      ? ((currentQuestionIndex + 1) / questions.length) * 100
+    totalQuestions > 0
+      ? ((currentQuestionIndex + 1) / totalQuestions) * 100
       : 0
 
-  const isLastQuestion = currentQuestionIndex >= questions.length - 1
+  // During generation, only consider "last" if we're at the end AND status is ready
+  const isAtEndOfAvailable = currentQuestionIndex >= questions.length - 1
+  const isLastQuestion = profileQuestions.status === 'ready' && isAtEndOfAvailable
+  
+  // If at end of available questions but still generating, show waiting state
+  const isWaitingForMore = isGenerating && isAtEndOfAvailable
 
   // Check for safety flags (red indicators)
   const isSafetyQuestion =
@@ -292,9 +347,15 @@ export default function ProfileQuestionScreen() {
 
           {/* Progress */}
           <View style={styles.progressContainer}>
-            <Text style={styles.progressText}>
-              Question {currentQuestionIndex + 1} of {questions.length}
-            </Text>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressText}>
+                Question {currentQuestionIndex + 1} of {totalQuestions}
+                {isGenerating && '+'}
+              </Text>
+              {isGenerating && (
+                <Text style={styles.generatingBadge}>Creating more...</Text>
+              )}
+            </View>
             <View style={styles.progressBarBackground}>
               <Animated.View
                 style={[styles.progressBarFill, { width: `${progress}%` }]}
@@ -506,7 +567,7 @@ export default function ProfileQuestionScreen() {
               >
                 <LinearGradient
                   colors={
-                    canProceed() && !isSubmitting
+                    canProceed() && !isSubmitting && !isWaitingForMore
                       ? ['#6366f1', '#4f46e5']
                       : ['#374151', '#1f2937']
                   }
@@ -517,16 +578,22 @@ export default function ProfileQuestionScreen() {
                   <Text style={styles.nextButtonText}>
                     {isSubmitting
                       ? 'Saving...'
-                      : isLastQuestion
-                        ? 'Complete Profile'
-                        : 'Next'}
+                      : isWaitingForMore
+                        ? 'Creating more questions...'
+                        : isLastQuestion
+                          ? 'Complete Profile'
+                          : 'Next'}
                   </Text>
                 </LinearGradient>
               </Pressable>
             </Animated.View>
 
-            <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-              <Text style={styles.skipButtonText}>
+            <TouchableOpacity 
+              onPress={handleSkip} 
+              style={styles.skipButton}
+              disabled={isWaitingForMore}
+            >
+              <Text style={[styles.skipButtonText, isWaitingForMore && styles.skipButtonTextDisabled]}>
                 {isLastQuestion ? 'Skip & finish later' : 'Skip this question'}
               </Text>
             </TouchableOpacity>
@@ -552,10 +619,53 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 32,
   },
-  loadingText: {
+  loadingEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  loadingTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#e0e7ff',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loadingSubtitle: {
+    fontSize: 15,
+    color: '#a5b4fc',
+    textAlign: 'center',
+  },
+  failedEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  failedTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fecaca',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  failedSubtitle: {
+    fontSize: 15,
+    color: '#fca5a5',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  failedBackButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  failedBackButtonText: {
     fontSize: 16,
-    color: '#9ca3af',
+    fontWeight: '600',
+    color: '#ffffff',
   },
   header: {
     flexDirection: 'row',
@@ -583,10 +693,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 24,
   },
+  progressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
   progressText: {
     fontSize: 13,
     color: '#6b7280',
-    marginBottom: 8,
+    fontWeight: '500',
+  },
+  generatingBadge: {
+    fontSize: 12,
+    color: '#a5b4fc',
     fontWeight: '500',
   },
   progressBarBackground: {
@@ -822,6 +942,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#818cf8',
     fontWeight: '500',
+  },
+  skipButtonTextDisabled: {
+    color: '#4b5563',
   },
 })
 

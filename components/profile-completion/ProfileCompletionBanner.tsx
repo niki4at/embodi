@@ -149,45 +149,70 @@ export default function ProfileCompletionBanner({
     )
   }
 
-  // Generating state - show loading indicator
+  // Generating state - ALWAYS tappable so users navigate immediately
   if (profileQuestions.status === 'generating') {
+    const questionsAvailable = profileQuestions.questions.length
+    const hasQuestions = questionsAvailable > 0
+
     return (
       <Animated.View
         entering={FadeInDown.delay(100).duration(600).springify()}
         style={styles.container}
       >
-        <Animated.View style={[styles.generatingCard, shadowStyle]}>
-          <LinearGradient
-            colors={['#1e1b4b', '#312e81']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.generatingGradient}
+        <Pressable
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          onPress={handlePress}
+        >
+          <Animated.View
+            style={[styles.generatingCard, bannerAnimatedStyle, shadowStyle]}
           >
-            <View style={styles.generatingContent}>
-              <Animated.View style={[styles.sparkleContainer, pulseStyle]}>
-                <Text style={styles.sparkleIcon}>✨</Text>
-              </Animated.View>
-              <View style={styles.generatingTextContainer}>
-                <Text style={styles.generatingTitle}>
-                  Personalizing your profile...
-                </Text>
-                <Text style={styles.generatingSubtitle}>
-                  Creating questions tailored to your goals
+            <LinearGradient
+              colors={['#1e1b4b', '#312e81']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.generatingGradient}
+            >
+              <View style={styles.generatingContent}>
+                <Animated.View style={[styles.sparkleContainer, pulseStyle]}>
+                  <Text style={styles.sparkleIcon}>✨</Text>
+                </Animated.View>
+                <View style={styles.generatingTextContainer}>
+                  <Text style={styles.generatingTitle}>
+                    {hasQuestions
+                      ? `${questionsAvailable} question${questionsAvailable > 1 ? 's' : ''} ready`
+                      : 'Personalizing your profile...'}
+                  </Text>
+                  <Text style={styles.generatingSubtitle}>
+                    {hasQuestions
+                      ? 'Start answering while more are created'
+                      : 'Tap to continue - questions arriving soon'}
+                  </Text>
+                </View>
+                <ActivityIndicator size="small" color="#a5b4fc" />
+              </View>
+
+              <View style={styles.generatingCta}>
+                <Text style={styles.generatingCtaText}>
+                  {hasQuestions ? 'Start now →' : 'Continue →'}
                 </Text>
               </View>
-              <ActivityIndicator size="small" color="#a5b4fc" />
-            </View>
-          </LinearGradient>
-        </Animated.View>
+            </LinearGradient>
+          </Animated.View>
+        </Pressable>
       </Animated.View>
     )
   }
 
   // Ready state - show prompt to complete profile
-  const progress = profileQuestions.totalCount > 0
-    ? Math.round((profileQuestions.answeredCount / profileQuestions.totalCount) * 100)
-    : 0
-  const questionsRemaining = profileQuestions.totalCount - profileQuestions.answeredCount
+  const progress =
+    profileQuestions.totalCount > 0
+      ? Math.round(
+          (profileQuestions.answeredCount / profileQuestions.totalCount) * 100
+        )
+      : 0
+  const questionsRemaining =
+    profileQuestions.totalCount - profileQuestions.answeredCount
 
   return (
     <Animated.View
@@ -199,7 +224,9 @@ export default function ProfileCompletionBanner({
         onPressOut={handlePressOut}
         onPress={handlePress}
       >
-        <Animated.View style={[styles.readyCard, bannerAnimatedStyle, shadowStyle]}>
+        <Animated.View
+          style={[styles.readyCard, bannerAnimatedStyle, shadowStyle]}
+        >
           <LinearGradient
             colors={['#1e1b4b', '#312e81']}
             start={{ x: 0, y: 0 }}
@@ -219,17 +246,15 @@ export default function ProfileCompletionBanner({
 
             <Text style={styles.readyTitle}>Complete your profile</Text>
             <Text style={styles.readySubtitle}>
-              Answer {questionsRemaining} quick questions to unlock a plan built for you
+              Answer {questionsRemaining} quick questions to unlock a plan built
+              for you
             </Text>
 
             {/* Progress bar */}
             <View style={styles.progressContainer}>
               <View style={styles.progressBarBackground}>
                 <Animated.View
-                  style={[
-                    styles.progressBarFill,
-                    { width: `${progress}%` },
-                  ]}
+                  style={[styles.progressBarFill, { width: `${progress}%` }]}
                 />
               </View>
               <Text style={styles.progressPercentage}>{progress}%</Text>
@@ -237,7 +262,10 @@ export default function ProfileCompletionBanner({
 
             <View style={styles.ctaContainer}>
               <Text style={styles.ctaText}>
-                {profileQuestions.answeredCount > 0 ? 'Continue' : 'Get started'} →
+                {profileQuestions.answeredCount > 0
+                  ? 'Continue'
+                  : 'Get started'}{' '}
+                →
               </Text>
             </View>
           </LinearGradient>
@@ -340,6 +368,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#a5b4fc',
   },
+  generatingCta: {
+    marginTop: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  generatingCtaText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
   // Ready state styles
   readyCard: {
     borderRadius: 20,
@@ -427,4 +470,3 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
 })
-
