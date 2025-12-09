@@ -41,6 +41,24 @@ const exerciseShape = v.object({
   ),
 })
 
+// Profile question shape for AI-generated personalized questions
+const profileQuestionShape = v.object({
+  id: v.string(),
+  category: v.string(),
+  questionText: v.string(),
+  answerType: v.union(
+    v.literal('slider'),
+    v.literal('single'),
+    v.literal('multi'),
+    v.literal('text')
+  ),
+  options: v.optional(v.array(v.string())),
+  sliderMin: v.optional(v.number()),
+  sliderMax: v.optional(v.number()),
+  sliderLabels: v.optional(v.array(v.string())),
+  // Note: answers are stored separately in profile_answers table
+})
+
 export default defineSchema({
   onboarding: defineTable({
     userId: v.string(),
@@ -119,4 +137,54 @@ export default defineSchema({
     text: v.string(),
     createdAt: v.number(),
   }).index('by_sessionId', ['sessionId']),
+
+  // AI-generated personalized profile questions
+  profile_questions: defineTable({
+    userId: v.string(),
+    status: v.union(
+      v.literal('generating'),
+      v.literal('ready'),
+      v.literal('completed'),
+      v.literal('failed')
+    ),
+    questions: v.array(profileQuestionShape),
+    answeredCount: v.number(),
+    totalCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index('by_userId', ['userId']),
+
+  // Individual answers linked to profile questions
+  profile_answers: defineTable({
+    userId: v.string(),
+    questionId: v.string(), // References the question.id from profile_questions
+    questionText: v.string(), // Store question text for easy querying
+    category: v.string(), // e.g., "Pain Assessment", "Goals", "Lifestyle"
+    answerType: v.union(
+      v.literal('slider'),
+      v.literal('single'),
+      v.literal('multi'),
+      v.literal('text')
+    ),
+    answer: v.union(v.string(), v.number(), v.array(v.string())),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_userId_questionId', ['userId', 'questionId'])
+    .index('by_userId_category', ['userId', 'category']),
+
+  // Extended profile summary (AI-generated comprehensive summary)
+  extended_profile: defineTable({
+    userId: v.string(),
+    // AI-generated comprehensive profile summary containing all user information
+    profileSummary: v.optional(v.string()),
+    // Summary flags for quick access
+    hasPainAssessment: v.optional(v.boolean()),
+    hasRedFlags: v.optional(v.boolean()),
+    completedCategories: v.optional(v.array(v.string())),
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index('by_userId', ['userId']),
 })

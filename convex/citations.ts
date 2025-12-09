@@ -1,10 +1,10 @@
 import { v } from 'convex/values'
-import OpenAI from 'openai'
 import type {
   ResponseCreateParamsNonStreaming,
   ResponseFormatTextJSONSchemaConfig,
 } from 'openai/resources/responses/responses'
 import { action } from './_generated/server'
+import { getOpenAI, getOpenAIModel } from './openai'
 
 export type Citation = {
   id: string
@@ -84,19 +84,7 @@ const citationArg = v.object({
   summary: v.optional(v.string()),
 })
 
-let cachedOpenAI: OpenAI | null = null
 let semanticScholarNextAvailable = 0
-const getOpenAI = () => {
-  if (cachedOpenAI) {
-    return cachedOpenAI
-  }
-  const apiKey = process.env.OPEN_API_KEY
-  if (!apiKey) {
-    throw new Error('OPEN_API_KEY is not configured')
-  }
-  cachedOpenAI = new OpenAI({ apiKey })
-  return cachedOpenAI
-}
 
 async function waitForSemanticScholarSlot() {
   const now = Date.now()
@@ -156,8 +144,9 @@ export async function distillCitationsForProfile(
   }
 
   const client = getOpenAI()
+  const model = getOpenAIModel()
   const factsRequest = {
-    model: 'gpt-5-mini-2025-08-07',
+    model,
     text: {
       format: {
         type: 'json_schema',
@@ -376,8 +365,9 @@ async function fetchOpenAICitations(
 ): Promise<Citation[]> {
   try {
     const client = getOpenAI()
+    const model = getOpenAIModel()
     const citationRequest = {
-      model: 'gpt-5-mini-2025-08-07',
+      model,
       tools: [{ type: 'web_search' as const }],
       text: {
         format: {

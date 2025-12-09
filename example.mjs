@@ -7,8 +7,13 @@ const client = new OpenAI({
   apiKey: process.env.OPEN_API_KEY,
 })
 
+const model = process.env.OPENAI_MODEL
+if (!model) {
+  throw new Error('OPENAI_MODEL is not configured')
+}
+
 const response = await client.responses.create({
-  model: 'gpt-5-nano',
+  model,
   input: 'Write a one-sentence bedtime story about a unicorn.',
 })
 

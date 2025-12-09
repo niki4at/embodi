@@ -1,5 +1,4 @@
 import { v } from 'convex/values'
-import OpenAI from 'openai'
 import type {
   ResponseCreateParamsNonStreaming,
   ResponseFormatTextJSONSchemaConfig,
@@ -12,6 +11,7 @@ import {
   type Citation as CitationSource,
   type CitationsProfile,
 } from './citations'
+import { getOpenAI, getOpenAIModel } from './openai'
 
 type Citation = CitationSource
 
@@ -159,17 +159,6 @@ const planInputArg = v.object({
   citations: v.array(citationArg),
 })
 
-let cachedOpenAI: OpenAI | null = null
-const getOpenAI = () => {
-  if (cachedOpenAI) return cachedOpenAI
-  const apiKey = process.env.OPEN_API_KEY
-  if (!apiKey) {
-    throw new Error('OPEN_API_KEY is not configured')
-  }
-  cachedOpenAI = new OpenAI({ apiKey })
-  return cachedOpenAI
-}
-
 export const generatePlanAndInsights = action({
   args: {},
   handler: async (ctx) => {
@@ -197,10 +186,22 @@ export const generatePlanAndInsights = action({
       alcohol: profileDoc.alcohol,
     }
 
+    // Get the extended profile summary if available
+    const extendedProfile = await ctx.runQuery(
+      api.profileQuestions.getExtendedProfile,
+      {}
+    )
+    const profileSummary = extendedProfile?.profileSummary || null
+
     const citations = await searchCitationsForProfile(profile)
     const healthFacts = await distillCitationsForProfile(profile, citations)
 
-    const planPayload = await buildWorkoutPlan(profile, citations, healthFacts)
+    const planPayload = await buildWorkoutPlan(
+      profile,
+      citations,
+      healthFacts,
+      profileSummary
+    )
 
     return {
       goal: planPayload.goalFocus || profile.goal,
@@ -397,13 +398,51 @@ export const getSessionWithSets = query({
 async function buildWorkoutPlan(
   profile: Profile,
   citations: Citation[],
-  facts: Fact[]
+  facts: Fact[],
+  profileSummary: string | null
 ): Promise<PlanPayload> {
   const client = getOpenAI()
+  const model = getOpenAIModel()
+
+  // Build the system prompt - enhanced when we have a profile summary
+  const systemPromptText = profileSummary
+    ? `You are an AI trainer who programs deeply personalised sessions based on comprehensive client assessments.
+
+You have access to a detailed client profile summary that includes their pain levels, energy patterns, sleep quality, motivation, barriers, and training preferences. USE THIS INFORMATION to create a session that:
+- Respects their current pain/discomfort levels and avoids aggravating movements
+- Matches their energy and recovery state
+- Aligns with their stated preferences and what motivates them
+- Addresses their specific barriers and challenges
+- Progresses appropriately for their confidence level
+
+Plans must account for sex, age, injuries, conditions, medications, and lifestyle. Use proven approaches and cue breath, tempo, and intent.`
+    : 'You are an AI trainer who programs personalised sessions. Plans must account for sex, age, injuries, conditions, medications, and lifestyle. Use proven approaches and cue breath, tempo, and intent.'
+
+  // Build the user prompt using only the profile summary
+  const userPromptParts: string[] = []
+
+  if (profileSummary) {
+    userPromptParts.push(
+      '=== CLIENT PROFILE ===',
+      profileSummary,
+      '=== END PROFILE ==='
+    )
+  } else {
+    // Fallback to basic profile if no summary available yet
+    userPromptParts.push('Profile JSON:', JSON.stringify(profile))
+  }
+
+  userPromptParts.push(
+    '\nRelevant health facts:',
+    JSON.stringify(facts),
+    '\nCitations (for awareness, do not invent new IDs):',
+    JSON.stringify(citations),
+    '\nOutput JSON matching the schema. Make sure exercises are appropriate for this specific client based on ALL the information provided.'
+  )
 
   try {
     const planRequest: PlanResponseParams = {
-      model: 'gpt-5-mini-2025-08-07',
+      model,
       text: {
         format: {
           type: 'json_schema',
@@ -485,10 +524,7 @@ async function buildWorkoutPlan(
           content: [
             {
               type: 'input_text',
-              text:
-                'You are an AI trainer who programs personalised sessions. ' +
-                'Plans must account for sex, age, injuries, conditions, medications, and lifestyle. ' +
-                'Use proven approaches and cue breath, tempo, and intent.',
+              text: systemPromptText,
             },
           ],
         },
@@ -497,15 +533,7 @@ async function buildWorkoutPlan(
           content: [
             {
               type: 'input_text',
-              text: [
-                'Profile JSON:',
-                JSON.stringify(profile),
-                '\nRelevant health facts:',
-                JSON.stringify(facts),
-                '\nCitations (for awareness, do not invent new IDs):',
-                JSON.stringify(citations),
-                '\nOutput JSON matching the schema.',
-              ].join(' '),
+              text: userPromptParts.join(' '),
             },
           ],
         },

@@ -1,4 +1,5 @@
 import { api } from '@/convex/_generated/api'
+import { ProfileCompletionBanner } from '@/components/profile-completion'
 import { useAuth } from '@clerk/clerk-expo'
 import { useAction, useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
@@ -159,6 +160,10 @@ export default function HomeContent() {
     // TODO: Navigate to body map
   }
 
+  const handleStartProfileQuestions = () => {
+    router.push('/profile-questions')
+  }
+
   const handleSignOut = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -205,6 +210,9 @@ export default function HomeContent() {
               </AnimatedTouchableOpacity>
             </View>
           </Animated.View>
+
+          {/* Profile Completion Banner */}
+          <ProfileCompletionBanner onStartQuestions={handleStartProfileQuestions} />
 
           {/* AI Assistant Card */}
           <Animated.View

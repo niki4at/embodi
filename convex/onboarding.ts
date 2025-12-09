@@ -1,4 +1,5 @@
 import { v } from 'convex/values'
+import { internal } from './_generated/api'
 import { mutation, query } from './_generated/server'
 
 export const saveOnboarding = mutation({
@@ -50,22 +51,48 @@ export const saveOnboarding = mutation({
       .withIndex('by_userId', (q) => q.eq('userId', identity.subject))
       .first()
 
+    let onboardingId
     if (existing) {
       // Update existing record
       await ctx.db.patch(existing._id, {
         ...args,
         completedAt: Date.now(),
       })
-      return existing._id
+      onboardingId = existing._id
     } else {
       // Create new record
-      const id = await ctx.db.insert('onboarding', {
+      onboardingId = await ctx.db.insert('onboarding', {
         userId: identity.subject,
         ...args,
         completedAt: Date.now(),
       })
-      return id
     }
+
+    // Trigger AI profile question generation asynchronously
+    // This runs in the background so the user sees the home screen immediately
+    // We pass the userId and onboarding data since scheduled actions don't have auth context
+    await ctx.scheduler.runAfter(
+      0,
+      internal.profileQuestions.generateProfileQuestionsForUser,
+      {
+        userId: identity.subject,
+        onboardingData: {
+          name: args.name,
+          age: args.age,
+          gender: args.gender,
+          goal: args.goal,
+          activityLevel: args.activityLevel,
+          timeAvailable: args.timeAvailable,
+          injuries: args.injuries,
+          conditions: args.conditions,
+          medications: args.medications,
+          smoking: args.smoking,
+          alcohol: args.alcohol,
+        },
+      }
+    )
+
+    return onboardingId
   },
 })
 
@@ -111,14 +138,62 @@ export const deleteOnboarding = mutation({
       throw new Error('Not authenticated')
     }
 
+    const userId = identity.subject
+
+    // Delete onboarding data
     const onboarding = await ctx.db
       .query('onboarding')
-      .withIndex('by_userId', (q) => q.eq('userId', identity.subject))
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
       .first()
-
     if (onboarding) {
       await ctx.db.delete(onboarding._id)
     }
+
+    // Delete profile questions
+    const profileQuestions = await ctx.db
+      .query('profile_questions')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+    if (profileQuestions) {
+      await ctx.db.delete(profileQuestions._id)
+    }
+
+    // Delete extended profile
+    const extendedProfile = await ctx.db
+      .query('extended_profile')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+    if (extendedProfile) {
+      await ctx.db.delete(extendedProfile._id)
+    }
+
+    // Delete all workout sessions and their related data
+    const workoutSessions = await ctx.db
+      .query('workout_sessions')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .collect()
+
+    for (const session of workoutSessions) {
+      // Delete workout sets for this session
+      const sets = await ctx.db
+        .query('workout_sets')
+        .withIndex('by_sessionId', (q) => q.eq('sessionId', session._id))
+        .collect()
+      for (const set of sets) {
+        await ctx.db.delete(set._id)
+      }
+
+      // Delete session feedback
+      const feedback = await ctx.db
+        .query('session_feedback')
+        .withIndex('by_sessionId', (q) => q.eq('sessionId', session._id))
+        .collect()
+      for (const fb of feedback) {
+        await ctx.db.delete(fb._id)
+      }
+
+      // Delete the session itself
+      await ctx.db.delete(session._id)
+    }
   },
 })
-
