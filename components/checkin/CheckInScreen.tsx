@@ -1,11 +1,11 @@
 import { api } from '@/convex/_generated/api'
-import { useQuery, useMutation } from 'convex/react'
+import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
 import { router, type Href } from 'expo-router'
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState } from 'react'
 import {
-  Dimensions,
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,720 +16,456 @@ import {
 import Animated, {
   FadeIn,
   FadeInDown,
-  FadeInUp,
   FadeOut,
   SlideInRight,
   SlideOutLeft,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
 } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
+import BodyAreaSelector from './BodyAreaSelector'
+import CheckInChoice, { type ChoiceOption } from './CheckInChoice'
+import CheckInSlider from './CheckInSlider'
 
-type CheckinStep =
-  | 'energy'
-  | 'sleep'
-  | 'stress'
-  | 'mood'
-  | 'pain'
-  | 'intensity'
-  | 'time'
-  | 'type'
-  | 'focus'
-  | 'notes'
-  | 'summary'
+const AnimatedTouchableOpacity =
+  Animated.createAnimatedComponent(TouchableOpacity)
 
-type CheckinData = {
+// Check-in data types
+type SleepQuality = 'rough' | 'okay' | 'decent' | 'great'
+type WorkoutType = 'strength' | 'mobility' | 'cardio' | 'recovery' | 'mixed'
+type IntensityPreference = 'easy' | 'moderate' | 'challenging'
+type TimeAvailable = '15' | '30' | '45' | '60'
+
+interface CheckInFormData {
   energyLevel: number
-  sleepQuality: number
+  sleepQuality: SleepQuality | null
+  painLevel: number
+  painAreas: string[]
   stressLevel: number
-  painLevel?: number
-  painAreas?: string[]
-  workoutIntensity: 'push-hard' | 'moderate' | 'easy' | 'just-move'
-  timeAvailable: '15-min' | '30-min' | '45-min' | '60-min'
-  focusAreas?: string[]
-  workoutType?: 'strength' | 'cardio' | 'mobility' | 'recovery' | 'mixed'
-  notes?: string
-  mood?: 'great' | 'good' | 'okay' | 'tired' | 'stressed'
+  workoutType: WorkoutType | null
+  intensityPreference: IntensityPreference | null
+  timeAvailable: TimeAvailable | null
+  notes: string
 }
 
-const ENERGY_LABELS = [
-  'Exhausted',
-  'Dragging',
-  'Low',
-  'Below average',
-  'Okay',
-  'Decent',
-  'Good',
-  'Energized',
-  'Strong',
-  'Fired up',
+const SLEEP_OPTIONS: ChoiceOption<SleepQuality>[] = [
+  { value: 'rough', label: 'Rough night', emoji: '😴', description: 'Barely slept' },
+  { value: 'okay', label: 'Could be better', emoji: '😐', description: 'Woke up tired' },
+  { value: 'decent', label: 'Decent', emoji: '🙂', description: 'Rested enough' },
+  { value: 'great', label: 'Slept great', emoji: '😊', description: 'Feel refreshed' },
 ]
 
-const SLEEP_LABELS = [
-  'Terrible',
-  'Poor',
-  'Rough',
-  'Below average',
-  'Okay',
-  'Fair',
-  'Good',
-  'Great',
-  'Excellent',
-  'Perfect',
+const WORKOUT_OPTIONS: ChoiceOption<WorkoutType>[] = [
+  { value: 'strength', label: 'Strength', emoji: '💪', description: 'Build power' },
+  { value: 'mobility', label: 'Mobility', emoji: '🧘', description: 'Flexibility' },
+  { value: 'cardio', label: 'Cardio', emoji: '🏃', description: 'Get moving' },
+  { value: 'recovery', label: 'Recovery', emoji: '🌿', description: 'Gentle day' },
+  { value: 'mixed', label: 'Mixed', emoji: '⚡', description: 'A bit of everything' },
 ]
 
-const STRESS_LABELS = ['Calm', 'Relaxed', 'Balanced', 'Tense', 'Overwhelmed']
-
-const MOOD_OPTIONS: { value: NonNullable<CheckinData['mood']>; label: string; emoji: string }[] = [
-  { value: 'great', label: 'Feeling great', emoji: '😄' },
-  { value: 'good', label: 'Pretty good', emoji: '🙂' },
-  { value: 'okay', label: 'Okay', emoji: '😐' },
-  { value: 'tired', label: 'Tired', emoji: '😴' },
-  { value: 'stressed', label: 'Stressed', emoji: '😓' },
+const INTENSITY_OPTIONS: ChoiceOption<IntensityPreference>[] = [
+  { value: 'easy', label: 'Easy', emoji: '🌱', description: 'Keep it light' },
+  { value: 'moderate', label: 'Moderate', emoji: '🔥', description: 'Steady effort' },
+  { value: 'challenging', label: 'Push me', emoji: '🚀', description: 'Challenge accepted' },
 ]
 
-const INTENSITY_OPTIONS: { value: CheckinData['workoutIntensity']; label: string; description: string; emoji: string }[] = [
-  { value: 'push-hard', label: 'Push me hard', description: 'Challenge me today', emoji: '🔥' },
-  { value: 'moderate', label: 'Moderate effort', description: 'Balanced session', emoji: '💪' },
-  { value: 'easy', label: 'Take it easy', description: 'Gentle but effective', emoji: '🌿' },
-  { value: 'just-move', label: 'Just move', description: 'Light movement only', emoji: '🧘' },
+const TIME_OPTIONS: ChoiceOption<TimeAvailable>[] = [
+  { value: '15', label: '15 min', emoji: '⚡' },
+  { value: '30', label: '30 min', emoji: '⏱️' },
+  { value: '45', label: '45 min', emoji: '💪' },
+  { value: '60', label: '60 min', emoji: '🏆' },
 ]
 
-const TIME_OPTIONS: { value: CheckinData['timeAvailable']; label: string }[] = [
-  { value: '15-min', label: '15 min' },
-  { value: '30-min', label: '30 min' },
-  { value: '45-min', label: '45 min' },
-  { value: '60-min', label: '60 min' },
-]
-
-const WORKOUT_TYPE_OPTIONS: { value: NonNullable<CheckinData['workoutType']>; label: string; emoji: string }[] = [
-  { value: 'strength', label: 'Strength', emoji: '🏋️' },
-  { value: 'cardio', label: 'Cardio', emoji: '🏃' },
-  { value: 'mobility', label: 'Mobility', emoji: '🤸' },
-  { value: 'recovery', label: 'Recovery', emoji: '🧘' },
-  { value: 'mixed', label: 'Mix it up', emoji: '🎯' },
-]
-
-const FOCUS_AREAS = [
-  'Upper body',
-  'Lower body',
-  'Core',
-  'Back',
-  'Shoulders',
-  'Hips',
-  'Full body',
-  'Cardio endurance',
-]
+const TOTAL_STEPS = 4
 
 export default function CheckInScreen() {
-  const onboardingData = useQuery(api.onboarding.getOnboarding)
-  const submitCheckin = useMutation(api.checkin.submitCheckinAndStartSession)
-
-  const [currentStep, setCurrentStep] = useState<CheckinStep>('energy')
+  const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const scrollRef = useRef<ScrollView>(null)
-
-  // Check-in state
-  const [data, setData] = useState<CheckinData>({
+  const [formData, setFormData] = useState<CheckInFormData>({
     energyLevel: 5,
-    sleepQuality: 5,
-    stressLevel: 3,
-    workoutIntensity: 'moderate',
-    timeAvailable: '30-min',
+    sleepQuality: null,
+    painLevel: 0,
+    painAreas: [],
+    stressLevel: 2,
+    workoutType: null,
+    intensityPreference: null,
+    timeAvailable: null,
+    notes: '',
   })
 
-  const hasInjuries = (onboardingData?.injuries?.length ?? 0) > 0 ||
-    (onboardingData?.conditions?.length ?? 0) > 0
+  const onboardingData = useQuery(api.onboarding.getOnboarding)
+  const createCheckin = useMutation(api.checkin.createCheckin)
 
-  const userName = onboardingData?.name?.split(' ')[0] || 'there'
+  const buttonScale = useSharedValue(1)
 
-  // Navigation helpers
-  const getSteps = useCallback((): CheckinStep[] => {
-    const baseSteps: CheckinStep[] = ['energy', 'sleep', 'stress', 'mood']
-    if (hasInjuries) {
-      baseSteps.push('pain')
+  const buttonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: buttonScale.value }],
+  }))
+
+  const handlePressIn = () => {
+    buttonScale.value = withSpring(0.96)
+  }
+
+  const handlePressOut = () => {
+    buttonScale.value = withSpring(1)
+  }
+
+  const updateFormData = <K extends keyof CheckInFormData>(
+    key: K,
+    value: CheckInFormData[K]
+  ) => {
+    setFormData((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const canProceed = (): boolean => {
+    switch (currentStep) {
+      case 0: // Energy & Sleep
+        return formData.sleepQuality !== null
+      case 1: // Pain & Stress (pain areas only required if pain > 3)
+        return formData.painLevel <= 3 || formData.painAreas.length > 0
+      case 2: // Workout preferences
+        return formData.workoutType !== null && formData.intensityPreference !== null
+      case 3: // Time
+        return formData.timeAvailable !== null
+      default:
+        return true
     }
-    baseSteps.push('intensity', 'time', 'type', 'focus', 'notes', 'summary')
-    return baseSteps
-  }, [hasInjuries])
+  }
 
-  const steps = getSteps()
-  const currentIndex = steps.indexOf(currentStep)
-  const progress = (currentIndex + 1) / steps.length
-
-  const goNext = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    const nextIndex = currentIndex + 1
-    if (nextIndex < steps.length) {
-      setCurrentStep(steps[nextIndex])
+  const handleNext = () => {
+    if (currentStep < TOTAL_STEPS - 1) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      setCurrentStep((prev) => prev + 1)
     }
-  }, [currentIndex, steps])
+  }
 
-  const goBack = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    if (currentIndex > 0) {
-      setCurrentStep(steps[currentIndex - 1])
+  const handleBack = () => {
+    if (currentStep > 0) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      setCurrentStep((prev) => prev - 1)
     } else {
       router.back()
     }
-  }, [currentIndex, steps])
+  }
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = async () => {
     if (isSubmitting) return
+
+    // Validate required fields
+    if (
+      !formData.sleepQuality ||
+      !formData.workoutType ||
+      !formData.intensityPreference ||
+      !formData.timeAvailable
+    ) {
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      const sessionId = await submitCheckin({ checkinData: data })
-      const sessionHref = {
-        pathname: '/session',
-        params: { sessionId: String(sessionId) },
-      } as unknown as Href
-      router.replace(sessionHref)
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+
+      const result = await createCheckin({
+        data: {
+          energyLevel: formData.energyLevel,
+          sleepQuality: formData.sleepQuality,
+          painLevel: formData.painLevel,
+          painAreas: formData.painAreas.length > 0 ? formData.painAreas : undefined,
+          stressLevel: formData.stressLevel,
+          workoutType: formData.workoutType,
+          intensityPreference: formData.intensityPreference,
+          timeAvailable: formData.timeAvailable,
+          notes: formData.notes.trim() || undefined,
+        },
+        startSession: true,
+      })
+
+      if (result.sessionId) {
+        const sessionHref = {
+          pathname: '/session',
+          params: { sessionId: String(result.sessionId) },
+        } as unknown as Href
+        router.replace(sessionHref)
+      }
     } catch (error) {
-      console.error('Failed to submit check-in:', error)
+      console.error('Failed to create check-in:', error)
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
     } finally {
       setIsSubmitting(false)
     }
-  }, [data, isSubmitting, submitCheckin])
-
-  // Slider component
-  const renderSlider = (
-    value: number,
-    min: number,
-    max: number,
-    labels: string[],
-    onChange: (v: number) => void
-  ) => {
-    const steps = max - min + 1
-    return (
-      <View style={styles.sliderContainer}>
-        <View style={styles.sliderTrack}>
-          {Array.from({ length: steps }).map((_, i) => {
-            const stepValue = min + i
-            const isActive = stepValue <= value
-            const isSelected = stepValue === value
-            return (
-              <TouchableOpacity
-                key={i}
-                style={[
-                  styles.sliderStep,
-                  isActive && styles.sliderStepActive,
-                  isSelected && styles.sliderStepSelected,
-                ]}
-                onPress={() => {
-                  Haptics.selectionAsync()
-                  onChange(stepValue)
-                }}
-              />
-            )
-          })}
-        </View>
-        <View style={styles.sliderLabels}>
-          <Text style={styles.sliderLabelText}>{labels[0]}</Text>
-          <Text style={styles.sliderValueText}>{labels[value - min]}</Text>
-          <Text style={styles.sliderLabelText}>{labels[labels.length - 1]}</Text>
-        </View>
-        <Text style={styles.sliderNumber}>{value}</Text>
-      </View>
-    )
   }
 
-  // Option button component for mood
-  const renderMoodOption = (
-    option: { value: NonNullable<CheckinData['mood']>; label: string; emoji: string },
-    selected: CheckinData['mood'],
-    onSelect: (v: NonNullable<CheckinData['mood']>) => void
-  ) => (
-    <TouchableOpacity
-      key={option.value}
-      style={[
-        styles.optionButton,
-        selected === option.value && styles.optionButtonSelected,
-      ]}
-      onPress={() => {
-        Haptics.selectionAsync()
-        onSelect(option.value)
-      }}
-    >
-      <Text style={styles.optionEmoji}>{option.emoji}</Text>
-      <View style={styles.optionTextContainer}>
-        <Text
-          style={[
-            styles.optionLabel,
-            selected === option.value && styles.optionLabelSelected,
-          ]}
-        >
-          {option.label}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  )
+  const firstName = onboardingData?.name?.split(' ')[0] || 'there'
 
-  // Option button component for intensity
-  const renderIntensityOption = (
-    option: { value: CheckinData['workoutIntensity']; label: string; description: string; emoji: string },
-    selected: CheckinData['workoutIntensity'],
-    onSelect: (v: CheckinData['workoutIntensity']) => void
-  ) => (
-    <TouchableOpacity
-      key={option.value}
-      style={[
-        styles.optionButton,
-        selected === option.value && styles.optionButtonSelected,
-      ]}
-      onPress={() => {
-        Haptics.selectionAsync()
-        onSelect(option.value)
-      }}
-    >
-      <Text style={styles.optionEmoji}>{option.emoji}</Text>
-      <View style={styles.optionTextContainer}>
-        <Text
-          style={[
-            styles.optionLabel,
-            selected === option.value && styles.optionLabelSelected,
-          ]}
-        >
-          {option.label}
-        </Text>
-        <Text style={styles.optionDescription}>{option.description}</Text>
-      </View>
-    </TouchableOpacity>
-  )
-
-  // Multi-select component
-  const renderMultiSelect = (
-    options: string[],
-    selected: string[],
-    onChange: (v: string[]) => void
-  ) => (
-    <View style={styles.multiSelectGrid}>
-      {options.map((option) => {
-        const isSelected = selected.includes(option)
-        return (
-          <TouchableOpacity
-            key={option}
-            style={[
-              styles.multiSelectOption,
-              isSelected && styles.multiSelectOptionSelected,
-            ]}
-            onPress={() => {
-              Haptics.selectionAsync()
-              if (isSelected) {
-                onChange(selected.filter((s) => s !== option))
-              } else {
-                onChange([...selected, option])
-              }
-            }}
-          >
-            <Text
-              style={[
-                styles.multiSelectText,
-                isSelected && styles.multiSelectTextSelected,
-              ]}
-            >
-              {option}
-            </Text>
-          </TouchableOpacity>
-        )
-      })}
-    </View>
-  )
-
-  // Step content renderer
-  const renderStepContent = () => {
+  const renderStep = () => {
     switch (currentStep) {
-      case 'energy':
+      case 0:
         return (
           <Animated.View
+            key="step-0"
             entering={SlideInRight.duration(300)}
             exiting={SlideOutLeft.duration(200)}
-            style={styles.stepContent}
           >
-            <Text style={styles.stepQuestion}>How's your energy right now?</Text>
-            <Text style={styles.stepSubtext}>
-              Be honest, {userName}. This helps me adjust your workout.
+            <Text style={styles.stepTitle}>How are you feeling today, {firstName}?</Text>
+            <Text style={styles.stepSubtitle}>
+              This helps me create the perfect session for you right now.
             </Text>
-            {renderSlider(
-              data.energyLevel,
-              1,
-              10,
-              ENERGY_LABELS,
-              (v) => setData({ ...data, energyLevel: v })
-            )}
-          </Animated.View>
-        )
 
-      case 'sleep':
-        return (
-          <Animated.View
-            entering={SlideInRight.duration(300)}
-            exiting={SlideOutLeft.duration(200)}
-            style={styles.stepContent}
-          >
-            <Text style={styles.stepQuestion}>How did you sleep last night?</Text>
-            <Text style={styles.stepSubtext}>
-              Sleep affects recovery and performance.
-            </Text>
-            {renderSlider(
-              data.sleepQuality,
-              1,
-              10,
-              SLEEP_LABELS,
-              (v) => setData({ ...data, sleepQuality: v })
-            )}
-          </Animated.View>
-        )
+            <CheckInSlider
+              title="Energy Level"
+              subtitle="How energized do you feel right now?"
+              value={formData.energyLevel}
+              min={1}
+              max={10}
+              minLabel="Running on empty"
+              maxLabel="Ready to crush it"
+              onChange={(v) => updateFormData('energyLevel', v)}
+              colorStart="#fbbf24"
+              colorEnd="#22c55e"
+              delay={100}
+            />
 
-      case 'stress':
-        return (
-          <Animated.View
-            entering={SlideInRight.duration(300)}
-            exiting={SlideOutLeft.duration(200)}
-            style={styles.stepContent}
-          >
-            <Text style={styles.stepQuestion}>What's your stress level today?</Text>
-            <Text style={styles.stepSubtext}>
-              This helps me pick the right intensity.
-            </Text>
-            {renderSlider(
-              data.stressLevel,
-              1,
-              5,
-              STRESS_LABELS,
-              (v) => setData({ ...data, stressLevel: v })
-            )}
-          </Animated.View>
-        )
-
-      case 'mood':
-        return (
-          <Animated.View
-            entering={SlideInRight.duration(300)}
-            exiting={SlideOutLeft.duration(200)}
-            style={styles.stepContent}
-          >
-            <Text style={styles.stepQuestion}>How are you feeling overall?</Text>
-            <View style={styles.optionsContainer}>
-              {MOOD_OPTIONS.map((option) =>
-                renderMoodOption(option, data.mood, (v) =>
-                  setData({ ...data, mood: v })
-                )
-              )}
-            </View>
-          </Animated.View>
-        )
-
-      case 'pain':
-        return (
-          <Animated.View
-            entering={SlideInRight.duration(300)}
-            exiting={SlideOutLeft.duration(200)}
-            style={styles.stepContent}
-          >
-            <Text style={styles.stepQuestion}>
-              How are your {onboardingData?.injuries?.join(', ') || 'problem areas'} feeling today?
-            </Text>
-            <Text style={styles.stepSubtext}>
-              0 = no pain, 10 = severe pain
-            </Text>
-            {renderSlider(
-              data.painLevel ?? 0,
-              0,
-              10,
-              ['None', '1', '2', 'Mild', '4', 'Moderate', '6', '7', 'Severe', '9', 'Worst'],
-              (v) => setData({ ...data, painLevel: v })
-            )}
-            {(data.painLevel ?? 0) > 3 && (
-              <Animated.View entering={FadeIn} style={styles.painWarning}>
-                <Text style={styles.painWarningText}>
-                  I'll make sure to avoid aggravating movements and include recovery work.
-                </Text>
-              </Animated.View>
-            )}
-          </Animated.View>
-        )
-
-      case 'intensity':
-        return (
-          <Animated.View
-            entering={SlideInRight.duration(300)}
-            exiting={SlideOutLeft.duration(200)}
-            style={styles.stepContent}
-          >
-            <Text style={styles.stepQuestion}>What kind of session do you want?</Text>
-            <View style={styles.optionsContainer}>
-              {INTENSITY_OPTIONS.map((option) =>
-                renderIntensityOption(option, data.workoutIntensity, (v) =>
-                  setData({ ...data, workoutIntensity: v })
-                )
-              )}
-            </View>
-          </Animated.View>
-        )
-
-      case 'time':
-        return (
-          <Animated.View
-            entering={SlideInRight.duration(300)}
-            exiting={SlideOutLeft.duration(200)}
-            style={styles.stepContent}
-          >
-            <Text style={styles.stepQuestion}>How much time do you have?</Text>
-            <View style={styles.timeGrid}>
-              {TIME_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.timeButton,
-                    data.timeAvailable === option.value && styles.timeButtonSelected,
-                  ]}
-                  onPress={() => {
-                    Haptics.selectionAsync()
-                    setData({ ...data, timeAvailable: option.value })
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.timeButtonText,
-                      data.timeAvailable === option.value &&
-                        styles.timeButtonTextSelected,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Animated.View>
-        )
-
-      case 'type':
-        return (
-          <Animated.View
-            entering={SlideInRight.duration(300)}
-            exiting={SlideOutLeft.duration(200)}
-            style={styles.stepContent}
-          >
-            <Text style={styles.stepQuestion}>What type of workout?</Text>
-            <Text style={styles.stepSubtext}>Optional - skip if you want me to decide</Text>
-            <View style={styles.typeGrid}>
-              {WORKOUT_TYPE_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.typeButton,
-                    data.workoutType === option.value && styles.typeButtonSelected,
-                  ]}
-                  onPress={() => {
-                    Haptics.selectionAsync()
-                    setData({ ...data, workoutType: option.value })
-                  }}
-                >
-                  <Text style={styles.typeEmoji}>{option.emoji}</Text>
-                  <Text
-                    style={[
-                      styles.typeLabel,
-                      data.workoutType === option.value && styles.typeLabelSelected,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Animated.View>
-        )
-
-      case 'focus':
-        return (
-          <Animated.View
-            entering={SlideInRight.duration(300)}
-            exiting={SlideOutLeft.duration(200)}
-            style={styles.stepContent}
-          >
-            <Text style={styles.stepQuestion}>Any specific areas to focus on?</Text>
-            <Text style={styles.stepSubtext}>Optional - tap any that apply</Text>
-            {renderMultiSelect(
-              FOCUS_AREAS,
-              data.focusAreas || [],
-              (v) => setData({ ...data, focusAreas: v })
-            )}
-          </Animated.View>
-        )
-
-      case 'notes':
-        return (
-          <Animated.View
-            entering={SlideInRight.duration(300)}
-            exiting={SlideOutLeft.duration(200)}
-            style={styles.stepContent}
-          >
-            <Text style={styles.stepQuestion}>Anything else I should know?</Text>
-            <Text style={styles.stepSubtext}>
-              New aches, medication changes, or today's goals
-            </Text>
-            <TextInput
-              style={styles.notesInput}
-              placeholder="Optional notes..."
-              placeholderTextColor="#9ca3af"
-              value={data.notes || ''}
-              onChangeText={(text) => setData({ ...data, notes: text })}
-              multiline
-              textAlignVertical="top"
+            <CheckInChoice
+              title="Sleep Quality"
+              subtitle="How did you sleep last night?"
+              options={SLEEP_OPTIONS}
+              value={formData.sleepQuality}
+              onChange={(v) => updateFormData('sleepQuality', v)}
+              delay={200}
             />
           </Animated.View>
         )
 
-      case 'summary':
+      case 1:
         return (
           <Animated.View
-            entering={FadeInDown.duration(400)}
-            style={styles.stepContent}
+            key="step-1"
+            entering={SlideInRight.duration(300)}
+            exiting={SlideOutLeft.duration(200)}
           >
-            <Text style={styles.stepQuestion}>Ready to go, {userName}!</Text>
-            <View style={styles.summaryCard}>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Energy</Text>
-                <Text style={styles.summaryValue}>
-                  {ENERGY_LABELS[data.energyLevel - 1]} ({data.energyLevel}/10)
-                </Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Sleep</Text>
-                <Text style={styles.summaryValue}>
-                  {SLEEP_LABELS[data.sleepQuality - 1]} ({data.sleepQuality}/10)
-                </Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Stress</Text>
-                <Text style={styles.summaryValue}>
-                  {STRESS_LABELS[data.stressLevel - 1]}
-                </Text>
-              </View>
-              {data.mood && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Mood</Text>
-                  <Text style={styles.summaryValue}>
-                    {MOOD_OPTIONS.find((m) => m.value === data.mood)?.label}
-                  </Text>
-                </View>
-              )}
-              {data.painLevel !== undefined && data.painLevel > 0 && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Pain</Text>
-                  <Text style={styles.summaryValue}>{data.painLevel}/10</Text>
-                </View>
-              )}
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Session</Text>
-                <Text style={styles.summaryValue}>
-                  {INTENSITY_OPTIONS.find((i) => i.value === data.workoutIntensity)?.label} •{' '}
-                  {TIME_OPTIONS.find((t) => t.value === data.timeAvailable)?.label}
-                </Text>
-              </View>
-              {data.workoutType && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Type</Text>
-                  <Text style={styles.summaryValue}>
-                    {WORKOUT_TYPE_OPTIONS.find((t) => t.value === data.workoutType)?.label}
-                  </Text>
-                </View>
-              )}
-              {data.focusAreas && data.focusAreas.length > 0 && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Focus</Text>
-                  <Text style={styles.summaryValue}>
-                    {data.focusAreas.join(', ')}
-                  </Text>
-                </View>
-              )}
-            </View>
+            <Text style={styles.stepTitle}>Any aches or stress today?</Text>
+            <Text style={styles.stepSubtitle}>
+              This helps me avoid movements that might aggravate you.
+            </Text>
+
+            <CheckInSlider
+              title="Pain / Discomfort"
+              subtitle="Rate any pain or discomfort you're feeling"
+              value={formData.painLevel}
+              min={0}
+              max={10}
+              minLabel="None"
+              maxLabel="Significant"
+              onChange={(v) => updateFormData('painLevel', v)}
+              colorStart="#22c55e"
+              colorEnd="#ef4444"
+              delay={100}
+            />
+
+            {formData.painLevel > 3 && (
+              <Animated.View entering={FadeIn.duration(300)} exiting={FadeOut.duration(200)}>
+                <BodyAreaSelector
+                  title="Where does it hurt?"
+                  subtitle="Tap all areas that feel uncomfortable"
+                  selectedAreas={formData.painAreas}
+                  onChange={(areas) => updateFormData('painAreas', areas)}
+                  delay={0}
+                />
+              </Animated.View>
+            )}
+
+            <CheckInSlider
+              title="Stress Level"
+              subtitle="How's your mental load today?"
+              value={formData.stressLevel}
+              min={1}
+              max={5}
+              minLabel="Clear-headed"
+              maxLabel="Overwhelmed"
+              onChange={(v) => updateFormData('stressLevel', v)}
+              colorStart="#22c55e"
+              colorEnd="#f97316"
+              delay={formData.painLevel > 3 ? 300 : 200}
+            />
           </Animated.View>
         )
+
+      case 2:
+        return (
+          <Animated.View
+            key="step-2"
+            entering={SlideInRight.duration(300)}
+            exiting={SlideOutLeft.duration(200)}
+          >
+            <Text style={styles.stepTitle}>What kind of session today?</Text>
+            <Text style={styles.stepSubtitle}>
+              Tell me what feels right and how hard you want to work.
+            </Text>
+
+            <CheckInChoice
+              title="Workout Type"
+              subtitle="What sounds good right now?"
+              options={WORKOUT_OPTIONS}
+              value={formData.workoutType}
+              onChange={(v) => updateFormData('workoutType', v)}
+              columns={2}
+              delay={100}
+            />
+
+            <CheckInChoice
+              title="Intensity"
+              subtitle="How hard do you want to push?"
+              options={INTENSITY_OPTIONS}
+              value={formData.intensityPreference}
+              onChange={(v) => updateFormData('intensityPreference', v)}
+              columns={3}
+              delay={200}
+            />
+          </Animated.View>
+        )
+
+      case 3:
+        return (
+          <Animated.View
+            key="step-3"
+            entering={SlideInRight.duration(300)}
+            exiting={SlideOutLeft.duration(200)}
+          >
+            <Text style={styles.stepTitle}>How much time do you have?</Text>
+            <Text style={styles.stepSubtitle}>
+              I'll design a session that fits your schedule.
+            </Text>
+
+            <CheckInChoice
+              title="Time Available"
+              subtitle="Choose your session length"
+              options={TIME_OPTIONS}
+              value={formData.timeAvailable}
+              onChange={(v) => updateFormData('timeAvailable', v)}
+              columns={2}
+              delay={100}
+            />
+
+            <Animated.View
+              entering={FadeInDown.delay(200).duration(400)}
+              style={styles.notesContainer}
+            >
+              <Text style={styles.notesLabel}>Anything else I should know?</Text>
+              <TextInput
+                style={styles.notesInput}
+                placeholder="Optional: specific goals, limitations, or requests..."
+                placeholderTextColor="#9ca3af"
+                value={formData.notes}
+                onChangeText={(text) => updateFormData('notes', text)}
+                multiline
+                numberOfLines={3}
+              />
+            </Animated.View>
+          </Animated.View>
+        )
+
+      default:
+        return null
     }
   }
 
   return (
-    <LinearGradient colors={['#fef3f2', '#ffffff']} style={styles.gradient}>
+    <LinearGradient colors={['#fef3f2', '#ffffff', '#ffffff']} style={styles.gradient}>
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={goBack} style={styles.backButton}>
-            <Text style={styles.backText}>←</Text>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
+
+          {/* Progress indicator */}
           <View style={styles.progressContainer}>
-            <View style={styles.progressTrack}>
-              <Animated.View
-                style={[styles.progressFill, { width: `${progress * 100}%` }]}
+            {Array.from({ length: TOTAL_STEPS }).map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.progressDot,
+                  index === currentStep && styles.progressDotActive,
+                  index < currentStep && styles.progressDotComplete,
+                ]}
               />
-            </View>
+            ))}
           </View>
-          <Text style={styles.stepCounter}>
-            {currentIndex + 1}/{steps.length}
-          </Text>
+
+          <View style={styles.headerSpacer} />
         </View>
 
         {/* Content */}
         <ScrollView
-          ref={scrollRef}
+          style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Animated.View entering={FadeInUp.delay(100)} style={styles.greeting}>
-            {currentStep === 'energy' && (
-              <>
-                <Text style={styles.greetingEmoji}>👋</Text>
-                <Text style={styles.greetingText}>
-                  Let's check in, {userName}
-                </Text>
-                <Text style={styles.greetingSubtext}>
-                  A few quick questions to build your perfect session
-                </Text>
-              </>
-            )}
-          </Animated.View>
-
-          {renderStepContent()}
+          {renderStep()}
         </ScrollView>
 
         {/* Footer */}
-        <Animated.View
-          entering={FadeIn.delay(300)}
-          style={styles.footer}
-        >
-          {currentStep === 'summary' ? (
-            <TouchableOpacity
-              style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={isSubmitting}
+        <View style={styles.footer}>
+          {currentStep < TOTAL_STEPS - 1 ? (
+            <AnimatedTouchableOpacity
+              style={[
+                styles.nextButton,
+                !canProceed() && styles.nextButtonDisabled,
+                buttonAnimatedStyle,
+              ]}
+              onPress={handleNext}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
+              disabled={!canProceed()}
+              activeOpacity={0.8}
             >
               <LinearGradient
-                colors={['#f97316', '#ea580c']}
+                colors={canProceed() ? ['#6366f1', '#4f46e5'] : ['#d1d5db', '#9ca3af']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={styles.primaryButtonGradient}
+                style={styles.nextButtonGradient}
               >
-                <Text style={styles.primaryButtonText}>
-                  {isSubmitting ? 'Building your session...' : 'Start my workout →'}
-                </Text>
+                <Text style={styles.nextButtonText}>Continue</Text>
               </LinearGradient>
-            </TouchableOpacity>
+            </AnimatedTouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.nextButton} onPress={goNext}>
-              <Text style={styles.nextButtonText}>Continue</Text>
-            </TouchableOpacity>
+            <AnimatedTouchableOpacity
+              style={[
+                styles.nextButton,
+                (!canProceed() || isSubmitting) && styles.nextButtonDisabled,
+                buttonAnimatedStyle,
+              ]}
+              onPress={handleSubmit}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
+              disabled={!canProceed() || isSubmitting}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={
+                  canProceed() && !isSubmitting
+                    ? ['#f97316', '#ea580c']
+                    : ['#d1d5db', '#9ca3af']
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.nextButtonGradient}
+              >
+                {isSubmitting ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color="#ffffff" />
+                    <Text style={styles.nextButtonText}>Building your session...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.nextButtonText}>Start Session →</Text>
+                )}
+              </LinearGradient>
+            </AnimatedTouchableOpacity>
           )}
-
-          {currentStep !== 'summary' && currentStep !== 'energy' && (
-            <TouchableOpacity style={styles.skipButton} onPress={goNext}>
-              <Text style={styles.skipButtonText}>Skip</Text>
-            </TouchableOpacity>
-          )}
-        </Animated.View>
+        </View>
       </SafeAreaView>
     </LinearGradient>
   )
@@ -745,345 +481,112 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 12,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    width: 80,
   },
   backText: {
-    fontSize: 20,
-    color: '#374151',
+    fontSize: 16,
+    color: '#4f46e5',
+    fontWeight: '600',
   },
   progressContainer: {
-    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
   },
-  progressTrack: {
-    height: 6,
-    borderRadius: 3,
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#e5e7eb',
-    overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#f97316',
-    borderRadius: 3,
+  progressDotActive: {
+    backgroundColor: '#4f46e5',
+    width: 24,
   },
-  stepCounter: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-    minWidth: 40,
-    textAlign: 'right',
+  progressDotComplete: {
+    backgroundColor: '#22c55e',
+  },
+  headerSpacer: {
+    width: 80,
+  },
+  scrollView: {
+    flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingBottom: 120,
-  },
-  greeting: {
-    alignItems: 'center',
-    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingTop: 8,
     paddingBottom: 32,
   },
-  greetingEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  greetingText: {
+  stepTitle: {
     fontSize: 28,
     fontWeight: '700',
     color: '#1f2937',
-    textAlign: 'center',
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
-  greetingSubtext: {
+  stepSubtitle: {
     fontSize: 16,
-    color: '#6b7280',
-    textAlign: 'center',
-  },
-  stepContent: {
-    flex: 1,
-  },
-  stepQuestion: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 8,
-    lineHeight: 32,
-  },
-  stepSubtext: {
-    fontSize: 15,
     color: '#6b7280',
     marginBottom: 32,
+    lineHeight: 22,
   },
-  sliderContainer: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  sliderTrack: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 16,
-  },
-  sliderStep: {
-    width: (SCREEN_WIDTH - 100) / 10,
-    height: 48,
-    borderRadius: 8,
-    backgroundColor: '#e5e7eb',
-  },
-  sliderStepActive: {
-    backgroundColor: '#fed7aa',
-  },
-  sliderStepSelected: {
-    backgroundColor: '#f97316',
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 4,
-    marginBottom: 12,
-  },
-  sliderLabelText: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
-  sliderValueText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#f97316',
-  },
-  sliderNumber: {
-    fontSize: 48,
-    fontWeight: '700',
-    color: '#1f2937',
-  },
-  optionsContainer: {
-    gap: 12,
-  },
-  optionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    gap: 14,
-  },
-  optionButtonSelected: {
-    borderColor: '#f97316',
-    backgroundColor: '#fff7ed',
-  },
-  optionEmoji: {
-    fontSize: 28,
-  },
-  optionTextContainer: {
-    flex: 1,
-  },
-  optionLabel: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  optionLabelSelected: {
-    color: '#ea580c',
-  },
-  optionDescription: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 2,
-  },
-  timeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'center',
-  },
-  timeButton: {
-    paddingHorizontal: 28,
-    paddingVertical: 20,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-  },
-  timeButtonSelected: {
-    borderColor: '#f97316',
-    backgroundColor: '#fff7ed',
-  },
-  timeButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  timeButtonTextSelected: {
-    color: '#ea580c',
-  },
-  typeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+  notesContainer: {
     marginTop: 8,
   },
-  typeButton: {
-    width: '47%',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-  },
-  typeButtonSelected: {
-    borderColor: '#f97316',
-    backgroundColor: '#fff7ed',
-  },
-  typeEmoji: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  typeLabel: {
-    fontSize: 15,
+  notesLabel: {
+    fontSize: 18,
     fontWeight: '600',
-    color: '#374151',
-  },
-  typeLabelSelected: {
-    color: '#ea580c',
-  },
-  multiSelectGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  multiSelectOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-  },
-  multiSelectOptionSelected: {
-    borderColor: '#f97316',
-    backgroundColor: '#fff7ed',
-  },
-  multiSelectText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#374151',
-  },
-  multiSelectTextSelected: {
-    color: '#ea580c',
+    color: '#1f2937',
+    marginBottom: 12,
   },
   notesInput: {
-    minHeight: 120,
     backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
     padding: 16,
-    fontSize: 16,
-    color: '#1f2937',
-  },
-  painWarning: {
-    marginTop: 20,
-    padding: 16,
-    backgroundColor: '#fef3c7',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#fcd34d',
-  },
-  painWarningText: {
-    fontSize: 14,
-    color: '#92400e',
-    lineHeight: 20,
-  },
-  summaryCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginTop: 16,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-  },
-  summaryLabel: {
     fontSize: 15,
-    color: '#6b7280',
-  },
-  summaryValue: {
-    fontSize: 15,
-    fontWeight: '600',
     color: '#1f2937',
-    textAlign: 'right',
-    flex: 1,
-    marginLeft: 16,
-  },
-  summaryDivider: {
-    height: 1,
-    backgroundColor: '#e5e7eb',
-    marginVertical: 12,
+    minHeight: 100,
+    textAlignVertical: 'top',
   },
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    paddingBottom: 36,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-    gap: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    paddingTop: 8,
+    backgroundColor: 'transparent',
   },
   nextButton: {
-    backgroundColor: '#1f2937',
-    paddingVertical: 18,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  nextButtonText: {
-    color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  skipButton: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  skipButtonText: {
-    color: '#9ca3af',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  primaryButton: {
     borderRadius: 16,
     overflow: 'hidden',
+    shadowColor: '#4f46e5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  primaryButtonDisabled: {
-    opacity: 0.7,
+  nextButtonDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
   },
-  primaryButtonGradient: {
+  nextButtonGradient: {
     paddingVertical: 18,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
+  nextButtonText: {
+    fontSize: 17,
     fontWeight: '700',
+    color: '#ffffff',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
 })

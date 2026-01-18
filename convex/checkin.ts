@@ -1,74 +1,70 @@
 import { v } from 'convex/values'
 import { internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
-import {
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-} from './_generated/server'
+import { internalQuery, mutation, query } from './_generated/server'
 
-// Validator for check-in data
+// Check-in data shape for validation
 const checkinDataArg = v.object({
   energyLevel: v.number(),
-  sleepQuality: v.number(),
-  stressLevel: v.number(),
-  painLevel: v.optional(v.number()),
+  sleepQuality: v.union(
+    v.literal('rough'),
+    v.literal('okay'),
+    v.literal('decent'),
+    v.literal('great')
+  ),
+  painLevel: v.number(),
   painAreas: v.optional(v.array(v.string())),
-  workoutIntensity: v.union(
-    v.literal('push-hard'),
-    v.literal('moderate'),
+  stressLevel: v.number(),
+  workoutType: v.union(
+    v.literal('strength'),
+    v.literal('mobility'),
+    v.literal('cardio'),
+    v.literal('recovery'),
+    v.literal('mixed')
+  ),
+  intensityPreference: v.union(
     v.literal('easy'),
-    v.literal('just-move')
+    v.literal('moderate'),
+    v.literal('challenging')
   ),
   timeAvailable: v.union(
-    v.literal('15-min'),
-    v.literal('30-min'),
-    v.literal('45-min'),
-    v.literal('60-min')
-  ),
-  focusAreas: v.optional(v.array(v.string())),
-  workoutType: v.optional(
-    v.union(
-      v.literal('strength'),
-      v.literal('cardio'),
-      v.literal('mobility'),
-      v.literal('recovery'),
-      v.literal('mixed')
-    )
+    v.literal('15'),
+    v.literal('30'),
+    v.literal('45'),
+    v.literal('60')
   ),
   notes: v.optional(v.string()),
-  mood: v.optional(
-    v.union(
-      v.literal('great'),
-      v.literal('good'),
-      v.literal('okay'),
-      v.literal('tired'),
-      v.literal('stressed')
-    )
-  ),
 })
 
 export type CheckinData = {
   energyLevel: number
-  sleepQuality: number
-  stressLevel: number
-  painLevel?: number
+  sleepQuality: 'rough' | 'okay' | 'decent' | 'great'
+  painLevel: number
   painAreas?: string[]
-  workoutIntensity: 'push-hard' | 'moderate' | 'easy' | 'just-move'
-  timeAvailable: '15-min' | '30-min' | '45-min' | '60-min'
-  focusAreas?: string[]
-  workoutType?: 'strength' | 'cardio' | 'mobility' | 'recovery' | 'mixed'
+  stressLevel: number
+  workoutType: 'strength' | 'mobility' | 'cardio' | 'recovery' | 'mixed'
+  intensityPreference: 'easy' | 'moderate' | 'challenging'
+  timeAvailable: '15' | '30' | '45' | '60'
   notes?: string
-  mood?: 'great' | 'good' | 'okay' | 'tired' | 'stressed'
 }
 
-// Submit a daily check-in and create a pending session
-export const submitCheckinAndStartSession = mutation({
+// Helper to get start of today (midnight) in user's timezone approximation
+function getStartOfToday(): number {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  return now.getTime()
+}
+
+// Create a new check-in and optionally create a pending session
+export const createCheckin = mutation({
   args: {
-    checkinData: checkinDataArg,
+    data: checkinDataArg,
+    startSession: v.optional(v.boolean()),
   },
-  handler: async (ctx, { checkinData }): Promise<Id<'workout_sessions'>> => {
+  handler: async (ctx, { data, startSession }): Promise<{
+    checkinId: Id<'daily_checkins'>
+    sessionId?: Id<'workout_sessions'>
+  }> => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) {
       throw new Error('Not authenticated')
@@ -77,68 +73,64 @@ export const submitCheckinAndStartSession = mutation({
     const userId = identity.subject
     const now = Date.now()
 
-    // Get user profile for goal
-    const onboarding = await ctx.db
-      .query('onboarding')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
-
-    // Build a contextual goal based on check-in data
-    const goal = buildSessionGoal(checkinData, onboarding?.goal || 'Personalized session')
-
     // Create the check-in record
     const checkinId = await ctx.db.insert('daily_checkins', {
       userId,
-      energyLevel: checkinData.energyLevel,
-      sleepQuality: checkinData.sleepQuality,
-      stressLevel: checkinData.stressLevel,
-      painLevel: checkinData.painLevel,
-      painAreas: checkinData.painAreas,
-      workoutIntensity: checkinData.workoutIntensity,
-      timeAvailable: checkinData.timeAvailable,
-      focusAreas: checkinData.focusAreas,
-      workoutType: checkinData.workoutType,
-      notes: checkinData.notes,
-      mood: checkinData.mood,
+      energyLevel: data.energyLevel,
+      sleepQuality: data.sleepQuality,
+      painLevel: data.painLevel,
+      painAreas: data.painAreas,
+      stressLevel: data.stressLevel,
+      workoutType: data.workoutType,
+      intensityPreference: data.intensityPreference,
+      timeAvailable: data.timeAvailable,
+      notes: data.notes,
       createdAt: now,
     })
 
-    // Convert time to minutes
-    const durationMin = timeToMinutes(checkinData.timeAvailable)
+    // If user wants to start a session, create a pending one
+    let sessionId: Id<'workout_sessions'> | undefined
 
-    // Create a pending session
-    const sessionId = await ctx.db.insert('workout_sessions', {
-      userId,
-      goal,
-      modality: checkinData.workoutType || 'mixed',
-      durationMin,
-      status: 'generating',
-      plan: [],
-      healthFacts: [],
-      citations: [],
-      createdAt: now,
-      updatedAt: now,
-    })
+    if (startSession) {
+      // Get user profile for goal
+      const onboarding = await ctx.db
+        .query('onboarding')
+        .withIndex('by_userId', (q) => q.eq('userId', userId))
+        .first()
 
-    // Link the check-in to the session
-    await ctx.db.patch(checkinId, { sessionId })
+      const goal = onboarding?.goal || 'Personalized session'
 
-    // Schedule background generation with check-in data
-    await ctx.scheduler.runAfter(
-      0,
-      internal.trainer.generateSessionPlanWithCheckin,
-      {
+      // Create pending session linked to this check-in
+      sessionId = await ctx.db.insert('workout_sessions', {
+        userId,
+        goal,
+        modality: 'generating...',
+        durationMin: parseInt(data.timeAvailable, 10),
+        status: 'generating',
+        plan: [],
+        healthFacts: [],
+        citations: [],
+        checkinId,
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      // Update check-in with session link
+      await ctx.db.patch(checkinId, { sessionId })
+
+      // Schedule background generation with check-in data
+      await ctx.scheduler.runAfter(0, internal.trainer.generateSessionPlan, {
         sessionId,
         userId,
-        checkinData,
-      }
-    )
+        checkinId,
+      })
+    }
 
-    return sessionId
+    return { checkinId, sessionId }
   },
 })
 
-// Get today's check-in if exists
+// Get today's check-in for the current user (if exists)
 export const getTodaysCheckin = query({
   args: {},
   handler: async (ctx) => {
@@ -147,22 +139,26 @@ export const getTodaysCheckin = query({
       return null
     }
 
-    const startOfDay = getStartOfDay()
+    const startOfToday = getStartOfToday()
 
-    // Find check-in created today
+    // Get the most recent check-in from today
     const checkins = await ctx.db
       .query('daily_checkins')
       .withIndex('by_userId', (q) => q.eq('userId', identity.subject))
       .order('desc')
-      .take(5)
+      .collect()
 
-    // Return the most recent check-in from today
-    return checkins.find((c) => c.createdAt >= startOfDay) || null
+    // Find one from today
+    const todaysCheckin = checkins.find(
+      (checkin) => checkin.createdAt >= startOfToday
+    )
+
+    return todaysCheckin || null
   },
 })
 
-// Get recent check-ins for trend analysis
-export const getRecentCheckins = query({
+// Get recent check-in history for trends
+export const getCheckinHistory = query({
   args: {
     limit: v.optional(v.number()),
   },
@@ -182,231 +178,162 @@ export const getRecentCheckins = query({
   },
 })
 
-// Internal query to get check-in by session ID
-export const getCheckinBySessionId = internalQuery({
-  args: {
-    sessionId: v.id('workout_sessions'),
-  },
-  handler: async (ctx, { sessionId }) => {
-    const checkins = await ctx.db
-      .query('daily_checkins')
-      .filter((q) => q.eq(q.field('sessionId'), sessionId))
-      .first()
-
-    return checkins
-  },
-})
-
-// Internal query to get check-in data for a user's most recent check-in
-export const getLatestCheckinByUserId = internalQuery({
-  args: {
-    userId: v.string(),
-  },
-  handler: async (ctx, { userId }) => {
-    const startOfDay = getStartOfDay()
-
-    const checkins = await ctx.db
-      .query('daily_checkins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .order('desc')
-      .take(1)
-
-    // Return if from today
-    const latest = checkins[0]
-    if (latest && latest.createdAt >= startOfDay) {
-      return latest
-    }
-
-    return null
-  },
-})
-
-// Update a check-in's linked session
-export const linkCheckinToSession = internalMutation({
+// Internal query to get check-in by ID (for background actions)
+export const getCheckinById = internalQuery({
   args: {
     checkinId: v.id('daily_checkins'),
-    sessionId: v.id('workout_sessions'),
   },
-  handler: async (ctx, { checkinId, sessionId }) => {
-    await ctx.db.patch(checkinId, { sessionId })
+  handler: async (ctx, { checkinId }) => {
+    return await ctx.db.get(checkinId)
   },
 })
 
-// Helper to get start of day timestamp
-function getStartOfDay(): number {
-  const now = new Date()
-  now.setHours(0, 0, 0, 0)
-  return now.getTime()
-}
-
-// Helper to convert time string to minutes
-function timeToMinutes(time: string): number {
-  switch (time) {
-    case '15-min':
-      return 15
-    case '30-min':
-      return 30
-    case '45-min':
-      return 45
-    case '60-min':
-      return 60
-    default:
-      return 30
-  }
-}
-
-// Helper to build a contextual session goal based on check-in
-function buildSessionGoal(checkinData: CheckinData, baseGoal: string): string {
-  const parts: string[] = []
-
-  // Workout type influence
-  if (checkinData.workoutType) {
-    const typeLabels: Record<string, string> = {
-      strength: 'Strength',
-      cardio: 'Cardio',
-      mobility: 'Mobility',
-      recovery: 'Recovery',
-      mixed: 'Full Body',
+// Update a check-in (e.g., to add notes or modify before session starts)
+export const updateCheckin = mutation({
+  args: {
+    checkinId: v.id('daily_checkins'),
+    data: v.object({
+      energyLevel: v.optional(v.number()),
+      sleepQuality: v.optional(
+        v.union(
+          v.literal('rough'),
+          v.literal('okay'),
+          v.literal('decent'),
+          v.literal('great')
+        )
+      ),
+      painLevel: v.optional(v.number()),
+      painAreas: v.optional(v.array(v.string())),
+      stressLevel: v.optional(v.number()),
+      workoutType: v.optional(
+        v.union(
+          v.literal('strength'),
+          v.literal('mobility'),
+          v.literal('cardio'),
+          v.literal('recovery'),
+          v.literal('mixed')
+        )
+      ),
+      intensityPreference: v.optional(
+        v.union(
+          v.literal('easy'),
+          v.literal('moderate'),
+          v.literal('challenging')
+        )
+      ),
+      timeAvailable: v.optional(
+        v.union(
+          v.literal('15'),
+          v.literal('30'),
+          v.literal('45'),
+          v.literal('60')
+        )
+      ),
+      notes: v.optional(v.string()),
+    }),
+  },
+  handler: async (ctx, { checkinId, data }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
     }
-    parts.push(typeLabels[checkinData.workoutType] || 'Mixed')
+
+    const checkin = await ctx.db.get(checkinId)
+    if (!checkin || checkin.userId !== identity.subject) {
+      throw new Error('Check-in not found')
+    }
+
+    // Build update object with only defined fields
+    const updates: Record<string, unknown> = {}
+    if (data.energyLevel !== undefined) updates.energyLevel = data.energyLevel
+    if (data.sleepQuality !== undefined) updates.sleepQuality = data.sleepQuality
+    if (data.painLevel !== undefined) updates.painLevel = data.painLevel
+    if (data.painAreas !== undefined) updates.painAreas = data.painAreas
+    if (data.stressLevel !== undefined) updates.stressLevel = data.stressLevel
+    if (data.workoutType !== undefined) updates.workoutType = data.workoutType
+    if (data.intensityPreference !== undefined)
+      updates.intensityPreference = data.intensityPreference
+    if (data.timeAvailable !== undefined)
+      updates.timeAvailable = data.timeAvailable
+    if (data.notes !== undefined) updates.notes = data.notes
+
+    await ctx.db.patch(checkinId, updates)
+
+    return { success: true }
+  },
+})
+
+// Helper function to format check-in data for AI prompt
+export function formatCheckinForPrompt(checkin: {
+  energyLevel: number
+  sleepQuality: string
+  painLevel: number
+  painAreas?: string[]
+  stressLevel: number
+  workoutType: string
+  intensityPreference: string
+  timeAvailable: string
+  notes?: string
+}): string {
+  const sleepLabels: Record<string, string> = {
+    rough: 'Rough night, tired',
+    okay: 'Could be better',
+    decent: 'Decent rest',
+    great: 'Slept great, well-rested',
   }
 
-  // Intensity influence
+  const workoutLabels: Record<string, string> = {
+    strength: 'Strength & power focus',
+    mobility: 'Mobility & flexibility',
+    cardio: 'Cardio & endurance',
+    recovery: 'Active recovery',
+    mixed: 'Mixed/balanced session',
+  }
+
   const intensityLabels: Record<string, string> = {
-    'push-hard': 'High Intensity',
-    moderate: 'Moderate',
-    easy: 'Easy',
-    'just-move': 'Gentle Movement',
+    easy: 'Easy day - keep it light',
+    moderate: 'Moderate - steady effort',
+    challenging: 'Push me - want a challenge',
   }
 
-  parts.push(intensityLabels[checkinData.workoutIntensity] || 'Session')
+  const painAreas = checkin.painAreas || []
 
-  // Focus areas
-  if (checkinData.focusAreas && checkinData.focusAreas.length > 0) {
-    parts.push(`(${checkinData.focusAreas.slice(0, 2).join(', ')})`)
+  const lines = [
+    `TODAY'S CHECK-IN:`,
+    `- Energy Level: ${checkin.energyLevel}/10`,
+    `- Sleep: ${sleepLabels[checkin.sleepQuality] || checkin.sleepQuality}`,
+    `- Pain/Discomfort: ${checkin.painLevel}/10${checkin.painLevel > 3 && painAreas.length ? ` (Areas: ${painAreas.join(', ')})` : ''}`,
+    `- Stress Level: ${checkin.stressLevel}/5`,
+    `- Workout Preference: ${workoutLabels[checkin.workoutType] || checkin.workoutType}`,
+    `- Intensity: ${intensityLabels[checkin.intensityPreference] || checkin.intensityPreference}`,
+    `- Time Available: ${checkin.timeAvailable} minutes`,
+  ]
+
+  if (checkin.notes) {
+    lines.push(`- Additional Notes: "${checkin.notes}"`)
   }
 
-  return parts.join(' ') || baseGoal
-}
+  lines.push('')
+  lines.push('ADAPT THE WORKOUT based on this check-in:')
 
-// Format check-in data for AI context
-export function formatCheckinForAI(checkinData: CheckinData): string {
-  const lines: string[] = []
-
-  lines.push('=== TODAY\'S CHECK-IN ===')
-  
-  // Energy and sleep
-  lines.push(`Energy Level: ${checkinData.energyLevel}/10`)
-  lines.push(`Sleep Quality: ${checkinData.sleepQuality}/10`)
-  lines.push(`Stress Level: ${checkinData.stressLevel}/5`)
-  
-  if (checkinData.mood) {
-    lines.push(`Current Mood: ${checkinData.mood}`)
+  // Add specific guidance based on values
+  if (checkin.energyLevel < 5) {
+    lines.push('- Low energy: Reduce volume, favor lighter movements')
   }
-
-  // Pain assessment
-  if (checkinData.painLevel !== undefined && checkinData.painLevel > 0) {
-    lines.push(`Pain Level: ${checkinData.painLevel}/10`)
-    if (checkinData.painAreas && checkinData.painAreas.length > 0) {
-      lines.push(`Pain Areas Today: ${checkinData.painAreas.join(', ')}`)
-    }
-  } else {
-    lines.push('Pain Level: None reported')
+  if (checkin.painLevel > 5) {
+    lines.push(
+      '- Elevated pain: Include extra mobility, avoid aggravating movements'
+    )
   }
-
-  // Workout preferences
-  const intensityDescriptions: Record<string, string> = {
-    'push-hard': 'Wants to push hard and challenge themselves',
-    moderate: 'Looking for a moderate, balanced session',
-    easy: 'Needs an easier session today',
-    'just-move': 'Just wants to move and feel good',
+  if (checkin.painLevel > 3 && painAreas.length) {
+    lines.push(`- Pain areas to work around: ${painAreas.join(', ')}`)
   }
-  lines.push(`Intensity Preference: ${intensityDescriptions[checkinData.workoutIntensity]}`)
-  
-  const timeMinutes = timeToMinutes(checkinData.timeAvailable)
-  lines.push(`Time Available: ${timeMinutes} minutes`)
-
-  if (checkinData.workoutType) {
-    lines.push(`Workout Type Requested: ${checkinData.workoutType}`)
+  if (checkin.stressLevel > 3) {
+    lines.push('- High stress: Include breathwork, keep complexity low')
   }
-
-  if (checkinData.focusAreas && checkinData.focusAreas.length > 0) {
-    lines.push(`Focus Areas: ${checkinData.focusAreas.join(', ')}`)
+  if (checkin.sleepQuality === 'rough') {
+    lines.push('- Poor sleep: Prioritize recovery, reduce intensity')
   }
-
-  if (checkinData.notes) {
-    lines.push(`Additional Notes: "${checkinData.notes}"`)
-  }
-
-  lines.push('=== END CHECK-IN ===')
 
   return lines.join('\n')
-}
-
-// Build recommendations based on check-in for workout adjustments
-export function getCheckinRecommendations(checkinData: CheckinData): {
-  intensityMultiplier: number
-  shouldAvoidHighIntensity: boolean
-  focusOnRecovery: boolean
-  priorityAreas: string[]
-  warnings: string[]
-} {
-  const warnings: string[] = []
-  let intensityMultiplier = 1
-  let shouldAvoidHighIntensity = false
-  let focusOnRecovery = false
-
-  // Low energy or poor sleep = reduce intensity
-  if (checkinData.energyLevel <= 4) {
-    intensityMultiplier *= 0.7
-    warnings.push('Low energy today - reducing workout intensity')
-  }
-
-  if (checkinData.sleepQuality <= 4) {
-    intensityMultiplier *= 0.8
-    warnings.push('Poor sleep - prioritizing recovery movements')
-    focusOnRecovery = true
-  }
-
-  // High stress = favor calming activities
-  if (checkinData.stressLevel >= 4) {
-    warnings.push('High stress - including breathwork and gentle movements')
-    focusOnRecovery = true
-  }
-
-  // Pain considerations
-  if (checkinData.painLevel !== undefined && checkinData.painLevel >= 5) {
-    shouldAvoidHighIntensity = true
-    intensityMultiplier *= 0.6
-    warnings.push(`Elevated pain (${checkinData.painLevel}/10) - avoiding aggravating movements`)
-  }
-
-  // Mood considerations
-  if (checkinData.mood === 'tired' || checkinData.mood === 'stressed') {
-    intensityMultiplier *= 0.85
-    focusOnRecovery = true
-  }
-
-  // User explicitly wants easy workout
-  if (checkinData.workoutIntensity === 'easy' || checkinData.workoutIntensity === 'just-move') {
-    shouldAvoidHighIntensity = true
-  }
-
-  // Priority areas to focus on
-  const priorityAreas: string[] = []
-  if (checkinData.focusAreas) {
-    priorityAreas.push(...checkinData.focusAreas)
-  }
-  if (checkinData.painAreas && checkinData.painLevel !== undefined && checkinData.painLevel > 0) {
-    // Add complementary areas (e.g., if lower back hurts, focus on core/hips)
-    // Areas to avoid are handled separately
-  }
-
-  return {
-    intensityMultiplier: Math.max(intensityMultiplier, 0.5),
-    shouldAvoidHighIntensity,
-    focusOnRecovery,
-    priorityAreas,
-    warnings,
-  }
 }

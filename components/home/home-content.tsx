@@ -4,8 +4,8 @@ import { useAuth } from '@clerk/clerk-expo'
 import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
-import { router } from 'expo-router'
-import React, { useEffect } from 'react'
+import { router, type Href } from 'expo-router'
+import React, { useEffect, useState } from 'react'
 import {
   Pressable,
   ScrollView,
@@ -29,8 +29,11 @@ const AnimatedTouchableOpacity =
 
 export default function HomeContent() {
   const onboardingData = useQuery(api.onboarding.getOnboarding)
+  const todaysCheckin = useQuery(api.checkin.getTodaysCheckin)
   const deleteOnboarding = useMutation(api.onboarding.deleteOnboarding)
+  const createPendingSession = useMutation(api.trainer.createPendingSession)
   const { signOut } = useAuth()
+  const [isStarting, setIsStarting] = useState(false)
 
   const aiCardScale = useSharedValue(1)
 
@@ -125,14 +128,32 @@ export default function HomeContent() {
     aiCardScale.value = withSpring(1)
   }
 
+  const handleStartSession = async () => {
+    if (isStarting) return
+    setIsStarting(true)
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+
+      // Create a pending session and navigate immediately (optimistic navigation)
+      // The session will generate in the background while user sees the session screen
+      const sessionId = await createPendingSession({})
+
+      const sessionHref = {
+        pathname: '/session',
+        params: { sessionId: String(sessionId) },
+      } as unknown as Href
+      router.push(sessionHref)
+    } catch (error) {
+      console.error('Failed to start session', error)
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+    } finally {
+      setIsStarting(false)
+    }
+  }
+
   const handleBodyMap = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     // TODO: Navigate to body map
-  }
-
-  const handleCheckIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    router.push('/checkin')
   }
 
   const handleStartProfileQuestions = () => {
@@ -198,28 +219,41 @@ export default function HomeContent() {
             <Pressable
               onPressIn={handleAICardPressIn}
               onPressOut={handleAICardPressOut}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                router.push('/checkin')
+              }}
             >
               <Animated.View style={[styles.aiCard, aiCardAnimatedStyle]}>
                 <LinearGradient
-                  colors={['#f97316', '#ea580c']}
+                  colors={todaysCheckin ? ['#22c55e', '#16a34a'] : ['#f97316', '#ea580c']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.aiGradient}
                 >
                   <View style={styles.aiIconContainer}>
-                    <Text style={styles.aiIcon}>✨</Text>
+                    <Text style={styles.aiIcon}>{todaysCheckin ? '✓' : '✨'}</Text>
                   </View>
-                  <Text style={styles.aiTitle}>Your AI Training Partner</Text>
+                  <Text style={styles.aiTitle}>
+                    {todaysCheckin
+                      ? 'Ready for your session'
+                      : 'Your AI Training Partner'}
+                  </Text>
                   <Text style={styles.aiDescription}>
-                    Share how you&apos;re feeling today. Your data is private,
-                    encrypted, and only used to create your safest, most
-                    effective plan.
+                    {todaysCheckin
+                      ? `Energy: ${todaysCheckin.energyLevel}/10 · Pain: ${todaysCheckin.painLevel}/10 · ${todaysCheckin.timeAvailable} min ${todaysCheckin.workoutType}`
+                      : "Share how you're feeling today. Your data is private, encrypted, and only used to create your safest, most effective plan."}
                   </Text>
                   <TouchableOpacity
                     style={styles.aiButton}
-                    onPress={handleCheckIn}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                      router.push('/checkin')
+                    }}
                   >
-                    <Text style={styles.aiButtonText}>Check in →</Text>
+                    <Text style={styles.aiButtonText}>
+                      {todaysCheckin ? 'Update check-in →' : 'Check in →'}
+                    </Text>
                   </TouchableOpacity>
                 </LinearGradient>
               </Animated.View>
@@ -288,7 +322,7 @@ export default function HomeContent() {
 
             <AnimatedTouchableOpacity
               style={[styles.primaryAction, actionsShadowStyle]}
-              onPress={handleCheckIn}
+              onPress={handleStartSession}
               activeOpacity={0.8}
             >
               <LinearGradient
@@ -300,10 +334,12 @@ export default function HomeContent() {
                 <View style={styles.actionContent}>
                   <View>
                     <Text style={styles.primaryActionTitle}>
-                      Start Today's Session
+                      {isStarting
+                        ? 'Building your session...'
+                        : "Start Today's Session"}
                     </Text>
                     <Text style={styles.primaryActionSubtitle}>
-                      Quick check-in, then personalized workout
+                      Personalized plan with live coaching
                     </Text>
                   </View>
                   <Text style={styles.actionArrow}>→</Text>

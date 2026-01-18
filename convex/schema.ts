@@ -114,6 +114,8 @@ export default defineSchema({
     plan: v.array(exerciseShape),
     healthFacts: v.array(factShape),
     citations: v.array(citationRef),
+    // Link to pre-session check-in (if user checked in before starting)
+    checkinId: v.optional(v.id('daily_checkins')),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -190,55 +192,44 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index('by_userId', ['userId']),
 
-  // Daily check-ins before workout sessions
+  // Daily check-ins for pre-session state capture
   daily_checkins: defineTable({
     userId: v.string(),
-    // Core wellness metrics
+    // Physical state
     energyLevel: v.number(), // 1-10
-    sleepQuality: v.number(), // 1-10
+    sleepQuality: v.union(
+      v.literal('rough'),
+      v.literal('okay'),
+      v.literal('decent'),
+      v.literal('great')
+    ),
+    painLevel: v.number(), // 0-10
+    painAreas: v.optional(v.array(v.string())), // body areas if pain > 3
     stressLevel: v.number(), // 1-5
-    // Pain assessment (if user has known injuries/conditions)
-    painLevel: v.optional(v.number()), // 0-10
-    painAreas: v.optional(v.array(v.string())), // Which areas are bothering them today
-    // Workout preferences for today
-    workoutIntensity: v.union(
-      v.literal('push-hard'),
-      v.literal('moderate'),
+    // Session preferences
+    workoutType: v.union(
+      v.literal('strength'),
+      v.literal('mobility'),
+      v.literal('cardio'),
+      v.literal('recovery'),
+      v.literal('mixed')
+    ),
+    intensityPreference: v.union(
       v.literal('easy'),
-      v.literal('just-move')
+      v.literal('moderate'),
+      v.literal('challenging')
     ),
     timeAvailable: v.union(
-      v.literal('15-min'),
-      v.literal('30-min'),
-      v.literal('45-min'),
-      v.literal('60-min')
+      v.literal('15'),
+      v.literal('30'),
+      v.literal('45'),
+      v.literal('60')
     ),
-    focusAreas: v.optional(v.array(v.string())), // Optional: specific areas to target
-    workoutType: v.optional(
-      v.union(
-        v.literal('strength'),
-        v.literal('cardio'),
-        v.literal('mobility'),
-        v.literal('recovery'),
-        v.literal('mixed')
-      )
-    ),
-    // Free-form notes
+    // Optional notes
     notes: v.optional(v.string()),
-    // Mood indicator
-    mood: v.optional(
-      v.union(
-        v.literal('great'),
-        v.literal('good'),
-        v.literal('okay'),
-        v.literal('tired'),
-        v.literal('stressed')
-      )
-    ),
-    // Timestamps
-    createdAt: v.number(),
-    // Link to the session created from this check-in
+    // Link to the generated session
     sessionId: v.optional(v.id('workout_sessions')),
+    createdAt: v.number(),
   })
     .index('by_userId', ['userId'])
     .index('by_userId_date', ['userId', 'createdAt']),
