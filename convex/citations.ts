@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
 import type {
-  ResponseCreateParamsNonStreaming,
-  ResponseFormatTextJSONSchemaConfig,
+    ResponseCreateParamsNonStreaming,
+    ResponseFormatTextJSONSchemaConfig,
 } from 'openai/resources/responses/responses'
 import { action } from './_generated/server'
 import { getOpenAI, getOpenAIModel } from './openai'

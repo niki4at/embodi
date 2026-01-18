@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as checkin from "../checkin.js";
 import type * as citations from "../citations.js";
 import type * as messages from "../messages.js";
 import type * as onboarding from "../onboarding.js";
@@ -22,6 +23,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  checkin: typeof checkin;
   citations: typeof citations;
   messages: typeof messages;
   onboarding: typeof onboarding;

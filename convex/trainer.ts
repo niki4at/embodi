@@ -15,6 +15,11 @@ import {
   query,
 } from './_generated/server'
 import {
+  formatCheckinForAI,
+  getCheckinRecommendations,
+  type CheckinData,
+} from './checkin'
+import {
   distillCitationsForProfile,
   searchCitationsForProfile,
   type Citation as CitationSource,
@@ -406,6 +411,47 @@ export const getExtendedProfileByUserId = internalQuery({
   },
 })
 
+// Validator for check-in data in internal actions
+const checkinDataInternalArg = v.object({
+  energyLevel: v.number(),
+  sleepQuality: v.number(),
+  stressLevel: v.number(),
+  painLevel: v.optional(v.number()),
+  painAreas: v.optional(v.array(v.string())),
+  workoutIntensity: v.union(
+    v.literal('push-hard'),
+    v.literal('moderate'),
+    v.literal('easy'),
+    v.literal('just-move')
+  ),
+  timeAvailable: v.union(
+    v.literal('15-min'),
+    v.literal('30-min'),
+    v.literal('45-min'),
+    v.literal('60-min')
+  ),
+  focusAreas: v.optional(v.array(v.string())),
+  workoutType: v.optional(
+    v.union(
+      v.literal('strength'),
+      v.literal('cardio'),
+      v.literal('mobility'),
+      v.literal('recovery'),
+      v.literal('mixed')
+    )
+  ),
+  notes: v.optional(v.string()),
+  mood: v.optional(
+    v.union(
+      v.literal('great'),
+      v.literal('good'),
+      v.literal('okay'),
+      v.literal('tired'),
+      v.literal('stressed')
+    )
+  ),
+})
+
 // Background action to generate the session plan
 export const generateSessionPlan = internalAction({
   args: {
@@ -462,7 +508,8 @@ export const generateSessionPlan = internalAction({
         profile,
         citations,
         healthFacts,
-        profileSummary
+        profileSummary,
+        null // No check-in data
       )
 
       // Update final metadata
@@ -479,6 +526,92 @@ export const generateSessionPlan = internalAction({
       })
     } catch (error) {
       console.error('Failed to generate session plan:', error)
+      await ctx.runMutation(internal.trainer.markSessionFailed, {
+        sessionId,
+      })
+    }
+  },
+})
+
+// Background action to generate session plan WITH check-in data
+export const generateSessionPlanWithCheckin = internalAction({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    userId: v.string(),
+    checkinData: checkinDataInternalArg,
+  },
+  handler: async (ctx, { sessionId, userId, checkinData }) => {
+    try {
+      // Use internal queries with userId since we don't have auth context
+      const profileDoc = await ctx.runQuery(
+        internal.trainer.getOnboardingByUserId,
+        { userId }
+      )
+      if (!profileDoc) {
+        throw new Error('Onboarding data missing')
+      }
+
+      const profile: Profile = {
+        name: profileDoc.name,
+        age: profileDoc.age,
+        gender: profileDoc.gender,
+        goal: profileDoc.goal,
+        activityLevel: profileDoc.activityLevel,
+        timeAvailable: profileDoc.timeAvailable,
+        injuries: profileDoc.injuries,
+        conditions: profileDoc.conditions,
+        medications: profileDoc.medications,
+        smoking: profileDoc.smoking,
+        alcohol: profileDoc.alcohol,
+      }
+
+      // Get the extended profile summary if available
+      const extendedProfile = await ctx.runQuery(
+        internal.trainer.getExtendedProfileByUserId,
+        { userId }
+      )
+      const profileSummary = extendedProfile?.profileSummary || null
+
+      // Fetch citations and health facts first (these are quick)
+      const citations = await searchCitationsForProfile(profile)
+      const healthFacts = await distillCitationsForProfile(profile, citations)
+
+      // Update session with health facts and citations right away
+      await ctx.runMutation(internal.trainer.updateSessionMetadata, {
+        sessionId,
+        healthFacts,
+        citations,
+      })
+
+      // Generate the workout plan with streaming AND check-in data
+      const planPayload = await buildWorkoutPlanStreaming(
+        ctx,
+        sessionId,
+        profile,
+        citations,
+        healthFacts,
+        profileSummary,
+        checkinData as CheckinData
+      )
+
+      // Update final metadata
+      await ctx.runMutation(internal.trainer.updateSessionMetadata, {
+        sessionId,
+        goal: planPayload.goalFocus || profile.goal,
+        modality: planPayload.modality,
+        durationMin: planPayload.durationMin,
+      })
+
+      // Mark as ready
+      await ctx.runMutation(internal.trainer.markSessionGenerated, {
+        sessionId,
+      })
+
+      console.log(
+        `[generateSessionPlanWithCheckin] Completed session ${sessionId} with check-in data`
+      )
+    } catch (error) {
+      console.error('Failed to generate session plan with check-in:', error)
       await ctx.runMutation(internal.trainer.markSessionFailed, {
         sessionId,
       })
@@ -932,14 +1065,47 @@ async function buildWorkoutPlanStreaming(
   profile: Profile,
   citations: Citation[],
   facts: Fact[],
-  profileSummary: string | null
+  profileSummary: string | null,
+  checkinData: CheckinData | null
 ): Promise<{ goalFocus: string; modality: string; durationMin: number }> {
   const client = getOpenAI()
   const model = getOpenAIModel()
 
-  // Build the system prompt - enhanced when we have a profile summary
-  const systemPromptText = profileSummary
-    ? `You are an AI trainer who programs deeply personalised sessions based on comprehensive client assessments.
+  // Get check-in recommendations if available
+  const checkinContext = checkinData ? formatCheckinForAI(checkinData) : null
+  const recommendations = checkinData
+    ? getCheckinRecommendations(checkinData)
+    : null
+
+  // Build the system prompt - enhanced when we have check-in data and/or profile summary
+  let systemPromptText = ''
+
+  if (checkinData) {
+    // Most comprehensive prompt when we have both check-in and profile data
+    systemPromptText = `You are an AI trainer who programs deeply personalised sessions based on comprehensive client assessments AND their current state today.
+
+You have access to:
+1. A detailed client profile (their baseline health, preferences, and history)
+2. TODAY'S CHECK-IN (their current energy, sleep, pain, mood, and workout preferences)
+
+CRITICAL: The check-in data represents HOW THEY FEEL RIGHT NOW. This takes priority over general preferences.
+
+${recommendations?.warnings.length ? `⚠️ IMPORTANT WARNINGS FOR TODAY:\n${recommendations.warnings.map((w) => `- ${w}`).join('\n')}\n` : ''}
+
+ADAPTATION RULES BASED ON TODAY'S CHECK-IN:
+${recommendations?.shouldAvoidHighIntensity ? '- AVOID high-intensity exercises today' : ''}
+${recommendations?.focusOnRecovery ? '- PRIORITIZE recovery and gentle movements' : ''}
+${recommendations?.intensityMultiplier && recommendations.intensityMultiplier < 0.9 ? `- REDUCE overall intensity (factor: ${Math.round(recommendations.intensityMultiplier * 100)}%)` : ''}
+${recommendations?.priorityAreas.length ? `- FOCUS on: ${recommendations.priorityAreas.join(', ')}` : ''}
+
+Plans must account for sex, age, injuries, conditions, medications, and lifestyle. Use proven approaches and cue breath, tempo, and intent.
+
+IMPORTANT: Use the provided tools to build the plan step by step:
+1. First call set_session_metadata with the goal, modality, and duration (respect the time they have available today!)
+2. Then call add_exercise for each exercise (aim for 4-8 exercises based on their time and energy)
+3. Finally call finish_plan when done`
+  } else if (profileSummary) {
+    systemPromptText = `You are an AI trainer who programs deeply personalised sessions based on comprehensive client assessments.
 
 You have access to a detailed client profile summary that includes their pain levels, energy patterns, sleep quality, motivation, barriers, and training preferences. USE THIS INFORMATION to create a session that:
 - Respects their current pain/discomfort levels and avoids aggravating movements
@@ -954,15 +1120,22 @@ IMPORTANT: Use the provided tools to build the plan step by step:
 1. First call set_session_metadata with the goal, modality, and duration
 2. Then call add_exercise for each exercise (aim for 6-10 exercises)
 3. Finally call finish_plan when done`
-    : `You are an AI trainer who programs personalised sessions. Plans must account for sex, age, injuries, conditions, medications, and lifestyle. Use proven approaches and cue breath, tempo, and intent.
+  } else {
+    systemPromptText = `You are an AI trainer who programs personalised sessions. Plans must account for sex, age, injuries, conditions, medications, and lifestyle. Use proven approaches and cue breath, tempo, and intent.
 
 IMPORTANT: Use the provided tools to build the plan step by step:
 1. First call set_session_metadata with the goal, modality, and duration
 2. Then call add_exercise for each exercise (aim for 6-10 exercises)
 3. Finally call finish_plan when done`
+  }
 
   // Build the user prompt
   const userPromptParts: string[] = []
+
+  // Add check-in data first (most immediate context)
+  if (checkinContext) {
+    userPromptParts.push(checkinContext, '')
+  }
 
   if (profileSummary) {
     userPromptParts.push(
@@ -978,9 +1151,18 @@ IMPORTANT: Use the provided tools to build the plan step by step:
     '\nRelevant health facts:',
     JSON.stringify(facts),
     '\nCitations (for awareness, do not invent new IDs):',
-    JSON.stringify(citations),
-    '\nCreate a personalized workout plan for this client. Call set_session_metadata first, then add_exercise for each exercise, then finish_plan.'
+    JSON.stringify(citations)
   )
+
+  if (checkinData) {
+    userPromptParts.push(
+      `\nCreate a personalized workout plan that ADAPTS to their check-in. They want a ${checkinData.workoutIntensity.replace('-', ' ')} session, have ${checkinData.timeAvailable.replace('-', ' ')} available${checkinData.workoutType ? `, and prefer ${checkinData.workoutType}` : ''}.`
+    )
+  } else {
+    userPromptParts.push(
+      '\nCreate a personalized workout plan for this client. Call set_session_metadata first, then add_exercise for each exercise, then finish_plan.'
+    )
+  }
 
   // Track metadata and exercises
   let metadata = {

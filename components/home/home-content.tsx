@@ -4,8 +4,8 @@ import { useAuth } from '@clerk/clerk-expo'
 import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
-import { router, type Href } from 'expo-router'
-import React, { useEffect, useState } from 'react'
+import { router } from 'expo-router'
+import React, { useEffect } from 'react'
 import {
   Pressable,
   ScrollView,
@@ -30,9 +30,7 @@ const AnimatedTouchableOpacity =
 export default function HomeContent() {
   const onboardingData = useQuery(api.onboarding.getOnboarding)
   const deleteOnboarding = useMutation(api.onboarding.deleteOnboarding)
-  const createPendingSession = useMutation(api.trainer.createPendingSession)
   const { signOut } = useAuth()
-  const [isStarting, setIsStarting] = useState(false)
 
   const aiCardScale = useSharedValue(1)
 
@@ -127,32 +125,14 @@ export default function HomeContent() {
     aiCardScale.value = withSpring(1)
   }
 
-  const handleStartSession = async () => {
-    if (isStarting) return
-    setIsStarting(true)
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-
-      // Create a pending session and navigate immediately (optimistic navigation)
-      // The session will generate in the background while user sees the session screen
-      const sessionId = await createPendingSession({})
-
-      const sessionHref = {
-        pathname: '/session',
-        params: { sessionId: String(sessionId) },
-      } as unknown as Href
-      router.push(sessionHref)
-    } catch (error) {
-      console.error('Failed to start session', error)
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-    } finally {
-      setIsStarting(false)
-    }
-  }
-
   const handleBodyMap = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     // TODO: Navigate to body map
+  }
+
+  const handleCheckIn = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    router.push('/checkin')
   }
 
   const handleStartProfileQuestions = () => {
@@ -237,9 +217,7 @@ export default function HomeContent() {
                   </Text>
                   <TouchableOpacity
                     style={styles.aiButton}
-                    onPress={() =>
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                    }
+                    onPress={handleCheckIn}
                   >
                     <Text style={styles.aiButtonText}>Check in →</Text>
                   </TouchableOpacity>
@@ -310,7 +288,7 @@ export default function HomeContent() {
 
             <AnimatedTouchableOpacity
               style={[styles.primaryAction, actionsShadowStyle]}
-              onPress={handleStartSession}
+              onPress={handleCheckIn}
               activeOpacity={0.8}
             >
               <LinearGradient
@@ -322,12 +300,10 @@ export default function HomeContent() {
                 <View style={styles.actionContent}>
                   <View>
                     <Text style={styles.primaryActionTitle}>
-                      {isStarting
-                        ? 'Building your session...'
-                        : "Start Today's Session"}
+                      Start Today's Session
                     </Text>
                     <Text style={styles.primaryActionSubtitle}>
-                      Personalized plan with live coaching
+                      Quick check-in, then personalized workout
                     </Text>
                   </View>
                   <Text style={styles.actionArrow}>→</Text>

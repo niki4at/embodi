@@ -189,4 +189,57 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index('by_userId', ['userId']),
+
+  // Daily check-ins before workout sessions
+  daily_checkins: defineTable({
+    userId: v.string(),
+    // Core wellness metrics
+    energyLevel: v.number(), // 1-10
+    sleepQuality: v.number(), // 1-10
+    stressLevel: v.number(), // 1-5
+    // Pain assessment (if user has known injuries/conditions)
+    painLevel: v.optional(v.number()), // 0-10
+    painAreas: v.optional(v.array(v.string())), // Which areas are bothering them today
+    // Workout preferences for today
+    workoutIntensity: v.union(
+      v.literal('push-hard'),
+      v.literal('moderate'),
+      v.literal('easy'),
+      v.literal('just-move')
+    ),
+    timeAvailable: v.union(
+      v.literal('15-min'),
+      v.literal('30-min'),
+      v.literal('45-min'),
+      v.literal('60-min')
+    ),
+    focusAreas: v.optional(v.array(v.string())), // Optional: specific areas to target
+    workoutType: v.optional(
+      v.union(
+        v.literal('strength'),
+        v.literal('cardio'),
+        v.literal('mobility'),
+        v.literal('recovery'),
+        v.literal('mixed')
+      )
+    ),
+    // Free-form notes
+    notes: v.optional(v.string()),
+    // Mood indicator
+    mood: v.optional(
+      v.union(
+        v.literal('great'),
+        v.literal('good'),
+        v.literal('okay'),
+        v.literal('tired'),
+        v.literal('stressed')
+      )
+    ),
+    // Timestamps
+    createdAt: v.number(),
+    // Link to the session created from this check-in
+    sessionId: v.optional(v.id('workout_sessions')),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_userId_date', ['userId', 'createdAt']),
 })
