@@ -1,78 +1,92 @@
-import React, { useEffect, useState } from 'react'
+import { useSSO, useSignIn, useSignUp } from '@clerk/clerk-expo'
+import * as Haptics from 'expo-haptics'
+import * as Linking from 'expo-linking'
+import React, { useState } from 'react'
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
-import Animated, {
-  FadeInDown,
-  FadeInUp,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated'
-import { LinearGradient } from 'expo-linear-gradient'
-import * as Haptics from 'expo-haptics'
-import { useSSO, useSignIn } from '@clerk/clerk-expo'
-import * as Linking from 'expo-linking'
-import LoadingScreen from './loading-screen'
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
-const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity)
+import { EmbodiWordmark } from '@/components/ui/embodi-wordmark'
+import { IconSymbol } from '@/components/ui/icon-symbol'
+import { PillButton } from '@/components/ui/pill-button'
+import { SocialLogo, type SocialBrand } from '@/components/ui/social-logo'
+import { motion, radius, spacing, typography } from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
+
+import LoadingScreen from './loading-screen'
+import WelcomeScreen from './welcome-screen'
+
+type Mode = 'welcome' | 'sign-in' | 'sign-up' | 'verify'
+
+const COPY = {
+  'sign-in': {
+    title: 'Welcome back.',
+    tagline: 'Sign in to pick up where you left off.',
+    primaryLabel: 'Sign in',
+    busyLabel: 'Signing in',
+    footerPrompt: 'New to Embody?',
+    footerAction: 'Create account',
+    footerSwitch: 'sign-up' as const,
+  },
+  'sign-up': {
+    title: 'Create your account.',
+    tagline: 'Start a personalized plan in under a minute.',
+    primaryLabel: 'Create account',
+    busyLabel: 'Creating account',
+    footerPrompt: 'Already have an account?',
+    footerAction: 'Sign in',
+    footerSwitch: 'sign-in' as const,
+  },
+}
 
 export default function LoginScreen() {
+  const { palette } = useTheme()
+  const [mode, setMode] = useState<Mode>('welcome')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
   const [emailFocused, setEmailFocused] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
+  const [codeFocused, setCodeFocused] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isAuthenticating, setIsAuthenticating] = useState(false)
   const [authMessage, setAuthMessage] = useState('')
 
   const { startSSOFlow } = useSSO()
-  const { signIn, setActive } = useSignIn()
+  const { signIn, setActive: setSignInActive } = useSignIn()
+  const { signUp, setActive: setSignUpActive } = useSignUp()
 
-  const emailScale = useSharedValue(1)
-  const passwordScale = useSharedValue(1)
-  const signInScale = useSharedValue(1)
+  const isSignUp = mode === 'sign-up'
+  const copy = isSignUp ? COPY['sign-up'] : COPY['sign-in']
 
-  // Shadow opacity values - start at 0, fade in after position animations complete
-  const inputsShadowOpacity = useSharedValue(0)
-  const signInShadowOpacity = useSharedValue(0)
-  const socialShadowOpacity = useSharedValue(0)
-
-  useEffect(() => {
-    // Email: delay 200ms + 800ms duration = 1000ms
-    // Password: delay 300ms + 800ms duration = 1100ms
-    inputsShadowOpacity.value = withDelay(1100, withTiming(1, { duration: 300 }))
-    
-    // Sign In button: delay 500ms + 800ms duration = 1300ms
-    signInShadowOpacity.value = withDelay(1300, withTiming(1, { duration: 300 }))
-    
-    // Social buttons: delay 700ms + 800ms duration = 1500ms
-    socialShadowOpacity.value = withDelay(1500, withTiming(1, { duration: 300 }))
-  }, [inputsShadowOpacity, signInShadowOpacity, socialShadowOpacity])
-
-  const onEmailFocus = () => {
-    setEmailFocused(true)
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+  const goBackToWelcome = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
+    setMode('welcome')
+    setEmail('')
+    setPassword('')
+    setCode('')
   }
 
-  const onPasswordFocus = () => {
-    setPasswordFocused(true)
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+  const switchMode = (next: Mode) => {
+    Haptics.selectionAsync().catch(() => {})
+    setMode(next)
   }
 
   const handleSignIn = async () => {
     if (!email || !password) {
-      Alert.alert('Missing fields', 'Please enter both email and password')
+      Alert.alert('Missing fields', 'Enter both email and password.')
       return
     }
 
@@ -80,504 +94,578 @@ export default function LoginScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
       setIsLoading(true)
       setIsAuthenticating(true)
-      setAuthMessage('Signing you in...')
+      setAuthMessage('Signing you in')
 
-      const signInAttempt = await signIn?.create({
+      const attempt = await signIn?.create({
         identifier: email,
         password,
       })
 
-      if (signInAttempt?.status === 'complete') {
-        await setActive?.({ session: signInAttempt.createdSessionId })
+      if (attempt?.status === 'complete') {
+        await setSignInActive?.({ session: attempt.createdSessionId })
       } else {
-        console.error('Sign in failed:', signInAttempt)
-        Alert.alert('Error', 'Sign in failed. Please try again.')
+        Alert.alert('Error', 'Sign in failed. Try again.')
         setIsAuthenticating(false)
       }
-    } catch (err: any) {
-      console.error('Sign in error:', err)
-      Alert.alert('Error', err?.errors?.[0]?.message || 'Sign in failed. Please check your credentials.')
+    } catch (err: unknown) {
+      const message =
+        (err as { errors?: { message?: string }[] })?.errors?.[0]?.message ||
+        'Sign in failed. Check your credentials.'
+      Alert.alert('Error', message)
       setIsAuthenticating(false)
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleAppleSignIn = async () => {
+  const handleSignUp = async () => {
+    if (!email || !password) {
+      Alert.alert('Missing fields', 'Enter both email and password.')
+      return
+    }
+
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      setIsLoading(true)
+
+      await signUp?.create({
+        emailAddress: email,
+        password,
+      })
+
+      await signUp?.prepareEmailAddressVerification({ strategy: 'email_code' })
+      setMode('verify')
+    } catch (err: unknown) {
+      const message =
+        (err as { errors?: { message?: string }[] })?.errors?.[0]?.message ||
+        'Could not create account. Try a different email.'
+      Alert.alert('Error', message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleVerify = async () => {
+    if (!code) {
+      Alert.alert('Missing code', 'Enter the 6-digit code we just emailed you.')
+      return
+    }
+
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      setIsLoading(true)
+      setIsAuthenticating(true)
+      setAuthMessage('Confirming your account')
+
+      const attempt = await signUp?.attemptEmailAddressVerification({ code })
+
+      if (attempt?.status === 'complete') {
+        await setSignUpActive?.({ session: attempt.createdSessionId })
+      } else {
+        Alert.alert('Error', 'Could not verify code. Try again.')
+        setIsAuthenticating(false)
+      }
+    } catch (err: unknown) {
+      const message =
+        (err as { errors?: { message?: string }[] })?.errors?.[0]?.message ||
+        'Verification failed. Check the code and retry.'
+      Alert.alert('Error', message)
+      setIsAuthenticating(false)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const runSSO = async (
+    strategy: 'oauth_apple' | 'oauth_google' | 'oauth_facebook',
+    label: string,
+  ) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
       setIsAuthenticating(true)
-      setAuthMessage('Signing in with Apple...')
-      
+      setAuthMessage(`Continuing with ${label}`)
+
       const redirectUrl = Linking.createURL('/sso-callback')
       const { createdSessionId, setActive } = await startSSOFlow({
-        strategy: 'oauth_apple',
+        strategy,
         redirectUrl,
         authSessionOptions: { showInRecents: true },
       })
-      
+
       if (createdSessionId) {
-        setAuthMessage('Completing sign in...')
+        setAuthMessage('Almost there')
         await setActive?.({ session: createdSessionId })
       } else {
         setIsAuthenticating(false)
       }
-    } catch (err) {
-      console.error('OAuth error', err)
+    } catch {
       setIsAuthenticating(false)
     }
-  }
-
-  const handleGoogleSignIn = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      setIsAuthenticating(true)
-      setAuthMessage('Signing in with Google...')
-      
-      const redirectUrl = Linking.createURL('/sso-callback')
-      const { createdSessionId, setActive } = await startSSOFlow({
-        strategy: 'oauth_google',
-        redirectUrl,
-        authSessionOptions: { showInRecents: true },
-      })
-      
-      if (createdSessionId) {
-        setAuthMessage('Completing sign in...')
-        await setActive?.({ session: createdSessionId })
-      } else {
-        setIsAuthenticating(false)
-      }
-    } catch (err) {
-      console.error('OAuth error', err)
-      setIsAuthenticating(false)
-    }
-  }
-
-  const handleFacebookSignIn = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      setIsAuthenticating(true)
-      setAuthMessage('Signing in with Facebook...')
-      
-      const redirectUrl = Linking.createURL('/sso-callback')
-      const { createdSessionId, setActive } = await startSSOFlow({
-        strategy: 'oauth_facebook',
-        redirectUrl,
-        authSessionOptions: { showInRecents: true },
-      })
-      
-      if (createdSessionId) {
-        setAuthMessage('Completing sign in...')
-        await setActive?.({ session: createdSessionId })
-      } else {
-        setIsAuthenticating(false)
-      }
-    } catch (err) {
-      console.error('OAuth error', err)
-      setIsAuthenticating(false)
-    }
-  }
-
-  const handleRegister = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    // TODO: Navigate to register screen
-    console.log('Navigate to register')
-  }
-
-  const handleForgotPassword = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    // TODO: Navigate to forgot password screen
-    console.log('Navigate to forgot password')
-  }
-
-  const emailAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: emailScale.value }],
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: inputsShadowOpacity.value * 0.05,
-    shadowRadius: 8,
-    elevation: inputsShadowOpacity.value * 2,
-  }))
-
-  const passwordAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: passwordScale.value }],
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: inputsShadowOpacity.value * 0.05,
-    shadowRadius: 8,
-    elevation: inputsShadowOpacity.value * 2,
-  }))
-
-  const signInAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: signInScale.value }],
-    shadowColor: '#4f46e5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: signInShadowOpacity.value * 0.3,
-    shadowRadius: 12,
-    elevation: signInShadowOpacity.value * 8,
-  }))
-
-  const socialShadowStyle = useAnimatedStyle(() => ({
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: socialShadowOpacity.value * 0.05,
-    shadowRadius: 8,
-    elevation: socialShadowOpacity.value * 2,
-  }))
-
-  const handleEmailPressIn = () => {
-    emailScale.value = withSpring(0.98)
-  }
-
-  const handleEmailPressOut = () => {
-    emailScale.value = withSpring(1)
-  }
-
-  const handlePasswordPressIn = () => {
-    passwordScale.value = withSpring(0.98)
-  }
-
-  const handlePasswordPressOut = () => {
-    passwordScale.value = withSpring(1)
-  }
-
-  const handleSignInPressIn = () => {
-    signInScale.value = withSpring(0.96)
-  }
-
-  const handleSignInPressOut = () => {
-    signInScale.value = withSpring(1)
   }
 
   if (isAuthenticating) {
     return <LoadingScreen message={authMessage} />
   }
 
-  return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={['#f8f9fa', '#ffffff', '#f8f9fa']}
-        style={styles.gradient}
+  if (mode === 'welcome') {
+    return (
+      <WelcomeScreen
+        onGetStarted={() => setMode('sign-up')}
+        onSignIn={() => setMode('sign-in')}
+      />
+    )
+  }
+
+  if (mode === 'verify') {
+    return (
+      <SafeAreaView
+        style={[styles.safe, { backgroundColor: palette.bg }]}
+        edges={['top', 'bottom']}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
-          <View style={styles.content}>
-            {/* Logo and Tagline */}
+          <View style={styles.topBar}>
+            <BackButton onPress={() => switchMode('sign-up')} />
+          </View>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <Animated.View
-              entering={FadeInUp.duration(800).springify()}
+              entering={FadeInUp.duration(motion.duration.base)}
               style={styles.header}
             >
-              <Text style={styles.logo}>embodi</Text>
-              <Text style={styles.tagline}>
-                Training that meets your body where it is
+              <EmbodiWordmark size="md" align="left" />
+              <Text style={[styles.title, { color: palette.textPrimary }]}>
+                Check your inbox.
+              </Text>
+              <Text style={[styles.tagline, { color: palette.textSecondary }]}>
+                We sent a 6-digit code to {email}. Enter it below to finish.
               </Text>
             </Animated.View>
 
-            {/* Email Input */}
             <Animated.View
-              entering={FadeInDown.delay(200).duration(800).springify()}
+              entering={FadeInDown.delay(60).duration(motion.duration.base)}
               style={styles.inputWrapper}
             >
-              <Pressable
-                onPressIn={handleEmailPressIn}
-                onPressOut={handleEmailPressOut}
-                style={styles.inputPressable}
+              <Text
+                style={[styles.inputLabel, { color: palette.textSecondary }]}
               >
-                <Animated.View
-                  style={[
-                    styles.inputContainer,
-                    emailFocused && styles.inputContainerFocused,
-                    emailAnimatedStyle,
-                  ]}
-                >
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Email"
-                    placeholderTextColor="#9ca3af"
-                    value={email}
-                    onChangeText={setEmail}
-                    onFocus={onEmailFocus}
-                    onBlur={() => setEmailFocused(false)}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoComplete="email"
-                  />
-                </Animated.View>
-              </Pressable>
-            </Animated.View>
-
-            {/* Password Input */}
-            <Animated.View
-              entering={FadeInDown.delay(300).duration(800).springify()}
-              style={styles.inputWrapper}
-            >
-              <Pressable
-                onPressIn={handlePasswordPressIn}
-                onPressOut={handlePasswordPressOut}
-                style={styles.inputPressable}
+                Verification code
+              </Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  {
+                    backgroundColor: palette.surface,
+                    borderColor: codeFocused
+                      ? palette.primary
+                      : palette.borderStrong,
+                  },
+                ]}
               >
-                <Animated.View
-                  style={[
-                    styles.inputContainer,
-                    passwordFocused && styles.inputContainerFocused,
-                    passwordAnimatedStyle,
-                  ]}
-                >
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Password"
-                    placeholderTextColor="#9ca3af"
-                    value={password}
-                    onChangeText={setPassword}
-                    onFocus={onPasswordFocus}
-                    onBlur={() => setPasswordFocused(false)}
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoComplete="password"
-                  />
-                </Animated.View>
-              </Pressable>
+                <TextInput
+                  style={[styles.input, { color: palette.textPrimary }]}
+                  placeholder="123456"
+                  placeholderTextColor={palette.textTertiary}
+                  value={code}
+                  onChangeText={setCode}
+                  onFocus={() => setCodeFocused(true)}
+                  onBlur={() => setCodeFocused(false)}
+                  keyboardType="number-pad"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                />
+              </View>
             </Animated.View>
 
-            {/* Forgot Password */}
             <Animated.View
-              entering={FadeInDown.delay(400).duration(800).springify()}
-              style={styles.forgotPasswordContainer}
+              entering={FadeInDown.delay(120).duration(motion.duration.base)}
+              style={styles.cta}
             >
-              <TouchableOpacity onPress={handleForgotPassword}>
-                <Text style={styles.forgotPasswordText}>
-                  Forgot your password?
-                </Text>
-              </TouchableOpacity>
+              <PillButton
+                label={isLoading ? 'Verifying' : 'Verify and continue'}
+                loading={isLoading}
+                onPress={handleVerify}
+              />
             </Animated.View>
-
-            {/* Sign In Button */}
-            <Animated.View entering={FadeInDown.delay(500).duration(800).springify()}>
-              <Animated.View style={signInAnimatedStyle}>
-                <Pressable
-                  onPress={handleSignIn}
-                  onPressIn={handleSignInPressIn}
-                  onPressOut={handleSignInPressOut}
-                  disabled={isLoading}
-                >
-                  <LinearGradient
-                    colors={isLoading ? ['#9ca3af', '#6b7280'] : ['#6366f1', '#4f46e5']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.signInButton}
-                  >
-                    <Text style={styles.signInButtonText}>
-                      {isLoading ? 'Signing in...' : 'Sign in'}
-                    </Text>
-                  </LinearGradient>
-                </Pressable>
-              </Animated.View>
-            </Animated.View>
-
-            {/* Divider */}
-            <Animated.View
-              entering={FadeInDown.delay(600).duration(800).springify()}
-              style={styles.dividerContainer}
-            >
-              <View style={styles.divider} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.divider} />
-            </Animated.View>
-
-            {/* Social Sign In Buttons */}
-            <Animated.View
-              entering={FadeInDown.delay(700).duration(800).springify()}
-              style={styles.socialButtonsContainer}
-            >
-              <AnimatedTouchableOpacity
-                style={[styles.socialButton, socialShadowStyle]}
-                onPress={handleAppleSignIn}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.socialButtonText}>Apple</Text>
-              </AnimatedTouchableOpacity>
-
-              <AnimatedTouchableOpacity
-                style={[styles.socialButton, socialShadowStyle]}
-                onPress={handleFacebookSignIn}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.socialButtonText}>Facebook</Text>
-              </AnimatedTouchableOpacity>
-
-              <AnimatedTouchableOpacity
-                style={[styles.socialButton, socialShadowStyle]}
-                onPress={handleGoogleSignIn}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.socialButtonText}>Google</Text>
-              </AnimatedTouchableOpacity>
-            </Animated.View>
-
-            {/* Register Link */}
-            <Animated.View
-              entering={FadeInDown.delay(800).duration(800).springify()}
-              style={styles.registerContainer}
-            >
-              <TouchableOpacity onPress={handleRegister}>
-                <Text style={styles.registerText}>
-                  Need an account? <Text style={styles.registerLink}>Register</Text>
-                </Text>
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
-      </LinearGradient>
-    </View>
+      </SafeAreaView>
+    )
+  }
+
+  // Sign-in or sign-up form
+  const onPrimaryPress = isSignUp ? handleSignUp : handleSignIn
+
+  return (
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: palette.bg }]}
+      edges={['top', 'bottom']}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <View style={styles.topBar}>
+          <BackButton onPress={goBackToWelcome} />
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View
+            entering={FadeInUp.duration(motion.duration.base)}
+            style={styles.header}
+          >
+            <EmbodiWordmark size="md" align="left" />
+            <Text style={[styles.title, { color: palette.textPrimary }]}>
+              {copy.title}
+            </Text>
+            <Text style={[styles.tagline, { color: palette.textSecondary }]}>
+              {copy.tagline}
+            </Text>
+          </Animated.View>
+
+          <Animated.View
+            entering={FadeInDown.delay(60).duration(motion.duration.base)}
+            style={styles.inputWrapper}
+          >
+            <Text style={[styles.inputLabel, { color: palette.textSecondary }]}>
+              Email
+            </Text>
+            <View
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: palette.surface,
+                  borderColor: emailFocused
+                    ? palette.primary
+                    : palette.borderStrong,
+                },
+              ]}
+            >
+              <TextInput
+                style={[styles.input, { color: palette.textPrimary }]}
+                placeholder="you@embodi.app"
+                placeholderTextColor={palette.textTertiary}
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
+            </View>
+          </Animated.View>
+
+          <Animated.View
+            entering={FadeInDown.delay(120).duration(motion.duration.base)}
+            style={styles.inputWrapper}
+          >
+            <View style={styles.labelRow}>
+              <Text
+                style={[styles.inputLabel, { color: palette.textSecondary }]}
+              >
+                Password
+              </Text>
+              {!isSignUp ? (
+                <TouchableOpacity
+                  onPress={() =>
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                  }
+                >
+                  <Text style={[styles.linkText, { color: palette.primary }]}>
+                    Forgot?
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            <View
+              style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: palette.surface,
+                  borderColor: passwordFocused
+                    ? palette.primary
+                    : palette.borderStrong,
+                },
+              ]}
+            >
+              <TextInput
+                style={[styles.input, { color: palette.textPrimary }]}
+                placeholder={
+                  isSignUp ? 'Pick a strong password' : 'Your password'
+                }
+                placeholderTextColor={palette.textTertiary}
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoComplete="password"
+              />
+              <Pressable
+                onPress={() => setShowPassword(prev => !prev)}
+                hitSlop={8}
+                style={styles.toggleVisibility}
+              >
+                <Text
+                  style={[styles.toggleText, { color: palette.textSecondary }]}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+
+          <Animated.View
+            entering={FadeInDown.delay(200).duration(motion.duration.base)}
+            style={styles.cta}
+          >
+            <PillButton
+              label={isLoading ? copy.busyLabel : copy.primaryLabel}
+              loading={isLoading}
+              onPress={onPrimaryPress}
+            />
+          </Animated.View>
+
+          <Animated.View
+            entering={FadeInDown.delay(260).duration(motion.duration.base)}
+            style={styles.dividerContainer}
+          >
+            <View
+              style={[styles.divider, { backgroundColor: palette.divider }]}
+            />
+            <Text style={[styles.dividerText, { color: palette.textTertiary }]}>
+              OR CONTINUE WITH
+            </Text>
+            <View
+              style={[styles.divider, { backgroundColor: palette.divider }]}
+            />
+          </Animated.View>
+
+          <Animated.View
+            entering={FadeInDown.delay(300).duration(motion.duration.base)}
+            style={styles.socialRow}
+          >
+            <SocialButton
+              brand="apple"
+              label="Apple"
+              onPress={() => runSSO('oauth_apple', 'Apple')}
+            />
+            <SocialButton
+              brand="google"
+              label="Google"
+              onPress={() => runSSO('oauth_google', 'Google')}
+            />
+            <SocialButton
+              brand="facebook"
+              label="Facebook"
+              onPress={() => runSSO('oauth_facebook', 'Facebook')}
+            />
+          </Animated.View>
+
+          <Animated.View
+            entering={FadeInDown.delay(360).duration(motion.duration.base)}
+            style={styles.registerContainer}
+          >
+            <Text
+              style={[styles.registerText, { color: palette.textSecondary }]}
+            >
+              {copy.footerPrompt}{' '}
+              <Text
+                style={[styles.registerLink, { color: palette.primary }]}
+                onPress={() => switchMode(copy.footerSwitch)}
+              >
+                {copy.footerAction}
+              </Text>
+            </Text>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  )
+}
+
+interface BackButtonProps {
+  onPress: () => void
+}
+
+function BackButton({ onPress }: BackButtonProps) {
+  const { palette } = useTheme()
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={12}
+      style={({ pressed }) => [
+        styles.backButton,
+        {
+          backgroundColor: palette.surface,
+          borderColor: palette.border,
+          opacity: pressed ? 0.7 : 1,
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel="Back"
+    >
+      <IconSymbol
+        name="chevron.left"
+        size={20}
+        color={palette.textPrimary}
+      />
+    </Pressable>
+  )
+}
+
+interface SocialButtonProps {
+  brand: SocialBrand
+  label: string
+  onPress: () => void
+}
+
+function SocialButton({ brand, label, onPress }: SocialButtonProps) {
+  const { palette } = useTheme()
+  return (
+    <TouchableOpacity
+      style={[
+        styles.socialButton,
+        { backgroundColor: palette.surface, borderColor: palette.border },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={`Continue with ${label}`}
+    >
+      <SocialLogo brand={brand} size={22} />
+    </TouchableOpacity>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  gradient: {
+  safe: {
     flex: 1,
   },
   keyboardView: {
     flex: 1,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 32,
+  topBar: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
     justifyContent: 'center',
-    maxWidth: 440,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.huge,
+    maxWidth: 460,
     width: '100%',
     alignSelf: 'center',
   },
   header: {
-    alignItems: 'center',
-    marginBottom: 48,
+    alignItems: 'flex-start',
+    marginBottom: spacing.xxl,
+    gap: spacing.md,
   },
-  logo: {
-    fontSize: 42,
-    fontWeight: '700',
-    color: '#dc2626',
-    marginBottom: 8,
-    letterSpacing: -1,
+  title: {
+    ...typography.h1,
+    marginTop: spacing.lg,
   },
   tagline: {
-    fontSize: 16,
-    color: '#1f2937',
-    textAlign: 'center',
-    fontWeight: '400',
+    ...typography.body,
+    fontSize: 15,
+    lineHeight: 22,
   },
   inputWrapper: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
-  inputPressable: {
-    width: '100%',
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  inputLabel: {
+    ...typography.smallStrong,
+    marginBottom: spacing.sm,
   },
   inputContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 20,
-    height: 56,
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowRadius: 8,
-  },
-  inputContainerFocused: {
-    borderColor: '#6366f1',
-    shadowColor: '#6366f1',
-    shadowRadius: 12,
-    elevation: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    height: 58,
   },
   input: {
-    fontSize: 16,
-    color: '#1f2937',
-    fontWeight: '400',
+    ...typography.body,
+    flex: 1,
   },
-  forgotPasswordContainer: {
-    alignItems: 'flex-end',
-    marginBottom: 24,
+  toggleVisibility: {
+    marginLeft: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: '#6366f1',
-    fontWeight: '500',
+  toggleText: {
+    ...typography.smallStrong,
   },
-  signInButton: {
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#4f46e5',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowRadius: 12,
+  linkText: {
+    ...typography.smallStrong,
   },
-  signInButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
+  cta: {
+    marginTop: spacing.sm,
   },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginVertical: spacing.xxl,
   },
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e5e7eb',
   },
   dividerText: {
-    paddingHorizontal: 16,
-    fontSize: 14,
-    color: '#9ca3af',
-    fontWeight: '500',
+    paddingHorizontal: spacing.md,
+    ...typography.caption,
   },
-  socialButtonsContainer: {
-    gap: 12,
-    marginBottom: 24,
+  socialRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.xxl,
   },
   socialButton: {
+    flex: 1,
     height: 56,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
+    borderRadius: radius.lg,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowRadius: 8,
-  },
-  socialButtonText: {
-    fontSize: 16,
-    color: '#1f2937',
-    fontWeight: '600',
   },
   registerContainer: {
     alignItems: 'center',
+    marginTop: spacing.md,
   },
   registerText: {
-    fontSize: 15,
-    color: '#6b7280',
-    fontWeight: '400',
+    ...typography.body,
+    textAlign: 'center',
   },
   registerLink: {
-    color: '#6366f1',
-    fontWeight: '600',
+    fontFamily: typography.bodyStrong.fontFamily,
   },
 })

@@ -1,41 +1,40 @@
 import React, { useState } from 'react'
 import {
-  View,
-  Text,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native'
-import Animated, {
-  FadeInRight,
-  FadeOutLeft,
-} from 'react-native-reanimated'
-import { LinearGradient } from 'expo-linear-gradient'
+import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
 import StepOne from './step-one'
 import StepTwo from './step-two'
 import StepThree from './step-three'
 import StepFour from './step-four'
+import { IconSymbol } from '@/components/ui/icon-symbol'
+import { motion, radius, spacing, typography } from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
 
 export interface OnboardingData {
-  // Step 1: Basic Info
   name: string
   age: string
   gender: 'male' | 'female' | 'prefer-not-to-say' | null
-
-  // Step 2: Goals & Activity
   goal: string
-  activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very-active' | null
+  activityLevel:
+    | 'sedentary'
+    | 'light'
+    | 'moderate'
+    | 'active'
+    | 'very-active'
+    | null
   timeAvailable: string[]
-
-  // Step 3: Health Context
   injuries: string[]
   conditions: string[]
   medications: string
-
-  // Step 4: Lifestyle
   smoking: 'never' | 'former' | 'current' | null
   alcohol: 'never' | 'occasionally' | 'regularly' | null
   trackPeriod: boolean
@@ -45,7 +44,10 @@ interface OnboardingScreenProps {
   onComplete: (data: OnboardingData) => void
 }
 
+const TOTAL_STEPS = 4
+
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
+  const { palette } = useTheme()
   const [currentStep, setCurrentStep] = useState(1)
   const [data, setData] = useState<OnboardingData>({
     name: '',
@@ -62,16 +64,14 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
     trackPeriod: false,
   })
 
-  const totalSteps = 4
-
   const updateData = (updates: Partial<OnboardingData>) => {
-    setData((prev) => ({ ...prev, ...updates }))
+    setData(prev => ({ ...prev, ...updates }))
   }
 
   const handleNext = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    if (currentStep < totalSteps) {
-      setCurrentStep((prev) => prev + 1)
+    if (currentStep < TOTAL_STEPS) {
+      setCurrentStep(prev => prev + 1)
     } else {
       onComplete(data)
     }
@@ -79,8 +79,8 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    if (currentStep < totalSteps) {
-      setCurrentStep((prev) => prev + 1)
+    if (currentStep < TOTAL_STEPS) {
+      setCurrentStep(prev => prev + 1)
     } else {
       onComplete(data)
     }
@@ -89,7 +89,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     if (currentStep > 1) {
-      setCurrentStep((prev) => prev - 1)
+      setCurrentStep(prev => prev - 1)
     }
   }
 
@@ -140,54 +140,80 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   }
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={['#f8f9fa', '#ffffff', '#f8f9fa']}
-        style={styles.gradient}
+    <View style={[styles.container, { backgroundColor: palette.bg }]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.content}>
-              {/* Header */}
-              <View style={styles.header}>
-                <Text style={styles.headerTitle}>Profile Set Up {currentStep}</Text>
-              </View>
+        <View style={styles.headerBar}>
+          {currentStep > 1 ? (
+            <TouchableOpacity
+              style={[
+                styles.backButton,
+                {
+                  backgroundColor: palette.surface,
+                  borderColor: palette.border,
+                },
+              ]}
+              onPress={handleBack}
+              hitSlop={12}
+            >
+              <IconSymbol
+                name="chevron.left"
+                size={20}
+                color={palette.textPrimary}
+              />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.backPlaceholder} />
+          )}
 
-              {/* Progress Bar */}
-              <View style={styles.progressContainer}>
-                <Text style={styles.progressText}>
-                  {currentStep}/{totalSteps} steps
-                </Text>
-                <View style={styles.progressBarBackground}>
-                  <Animated.View
-                    style={[
-                      styles.progressBarFill,
-                      { width: `${(currentStep / totalSteps) * 100}%` },
-                    ]}
-                  />
-                </View>
-              </View>
-
-              {/* Step Content */}
-              <Animated.View
-                key={currentStep}
-                entering={FadeInRight.duration(400).springify()}
-                exiting={FadeOutLeft.duration(400)}
-                style={styles.stepContent}
-              >
-                {renderStep()}
-              </Animated.View>
+          <View style={styles.progressContainer}>
+            <View
+              style={[
+                styles.progressTrack,
+                { backgroundColor: palette.surfaceAlt },
+              ]}
+            >
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    backgroundColor: palette.primary,
+                    width: `${(currentStep / TOTAL_STEPS) * 100}%`,
+                  },
+                ]}
+              />
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </LinearGradient>
+            <Text
+              style={[styles.progressText, { color: palette.textTertiary }]}
+            >
+              {currentStep} of {TOTAL_STEPS}
+            </Text>
+          </View>
+
+          <TouchableOpacity onPress={handleSkip} hitSlop={12}>
+            <Text style={[styles.skipText, { color: palette.textSecondary }]}>
+              Skip
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Animated.View
+            key={currentStep}
+            entering={FadeInRight.duration(motion.duration.base)}
+            exiting={FadeOutLeft.duration(motion.duration.quick)}
+            style={styles.stepContent}
+          >
+            {renderStep()}
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   )
 }
@@ -196,59 +222,58 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  gradient: {
-    flex: 1,
-  },
   keyboardView: {
     flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingTop: 56,
+    paddingBottom: spacing.lg,
+    gap: spacing.lg,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 40,
-    maxWidth: 480,
-    width: '100%',
-    alignSelf: 'center',
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
-  header: {
-    marginBottom: 24,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
+  backPlaceholder: {
+    width: 38,
+    height: 38,
   },
   progressContainer: {
-    marginBottom: 32,
+    flex: 1,
+    gap: 6,
   },
-  progressText: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  progressBarBackground: {
+  progressTrack: {
     height: 6,
-    backgroundColor: '#e5e7eb',
     borderRadius: 3,
     overflow: 'hidden',
   },
-  progressBarFill: {
+  progressFill: {
     height: '100%',
-    backgroundColor: '#6366f1',
     borderRadius: 3,
+  },
+  progressText: {
+    ...typography.caption,
+  },
+  skipText: {
+    ...typography.smallStrong,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.huge,
+    maxWidth: 540,
+    width: '100%',
+    alignSelf: 'center',
   },
   stepContent: {
     flex: 1,
   },
 })
-
-
-
-
-
-

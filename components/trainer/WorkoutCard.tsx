@@ -2,6 +2,9 @@ import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 
+import { motion, radius, spacing, typography } from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
+
 import ExerciseSetRow, { SetPayload } from './ExerciseSetRow'
 import { ExercisePlan, WorkoutSet } from './types'
 
@@ -18,47 +21,88 @@ export default function WorkoutCard({
   onSaveSet,
   onPrefetchComment,
 }: WorkoutCardProps) {
+  const { palette } = useTheme()
   const setArray = Array.from({ length: exercise.targetSets })
 
   const handleSave = (setIndex: number) => (payload: SetPayload) =>
     onSaveSet(setIndex, payload)
 
+  const completedCount = sets.filter(s => s.exerciseId === exercise.id).length
+
   return (
     <Animated.View
-      style={styles.card}
-      entering={FadeInUp.duration(600).springify()}
+      style={[
+        styles.card,
+        { backgroundColor: palette.surface, borderColor: palette.border },
+      ]}
+      entering={FadeInUp.duration(motion.duration.base)}
     >
-      <Text style={styles.title}>{exercise.name}</Text>
-      <Text style={styles.subtitle}>
-        {exercise.modality} · {exercise.bodyPart}
-      </Text>
-      <Text style={styles.instructions}>{exercise.instructions}</Text>
-
-      <View style={styles.tagsRow}>
-        <View style={styles.tag}>
-          <Text style={styles.tagText}>
-            {exercise.equipment.join(', ') || 'Bodyweight'}
+      <View style={styles.headerRow}>
+        <View style={styles.headerText}>
+          <Text style={[styles.title, { color: palette.textPrimary }]}>
+            {exercise.name}
+          </Text>
+          <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
+            {exercise.modality} · {exercise.bodyPart}
           </Text>
         </View>
-        <View style={styles.tag}>
-          <Text style={styles.tagText}>{exercise.tempo} tempo</Text>
-        </View>
-        <View style={styles.tag}>
-          <Text style={styles.tagText}>{exercise.restSec}s rest</Text>
+        <View
+          style={[styles.setCounter, { backgroundColor: palette.surfaceAlt }]}
+        >
+          <Text style={[styles.setCounterValue, { color: palette.primary }]}>
+            {completedCount}
+            <Text
+              style={[styles.setCounterMax, { color: palette.textTertiary }]}
+            >
+              /{exercise.targetSets}
+            </Text>
+          </Text>
+          <Text
+            style={[styles.setCounterLabel, { color: palette.textTertiary }]}
+          >
+            SETS
+          </Text>
         </View>
       </View>
 
-      <View style={styles.cuesContainer}>
-        {exercise.cues.map((cue) => (
-          <View key={cue} style={styles.cuePill}>
-            <Text style={styles.cueText}>{cue}</Text>
-          </View>
-        ))}
+      {exercise.instructions ? (
+        <Text style={[styles.instructions, { color: palette.textSecondary }]}>
+          {exercise.instructions}
+        </Text>
+      ) : null}
+
+      <View style={styles.tagsRow}>
+        <Tag label={exercise.equipment.join(', ') || 'Bodyweight'} />
+        <Tag label={`${exercise.tempo} tempo`} />
+        <Tag label={`${exercise.restSec}s rest`} />
       </View>
+
+      {exercise.cues.length > 0 ? (
+        <View style={styles.cuesContainer}>
+          {exercise.cues.map(cue => (
+            <View
+              key={cue}
+              style={[
+                styles.cuePill,
+                {
+                  backgroundColor: palette.primaryMuted,
+                  borderColor: palette.primaryBorder,
+                },
+              ]}
+            >
+              <Text style={[styles.cueText, { color: palette.primary }]}>
+                {cue}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      <View style={[styles.divider, { backgroundColor: palette.divider }]} />
 
       {setArray.map((_, index) => {
         const existingSet = sets.find(
-          (set) => set.setIndex === index + 1 && set.exerciseId === exercise.id
+          set => set.setIndex === index + 1 && set.exerciseId === exercise.id,
         )
         return (
           <ExerciseSetRow
@@ -77,64 +121,102 @@ export default function WorkoutCard({
   )
 }
 
+function Tag({ label }: { label: string }) {
+  const { palette } = useTheme()
+  return (
+    <View
+      style={[
+        styles.tag,
+        { backgroundColor: palette.surfaceAlt, borderColor: palette.border },
+      ]}
+    >
+      <Text style={[styles.tagText, { color: palette.textSecondary }]}>
+        {label}
+      </Text>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  headerText: {
+    flex: 1,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
+    ...typography.h2,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 12,
+    ...typography.small,
+    marginTop: 2,
+  },
+  setCounter: {
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    minWidth: 64,
+  },
+  setCounterValue: {
+    ...typography.h3,
+  },
+  setCounterMax: {
+    ...typography.small,
+    fontWeight: '500',
+  },
+  setCounterLabel: {
+    ...typography.caption,
+    marginTop: 2,
   },
   instructions: {
-    fontSize: 15,
-    color: '#374151',
-    lineHeight: 22,
-    marginBottom: 16,
+    ...typography.body,
+    marginBottom: spacing.md,
   },
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   tag: {
-    paddingHorizontal: 10,
+    paddingHorizontal: spacing.md,
     paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: '#f3f4f6',
+    borderRadius: radius.pill,
+    borderWidth: 1,
   },
   tagText: {
+    ...typography.smallStrong,
     fontSize: 12,
-    color: '#4b5563',
-    fontWeight: '600',
   },
   cuesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   cuePill: {
-    backgroundColor: '#eef2ff',
-    borderRadius: 12,
-    paddingHorizontal: 10,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
     paddingVertical: 6,
+    borderWidth: 1,
   },
   cueText: {
+    ...typography.smallStrong,
     fontSize: 12,
-    color: '#4c1d95',
-    fontWeight: '600',
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: spacing.md,
   },
 })
-

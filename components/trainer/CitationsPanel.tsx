@@ -11,6 +11,10 @@ import {
 import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { IconSymbol } from '@/components/ui/icon-symbol'
+import { radius, spacing, typography } from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
+
 import { Fact } from './types'
 
 type CitationsPanelProps = {
@@ -24,6 +28,7 @@ export default function CitationsPanel({
   facts,
   onClose,
 }: CitationsPanelProps) {
+  const { palette, shadows } = useTheme()
   const insets = useSafeAreaInsets()
 
   if (!visible) return null
@@ -33,18 +38,47 @@ export default function CitationsPanel({
       <Pressable style={styles.backdrop} onPress={onClose} />
 
       <Animated.View
-        entering={SlideInDown.springify()}
+        entering={SlideInDown.springify().damping(20)}
         exiting={SlideOutDown}
         style={[
           styles.panel,
-          { paddingBottom: Math.max(insets.bottom, 20) },
+          shadows.lg,
+          {
+            paddingBottom: Math.max(insets.bottom, spacing.lg),
+            backgroundColor: palette.bgElevated,
+            borderColor: palette.border,
+          },
         ]}
       >
-        <View style={styles.panelHandle} />
+        <View
+          style={[
+            styles.panelHandle,
+            { backgroundColor: palette.borderStrong },
+          ]}
+        />
         <View style={styles.panelHeader}>
-          <Text style={styles.panelTitle}>Science-backed facts</Text>
-          <TouchableOpacity onPress={onClose}>
-            <Text style={styles.closeText}>Close</Text>
+          <View>
+            <Text style={[styles.panelTitle, { color: palette.textPrimary }]}>
+              Science behind your session
+            </Text>
+            <Text
+              style={[styles.panelSubtitle, { color: palette.textSecondary }]}
+            >
+              Sources we used to design today
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={onClose}
+            style={[
+              styles.closeButton,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+              },
+            ]}
+            hitSlop={12}
+          >
+            <IconSymbol name="xmark" size={18} color={palette.textPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -54,32 +88,71 @@ export default function CitationsPanel({
         >
           {facts.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>
-                No health insights yet
+              <IconSymbol
+                name="book.closed"
+                size={26}
+                color={palette.textSecondary}
+              />
+              <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>
+                No insights yet
               </Text>
-              <Text style={styles.emptySubtitle}>
-                I am still gathering evidence-backed guidance for your profile.
-                Check back after your next session.
+              <Text
+                style={[styles.emptySubtitle, { color: palette.textSecondary }]}
+              >
+                I&apos;m still gathering evidence-backed guidance for your
+                profile. Check back after your next session.
               </Text>
             </View>
           ) : (
             facts.map((fact, index) => (
               <View key={`fact-${index}`} style={styles.factBlock}>
-                <Text style={styles.factText}>{fact.text}</Text>
-                {fact.citations.map((citation) => (
+                <Text style={[styles.factText, { color: palette.textPrimary }]}>
+                  {fact.text}
+                </Text>
+                {fact.citations.map(citation => (
                   <TouchableOpacity
                     key={citation.id}
                     onPress={() => Linking.openURL(citation.url)}
-                    style={styles.citation}
+                    style={[
+                      styles.citation,
+                      {
+                        backgroundColor: palette.surface,
+                        borderColor: palette.border,
+                      },
+                    ]}
+                    activeOpacity={0.7}
                   >
-                    <Text style={styles.citationTitle}>
-                      {citation.title}
-                    </Text>
-                    <Text style={styles.citationMeta}>
-                      {citation.authors.slice(0, 2).join(', ')}
-                      {citation.authors.length > 2 ? ' et al.' : ''} ·{' '}
-                      {citation.year}
-                    </Text>
+                    <View
+                      style={[
+                        styles.citationLeft,
+                        { backgroundColor: palette.primary },
+                      ]}
+                    />
+                    <View style={styles.citationContent}>
+                      <Text
+                        style={[
+                          styles.citationTitle,
+                          { color: palette.textPrimary },
+                        ]}
+                      >
+                        {citation.title}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.citationMeta,
+                          { color: palette.textTertiary },
+                        ]}
+                      >
+                        {citation.authors.slice(0, 2).join(', ')}
+                        {citation.authors.length > 2 ? ' et al.' : ''} ·{' '}
+                        {citation.year}
+                      </Text>
+                    </View>
+                    <IconSymbol
+                      name="arrow.up.right"
+                      size={14}
+                      color={palette.primary}
+                    />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -94,93 +167,95 @@ export default function CitationsPanel({
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.35)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'flex-end',
   },
   backdrop: {
     flex: 1,
   },
   panel: {
-    maxHeight: '70%',
-    backgroundColor: '#0f172a',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 18,
-    elevation: 12,
+    maxHeight: '76%',
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
+    paddingTop: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderTopWidth: 1,
   },
   panelHandle: {
     alignSelf: 'center',
     width: 44,
     height: 4,
-    borderRadius: 999,
-    backgroundColor: 'rgba(148, 163, 184, 0.4)',
-    marginBottom: 12,
+    borderRadius: radius.pill,
+    marginBottom: spacing.lg,
   },
   panelHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    alignItems: 'flex-start',
+    marginBottom: spacing.lg,
   },
   panelTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
+    ...typography.h2,
   },
-  closeText: {
-    color: '#9ca3af',
-    fontSize: 14,
+  panelSubtitle: {
+    ...typography.small,
+    marginTop: 2,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
-    paddingBottom: 12,
+    paddingBottom: spacing.lg,
   },
   factBlock: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   factText: {
-    color: '#f8fafc',
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 8,
+    ...typography.body,
+    marginBottom: spacing.md,
   },
   citation: {
-    borderLeftWidth: 2,
-    borderLeftColor: '#38bdf8',
-    paddingLeft: 10,
-    marginBottom: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginBottom: spacing.sm,
+  },
+  citationLeft: {
+    width: 3,
+    alignSelf: 'stretch',
+    borderRadius: 2,
+  },
+  citationContent: {
+    flex: 1,
   },
   citationTitle: {
-    color: '#bae6fd',
-    fontWeight: '600',
-    fontSize: 13,
+    ...typography.smallStrong,
   },
   citationMeta: {
-    color: '#94a3b8',
-    fontSize: 12,
+    ...typography.small,
+    marginTop: 2,
   },
   emptyState: {
-    borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.2)',
-    borderRadius: 18,
-    padding: 20,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    alignItems: 'center',
+    paddingVertical: spacing.xxl,
+    gap: spacing.sm,
   },
   emptyTitle: {
-    color: '#e2e8f0',
-    fontWeight: '600',
-    fontSize: 15,
-    marginBottom: 6,
+    ...typography.h3,
+    marginTop: spacing.sm,
   },
   emptySubtitle: {
-    color: '#94a3b8',
-    fontSize: 13,
-    lineHeight: 20,
+    ...typography.small,
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
   },
 })
-

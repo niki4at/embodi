@@ -44,3 +44,9 @@ app-example
 
 
 documents/
+
+# Cursor IDE local state
+.cursor/hooks/state/
+
+# Dev-only Figma reference captures (not shipped)
+figma-screenshots/

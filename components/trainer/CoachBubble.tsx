@@ -2,6 +2,9 @@ import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated'
 
+import { motion, radius, spacing, typography } from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
+
 import { CoachComment } from './types'
 
 type CoachBubbleProps = {
@@ -9,18 +12,31 @@ type CoachBubbleProps = {
 }
 
 export default function CoachBubble({ comment }: CoachBubbleProps) {
+  const { palette, shadows } = useTheme()
   if (!comment) return null
 
   return (
     <Animated.View
-      entering={FadeInUp.duration(300)}
-      exiting={FadeOutDown.duration(200)}
-      style={styles.container}
+      entering={FadeInUp.duration(motion.duration.base)}
+      exiting={FadeOutDown.duration(motion.duration.quick)}
+      style={[
+        styles.container,
+        shadows.lg,
+        {
+          backgroundColor: palette.bgElevated,
+          borderColor: palette.border,
+        },
+      ]}
     >
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>AI</Text>
+      <View style={[styles.avatar, { backgroundColor: palette.primary }]}>
+        <Text style={[styles.avatarText, { color: palette.white }]}>e</Text>
       </View>
-      <Text style={styles.text}>{comment.text}</Text>
+      <View style={styles.content}>
+        <Text style={[styles.label, { color: palette.primary }]}>Coach</Text>
+        <Text style={[styles.text, { color: palette.textPrimary }]}>
+          {comment.text}
+        </Text>
+      </View>
     </Animated.View>
   )
 }
@@ -28,41 +44,35 @@ export default function CoachBubble({ comment }: CoachBubbleProps) {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 24,
-    left: 20,
-    right: 20,
-    backgroundColor: '#111827',
-    borderRadius: 20,
-    padding: 16,
+    bottom: spacing.xl,
+    left: spacing.lg,
+    right: spacing.lg,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 16,
-    elevation: 10,
+    borderWidth: 1,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f97316',
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: '#fff',
-    fontWeight: '700',
+    ...typography.h2,
+    fontWeight: '800',
+  },
+  content: {
+    flex: 1,
+  },
+  label: {
+    ...typography.caption,
+    marginBottom: 2,
   },
   text: {
-    flex: 1,
-    color: '#f8fafc',
-    fontSize: 15,
-    lineHeight: 20,
+    ...typography.body,
   },
 })
-
-
-
-

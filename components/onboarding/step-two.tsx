@@ -1,26 +1,18 @@
-import React, { useCallback, useEffect, useState } from 'react'
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Pressable,
-} from 'react-native'
-import Animated, {
-  FadeInDown,
-  cancelAnimation,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated'
-import { LinearGradient } from 'expo-linear-gradient'
-import * as Haptics from 'expo-haptics'
-import { OnboardingData } from './onboarding-screen'
+import React, { useState } from 'react'
+import { StyleSheet, View } from 'react-native'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 
-const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity)
+import { motion, spacing } from '@/constants/design'
+import {
+  Chip,
+  FieldLabel,
+  Input,
+  OptionRow,
+  PrimaryButton,
+  SecondaryButton,
+  StepHeader,
+} from './primitives'
+import { OnboardingData } from './onboarding-screen'
 
 interface StepTwoProps {
   data: OnboardingData
@@ -32,10 +24,10 @@ interface StepTwoProps {
 
 const activityLevels = [
   { id: 'sedentary', label: 'Sedentary', description: 'Little to no exercise' },
-  { id: 'light', label: 'Light', description: '1-2 days per week' },
-  { id: 'moderate', label: 'Moderate', description: '3-4 days per week' },
-  { id: 'active', label: 'Active', description: '5-6 days per week' },
-  { id: 'very-active', label: 'Very Active', description: 'Daily exercise' },
+  { id: 'light', label: 'Light', description: '1–2 days per week' },
+  { id: 'moderate', label: 'Moderate', description: '3–4 days per week' },
+  { id: 'active', label: 'Active', description: '5–6 days per week' },
+  { id: 'very-active', label: 'Very active', description: 'Daily exercise' },
 ] as const
 
 const timeOptions = [
@@ -46,248 +38,105 @@ const timeOptions = [
   { id: '90min+', label: '90+ min' },
 ]
 
-export default function StepTwo({ data, updateData, onNext, onSkip, onBack }: StepTwoProps) {
+export default function StepTwo({
+  data,
+  updateData,
+  onNext,
+  onBack,
+}: StepTwoProps) {
   const [goalFocused, setGoalFocused] = useState(false)
-  const buttonScale = useSharedValue(1)
 
-  // Shadow opacity values - start at 0, fade in after position animations complete
-  const inputShadowOpacity = useSharedValue(0)
-  const activityShadowOpacity = useSharedValue(0)
-  const timeShadowOpacity = useSharedValue(0)
-  const buttonShadowOpacity = useSharedValue(0)
+  const canProceed =
+    data.goal.trim().length > 0 && data.activityLevel !== null
 
-  useEffect(() => {
-    // Goal input: delay 200ms + 600ms duration = 800ms
-    inputShadowOpacity.value = withDelay(800, withTiming(1, { duration: 300 }))
-    
-    // Activity: delay 300ms + 600ms duration = 900ms
-    activityShadowOpacity.value = withDelay(900, withTiming(1, { duration: 300 }))
-    
-    // Time: delay 400ms + 600ms duration = 1000ms
-    timeShadowOpacity.value = withDelay(1000, withTiming(1, { duration: 300 }))
-    
-    // Button: delay 500ms + 600ms duration = 1100ms
-    buttonShadowOpacity.value = withDelay(1100, withTiming(1, { duration: 300 }))
-  }, [inputShadowOpacity, activityShadowOpacity, timeShadowOpacity, buttonShadowOpacity])
-
-  const buttonAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: buttonScale.value }],
-    shadowColor: '#4f46e5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: buttonShadowOpacity.value * 0.3,
-    shadowRadius: 12,
-    elevation: buttonShadowOpacity.value * 8,
-  }))
-
-  const inputShadowStyle = useAnimatedStyle(() => ({
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: inputShadowOpacity.value * 0.05,
-    shadowRadius: 8,
-    elevation: inputShadowOpacity.value * 2,
-  }))
-
-  const activityShadowStyle = useAnimatedStyle(() => ({
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: activityShadowOpacity.value * 0.05,
-    shadowRadius: 8,
-    elevation: activityShadowOpacity.value * 2,
-  }))
-
-  const timeShadowStyle = useAnimatedStyle(() => ({
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: timeShadowOpacity.value * 0.05,
-    shadowRadius: 8,
-    elevation: timeShadowOpacity.value * 2,
-  }))
-
-  const handleButtonPressIn = () => {
-    buttonScale.value = withSpring(0.96)
-  }
-
-  const handleButtonPressOut = () => {
-    buttonScale.value = withSpring(1)
-  }
-
-  const handleActivitySelect = (level: typeof activityLevels[number]['id']) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    updateData({ activityLevel: level })
-  }
-
-  const handleTimeSelect = (time: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+  const toggleTime = (id: string) => {
     const current = data.timeAvailable
-    if (current.includes(time)) {
-      updateData({ timeAvailable: current.filter((t) => t !== time) })
+    if (current.includes(id)) {
+      updateData({ timeAvailable: current.filter(t => t !== id) })
     } else {
-      updateData({ timeAvailable: [...current, time] })
+      updateData({ timeAvailable: [...current, id] })
     }
-  }
-
-  const canProceed = data.goal.trim().length > 0 && data.activityLevel !== null
-
-  const fadeOutShadows = useCallback(() => {
-    cancelAnimation(inputShadowOpacity)
-    cancelAnimation(activityShadowOpacity)
-    cancelAnimation(timeShadowOpacity)
-    cancelAnimation(buttonShadowOpacity)
-    inputShadowOpacity.value = 0
-    activityShadowOpacity.value = 0
-    timeShadowOpacity.value = 0
-    buttonShadowOpacity.value = 0
-  }, [activityShadowOpacity, buttonShadowOpacity, inputShadowOpacity, timeShadowOpacity])
-
-  const handleNextPress = () => {
-    fadeOutShadows()
-    onNext()
-  }
-
-  const handleSkipPress = () => {
-    fadeOutShadows()
-    onSkip()
-  }
-
-  const handleBackPress = () => {
-    fadeOutShadows()
-    onBack()
   }
 
   return (
     <View style={styles.container}>
-      <Animated.View entering={FadeInDown.delay(100).duration(600).springify()}>
-        <Text style={styles.title}>Your fitness journey</Text>
-        <Text style={styles.subtitle}>
-          Help us understand your goals so we can create a training plan that meets your body where it is
-        </Text>
+      <Animated.View entering={FadeInDown.duration(motion.duration.base)}>
+        <StepHeader
+          title="Your fitness journey"
+          subtitle="Help us shape a plan around your goals and schedule."
+        />
       </Animated.View>
 
-      {/* Goal Input */}
       <Animated.View
-        entering={FadeInDown.delay(200).duration(600).springify()}
-        style={styles.inputWrapper}
+        entering={FadeInDown.delay(60).duration(motion.duration.base)}
+        style={styles.field}
       >
-        <Text style={styles.label}>What is your main goal?</Text>
-        <Animated.View style={[styles.inputContainer, goalFocused && styles.inputContainerFocused, inputShadowStyle]}>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., Run a 5k, Move pain-free, Build strength"
-            placeholderTextColor="#9ca3af"
-            value={data.goal}
-            onChangeText={(text) => updateData({ goal: text })}
-            onFocus={() => {
-              setGoalFocused(true)
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-            }}
-            onBlur={() => setGoalFocused(false)}
-            multiline
-          />
-        </Animated.View>
+        <FieldLabel label="Main goal" />
+        <Input
+          focused={goalFocused}
+          onFocusChange={setGoalFocused}
+          placeholder="Run a 5k, move pain-free, build strength"
+          value={data.goal}
+          onChangeText={text => updateData({ goal: text })}
+          multiline
+        />
       </Animated.View>
 
-      {/* Activity Level */}
       <Animated.View
-        entering={FadeInDown.delay(300).duration(600).springify()}
-        style={styles.sectionWrapper}
+        entering={FadeInDown.delay(120).duration(motion.duration.base)}
+        style={styles.field}
       >
-        <Text style={styles.label}>Current activity level</Text>
-        <View style={styles.activityOptions}>
-          {activityLevels.map((level, index) => (
-            <AnimatedTouchableOpacity
+        <FieldLabel label="Current activity level" />
+        <View style={styles.optionsCol}>
+          {activityLevels.map(level => (
+            <OptionRow
               key={level.id}
-              style={[
-                styles.activityOption,
-                data.activityLevel === level.id && styles.activityOptionSelected,
-                activityShadowStyle,
-              ]}
-              onPress={() => handleActivitySelect(level.id)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.activityLabel,
-                  data.activityLevel === level.id && styles.activityLabelSelected,
-                ]}
-              >
-                {level.label}
-              </Text>
-              <Text
-                style={[
-                  styles.activityDescription,
-                  data.activityLevel === level.id && styles.activityDescriptionSelected,
-                ]}
-              >
-                {level.description}
-              </Text>
-            </AnimatedTouchableOpacity>
+              label={level.label}
+              description={level.description}
+              selected={data.activityLevel === level.id}
+              onPress={() => updateData({ activityLevel: level.id })}
+            />
           ))}
         </View>
       </Animated.View>
 
-      {/* Time Available */}
       <Animated.View
-        entering={FadeInDown.delay(400).duration(600).springify()}
-        style={styles.sectionWrapper}
+        entering={FadeInDown.delay(180).duration(motion.duration.base)}
+        style={styles.field}
       >
-        <Text style={styles.label}>Time available per session</Text>
-        <Text style={styles.hint}>Select all that work for you</Text>
-        <View style={styles.timeOptions}>
-          {timeOptions.map((time) => (
-            <AnimatedTouchableOpacity
+        <FieldLabel
+          label="Time per session"
+          hint="Pick all that work for you"
+        />
+        <View style={styles.chipsRow}>
+          {timeOptions.map(time => (
+            <Chip
               key={time.id}
-              style={[
-                styles.timeChip,
-                data.timeAvailable.includes(time.id) && styles.timeChipSelected,
-                timeShadowStyle,
-              ]}
-              onPress={() => handleTimeSelect(time.id)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.timeChipText,
-                  data.timeAvailable.includes(time.id) && styles.timeChipTextSelected,
-                ]}
-              >
-                {time.label}
-              </Text>
-            </AnimatedTouchableOpacity>
+              label={time.label}
+              selected={data.timeAvailable.includes(time.id)}
+              onPress={() => toggleTime(time.id)}
+            />
           ))}
         </View>
       </Animated.View>
 
-      {/* Spacer */}
       <View style={styles.spacer} />
 
-      {/* Buttons */}
-      <View style={styles.buttonsContainer}>
-        <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
-          <Text style={styles.backButtonText}>Back</Text>
-        </TouchableOpacity>
-
-        <Animated.View style={[styles.nextButtonWrapper, buttonAnimatedStyle]}>
-          <Pressable
-            onPress={handleNextPress}
-            onPressIn={handleButtonPressIn}
-            onPressOut={handleButtonPressOut}
+      <Animated.View
+        entering={FadeInDown.delay(240).duration(motion.duration.base)}
+        style={styles.actions}
+      >
+        <View style={styles.backWrap}>
+          <SecondaryButton label="Back" onPress={onBack} />
+        </View>
+        <View style={styles.nextWrap}>
+          <PrimaryButton
+            label="Continue"
+            onPress={onNext}
             disabled={!canProceed}
-          >
-            <LinearGradient
-              colors={canProceed ? ['#6366f1', '#4f46e5'] : ['#d1d5db', '#9ca3af']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.nextButton}
-            >
-              <Text style={styles.nextButtonText}>Next</Text>
-            </LinearGradient>
-          </Pressable>
-        </Animated.View>
-      </View>
-
-      <TouchableOpacity onPress={handleSkipPress} style={styles.skipButton}>
-        <Text style={styles.skipButtonText}>Skip this step</Text>
-      </TouchableOpacity>
+          />
+        </View>
+      </Animated.View>
     </View>
   )
 }
@@ -296,170 +145,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#f97316',
-    marginBottom: 8,
+  field: {
+    marginBottom: spacing.xl,
   },
-  subtitle: {
-    fontSize: 15,
-    color: '#6b7280',
-    marginBottom: 24,
-    lineHeight: 22,
+  optionsCol: {
+    gap: spacing.sm,
   },
-  inputWrapper: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  hint: {
-    fontSize: 13,
-    color: '#9ca3af',
-    marginBottom: 12,
-  },
-  inputContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    minHeight: 54,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-  },
-  inputContainerFocused: {
-    borderColor: '#6366f1',
-    shadowColor: '#6366f1',
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  input: {
-    fontSize: 16,
-    color: '#1f2937',
-    fontWeight: '400',
-  },
-  sectionWrapper: {
-    marginBottom: 24,
-  },
-  activityOptions: {
-    gap: 10,
-  },
-  activityOption: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-  },
-  activityOptionSelected: {
-    borderColor: '#6366f1',
-    backgroundColor: '#eef2ff',
-  },
-  activityLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 2,
-  },
-  activityLabelSelected: {
-    color: '#4f46e5',
-  },
-  activityDescription: {
-    fontSize: 13,
-    color: '#9ca3af',
-  },
-  activityDescriptionSelected: {
-    color: '#818cf8',
-  },
-  timeOptions: {
+  chipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-  },
-  timeChip: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-  },
-  timeChipSelected: {
-    borderColor: '#6366f1',
-    backgroundColor: '#eef2ff',
-  },
-  timeChipText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#6b7280',
-  },
-  timeChipTextSelected: {
-    color: '#4f46e5',
-    fontWeight: '600',
+    gap: spacing.sm,
   },
   spacer: {
     flex: 1,
-    minHeight: 20,
+    minHeight: spacing.xl,
   },
-  buttonsContainer: {
+  actions: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
+    gap: spacing.md,
   },
-  backButton: {
+  backWrap: {
+    width: 110,
+  },
+  nextWrap: {
     flex: 1,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  nextButtonWrapper: {
-    flex: 1,
-  },
-  nextButton: {
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#4f46e5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-  },
-  nextButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  skipButton: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  skipButtonText: {
-    fontSize: 15,
-    color: '#6366f1',
-    fontWeight: '500',
   },
 })
-

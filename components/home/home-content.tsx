@@ -1,11 +1,13 @@
 import { ProfileCompletionBanner } from '@/components/profile-completion'
+import { IconSymbol } from '@/components/ui/icon-symbol'
+import { motion, radius, spacing, typography } from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
 import { useAuth } from '@clerk/clerk-expo'
 import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
-import { LinearGradient } from 'expo-linear-gradient'
 import { router, type Href } from 'expo-router'
-import React, { useEffect, useState } from 'react'
+import React, { memo, useCallback, useState } from 'react'
 import {
   Pressable,
   ScrollView,
@@ -14,20 +16,20 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import Animated, {
   FadeInDown,
   FadeInUp,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated'
 
-const AnimatedTouchableOpacity =
-  Animated.createAnimatedComponent(TouchableOpacity)
+const HEADER_DELAY = 0
+const STAGGER = 70
 
 export default function HomeContent() {
+  const { palette, resolved, toggle } = useTheme()
   const onboardingData = useQuery(api.onboarding.getOnboarding)
   const todaysCheckin = useQuery(api.checkin.getTodaysCheckin)
   const deleteOnboarding = useMutation(api.onboarding.deleteOnboarding)
@@ -35,109 +37,12 @@ export default function HomeContent() {
   const { signOut } = useAuth()
   const [isStarting, setIsStarting] = useState(false)
 
-  const aiCardScale = useSharedValue(1)
-
-  // Shadow opacity values - start at 0, fade in after position animations complete
-  const headerShadowOpacity = useSharedValue(0)
-  const aiCardShadowOpacity = useSharedValue(0)
-  const statsShadowOpacity = useSharedValue(0)
-  const actionsShadowOpacity = useSharedValue(0)
-  const focusShadowOpacity = useSharedValue(0)
-
-  useEffect(() => {
-    // Fade in shadows after their respective entering animations complete
-    // Header: FadeInUp 600ms
-    headerShadowOpacity.value = withDelay(600, withTiming(1, { duration: 300 }))
-
-    // AI Card: FadeInDown 100ms delay + 600ms duration = 700ms
-    aiCardShadowOpacity.value = withDelay(700, withTiming(1, { duration: 300 }))
-
-    // Stats: FadeInDown 200ms delay + 600ms duration = 800ms
-    statsShadowOpacity.value = withDelay(800, withTiming(1, { duration: 300 }))
-
-    // Actions: FadeInDown 300ms delay + 600ms duration = 900ms
-    actionsShadowOpacity.value = withDelay(
-      900,
-      withTiming(1, { duration: 300 })
-    )
-
-    // Focus: FadeInDown 400ms delay + 600ms duration = 1000ms
-    focusShadowOpacity.value = withDelay(1000, withTiming(1, { duration: 300 }))
-  }, [
-    headerShadowOpacity,
-    aiCardShadowOpacity,
-    statsShadowOpacity,
-    actionsShadowOpacity,
-    focusShadowOpacity,
-  ])
-
-  const aiCardAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: aiCardScale.value }],
-    shadowColor: '#f97316',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: aiCardShadowOpacity.value * 0.3,
-    shadowRadius: 16,
-    elevation: aiCardShadowOpacity.value * 12,
-  }))
-
-  const headerShadowStyle = useAnimatedStyle(() => ({
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: headerShadowOpacity.value * 0.05,
-    shadowRadius: 8,
-    elevation: headerShadowOpacity.value * 2,
-  }))
-
-  const statsShadowStyle = useAnimatedStyle(() => ({
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: statsShadowOpacity.value * 0.05,
-    shadowRadius: 8,
-    elevation: statsShadowOpacity.value * 2,
-  }))
-
-  const actionsShadowStyle = useAnimatedStyle(() => ({
-    shadowColor: '#4f46e5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: actionsShadowOpacity.value * 0.3,
-    shadowRadius: 12,
-    elevation: actionsShadowOpacity.value * 8,
-  }))
-
-  const secondaryActionShadowStyle = useAnimatedStyle(() => ({
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: actionsShadowOpacity.value * 0.05,
-    shadowRadius: 8,
-    elevation: actionsShadowOpacity.value * 2,
-  }))
-
-  const focusShadowStyle = useAnimatedStyle(() => ({
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: focusShadowOpacity.value * 0.05,
-    shadowRadius: 8,
-    elevation: focusShadowOpacity.value * 2,
-  }))
-
-  const handleAICardPressIn = () => {
-    aiCardScale.value = withSpring(0.98)
-  }
-
-  const handleAICardPressOut = () => {
-    aiCardScale.value = withSpring(1)
-  }
-
-  const handleStartSession = async () => {
+  const handleStartSession = useCallback(async () => {
     if (isStarting) return
     setIsStarting(true)
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-
-      // Create a pending session and navigate immediately (optimistic navigation)
-      // The session will generate in the background while user sees the session screen
       const sessionId = await createPendingSession({})
-
       const sessionHref = {
         pathname: '/session',
         params: { sessionId: String(sessionId) },
@@ -149,607 +54,664 @@ export default function HomeContent() {
     } finally {
       setIsStarting(false)
     }
-  }
+  }, [createPendingSession, isStarting])
 
-  const handleBodyMap = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    // TODO: Navigate to body map
-  }
+  const handleCheckIn = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    router.push('/checkin')
+  }, [])
 
-  const handleStartProfileQuestions = () => {
+  const handleStartProfileQuestions = useCallback(() => {
     router.push('/profile-questions')
-  }
+  }, [])
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      // For testing: Delete onboarding data before signing out
       await deleteOnboarding()
       await signOut()
     } catch (err) {
       console.error('Sign out error', err)
     }
-  }
+  }, [deleteOnboarding, signOut])
+
+  const handleToggleTheme = useCallback(() => {
+    Haptics.selectionAsync()
+    toggle()
+  }, [toggle])
 
   const userName = onboardingData?.name || 'there'
   const firstName = userName.split(' ')[0]
+  const checkinDone = !!todaysCheckin
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={['#fef3f2', '#ffffff', '#ffffff']}
-        style={styles.gradient}
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: palette.bg }]}
+      edges={['top']}
+    >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+        <Animated.View
+          entering={FadeInUp.duration(motion.duration.base)}
+          style={styles.header}
         >
-          {/* Header */}
-          <Animated.View
-            entering={FadeInUp.duration(600).springify()}
-            style={styles.header}
-          >
-            <View style={styles.headerTop}>
-              <View style={styles.headerText}>
-                <Text style={styles.greeting}>Welcome back,</Text>
-                <Text style={styles.name}>{firstName}</Text>
-                <Text style={styles.subtitle}>
-                  Training that meets your body where it is
-                </Text>
-              </View>
-              <AnimatedTouchableOpacity
-                style={[styles.settingsButton, headerShadowStyle]}
-                onPress={handleSignOut}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.settingsIcon}>⚙️</Text>
-              </AnimatedTouchableOpacity>
-            </View>
-          </Animated.View>
-
-          {/* Profile Completion Banner */}
-          <ProfileCompletionBanner
-            onStartQuestions={handleStartProfileQuestions}
-          />
-
-          {/* AI Assistant Card */}
-          <Animated.View
-            entering={FadeInDown.delay(100).duration(600).springify()}
-          >
-            <Pressable
-              onPressIn={handleAICardPressIn}
-              onPressOut={handleAICardPressOut}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                router.push('/checkin')
-              }}
-            >
-              <Animated.View style={[styles.aiCard, aiCardAnimatedStyle]}>
-                <LinearGradient
-                  colors={todaysCheckin ? ['#22c55e', '#16a34a'] : ['#f97316', '#ea580c']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.aiGradient}
-                >
-                  <View style={styles.aiIconContainer}>
-                    <Text style={styles.aiIcon}>{todaysCheckin ? '✓' : '✨'}</Text>
-                  </View>
-                  <Text style={styles.aiTitle}>
-                    {todaysCheckin
-                      ? 'Ready for your session'
-                      : 'Your AI Training Partner'}
-                  </Text>
-                  <Text style={styles.aiDescription}>
-                    {todaysCheckin
-                      ? `Energy: ${todaysCheckin.energyLevel}/10 · Pain: ${todaysCheckin.painLevel}/10 · ${todaysCheckin.timeAvailable} min ${todaysCheckin.workoutType}`
-                      : "Share how you're feeling today. Your data is private, encrypted, and only used to create your safest, most effective plan."}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.aiButton}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                      router.push('/checkin')
-                    }}
-                  >
-                    <Text style={styles.aiButtonText}>
-                      {todaysCheckin ? 'Update check-in →' : 'Check in →'}
-                    </Text>
-                  </TouchableOpacity>
-                </LinearGradient>
-              </Animated.View>
-            </Pressable>
-          </Animated.View>
-
-          {/* Stats Grid */}
-          <Animated.View
-            entering={FadeInDown.delay(200).duration(600).springify()}
-            style={styles.statsContainer}
-          >
-            <Text style={styles.sectionTitle}>Your Progress</Text>
-            <View style={styles.statsGrid}>
-              <Animated.View style={[styles.statCard, statsShadowStyle]}>
-                <LinearGradient
-                  colors={['#eef2ff', '#e0e7ff']}
-                  style={styles.statGradient}
-                >
-                  <Text style={styles.statValue}>7</Text>
-                  <Text style={styles.statLabel}>Day Streak</Text>
-                  <Text style={styles.statEmoji}>🔥</Text>
-                </LinearGradient>
-              </Animated.View>
-
-              <Animated.View style={[styles.statCard, statsShadowStyle]}>
-                <LinearGradient
-                  colors={['#f0fdf4', '#dcfce7']}
-                  style={styles.statGradient}
-                >
-                  <Text style={styles.statValue}>12</Text>
-                  <Text style={styles.statLabel}>Sessions</Text>
-                  <Text style={styles.statEmoji}>💪</Text>
-                </LinearGradient>
-              </Animated.View>
-
-              <Animated.View style={[styles.statCard, statsShadowStyle]}>
-                <LinearGradient
-                  colors={['#fef3c7', '#fde68a']}
-                  style={styles.statGradient}
-                >
-                  <Text style={styles.statValue}>8.5</Text>
-                  <Text style={styles.statLabel}>Avg Energy</Text>
-                  <Text style={styles.statEmoji}>⚡</Text>
-                </LinearGradient>
-              </Animated.View>
-
-              <Animated.View style={[styles.statCard, statsShadowStyle]}>
-                <LinearGradient
-                  colors={['#fce7f3', '#fbcfe8']}
-                  style={styles.statGradient}
-                >
-                  <Text style={styles.statValue}>2.1</Text>
-                  <Text style={styles.statLabel}>Pain Score</Text>
-                  <Text style={styles.statEmoji}>😊</Text>
-                </LinearGradient>
-              </Animated.View>
-            </View>
-          </Animated.View>
-
-          {/* Quick Actions */}
-          <Animated.View
-            entering={FadeInDown.delay(300).duration(600).springify()}
-            style={styles.actionsContainer}
-          >
-            <Text style={styles.sectionTitle}>Quick Start</Text>
-
-            <AnimatedTouchableOpacity
-              style={[styles.primaryAction, actionsShadowStyle]}
-              onPress={handleStartSession}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['#6366f1', '#4f46e5']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.primaryActionGradient}
-              >
-                <View style={styles.actionContent}>
-                  <View>
-                    <Text style={styles.primaryActionTitle}>
-                      {isStarting
-                        ? 'Building your session...'
-                        : "Start Today's Session"}
-                    </Text>
-                    <Text style={styles.primaryActionSubtitle}>
-                      Personalized plan with live coaching
-                    </Text>
-                  </View>
-                  <Text style={styles.actionArrow}>→</Text>
-                </View>
-              </LinearGradient>
-            </AnimatedTouchableOpacity>
-
-            <View style={styles.secondaryActions}>
-              <AnimatedTouchableOpacity
-                style={[styles.secondaryAction, secondaryActionShadowStyle]}
-                onPress={handleBodyMap}
-                activeOpacity={0.8}
-              >
-                <View style={styles.secondaryActionContent}>
-                  <Text style={styles.secondaryActionIcon}>🎯</Text>
-                  <Text style={styles.secondaryActionTitle}>Body Map</Text>
-                  <Text style={styles.secondaryActionSubtitle}>
-                    Target specific areas
-                  </Text>
-                </View>
-              </AnimatedTouchableOpacity>
-
-              <AnimatedTouchableOpacity
-                style={[styles.secondaryAction, secondaryActionShadowStyle]}
-                activeOpacity={0.8}
-              >
-                <View style={styles.secondaryActionContent}>
-                  <Text style={styles.secondaryActionIcon}>📊</Text>
-                  <Text style={styles.secondaryActionTitle}>Progress</Text>
-                  <Text style={styles.secondaryActionSubtitle}>
-                    View your journey
-                  </Text>
-                </View>
-              </AnimatedTouchableOpacity>
-            </View>
-          </Animated.View>
-
-          {/* Today's Focus */}
-          <Animated.View
-            entering={FadeInDown.delay(400).duration(600).springify()}
-            style={styles.focusContainer}
-          >
-            <Text style={styles.sectionTitle}>Recommended for You</Text>
-
-            <Animated.View style={[styles.capsuleCard, focusShadowStyle]}>
-              <View style={styles.capsuleHeader}>
-                <View>
-                  <Text style={styles.capsuleTitle}>Hip Mobility Flow</Text>
-                  <Text style={styles.capsuleTime}>15 min · 6 moves</Text>
-                </View>
-                <View style={styles.capsuleBadge}>
-                  <Text style={styles.capsuleBadgeText}>Gentle</Text>
-                </View>
-              </View>
-              <Text style={styles.capsuleDescription}>
-                Perfect for desk workers. Addresses lower back discomfort with
-                gentle progressions.
-              </Text>
-              <View style={styles.capsuleTags}>
-                <View style={styles.tag}>
-                  <Text style={styles.tagText}>No equipment</Text>
-                </View>
-                <View style={styles.tag}>
-                  <Text style={styles.tagText}>Beginner-friendly</Text>
-                </View>
-              </View>
-            </Animated.View>
-
-            <Animated.View style={[styles.capsuleCard, focusShadowStyle]}>
-              <View style={styles.capsuleHeader}>
-                <View>
-                  <Text style={styles.capsuleTitle}>Breath & Recovery</Text>
-                  <Text style={styles.capsuleTime}>10 min · 4 techniques</Text>
-                </View>
-                <View style={[styles.capsuleBadge, styles.capsuleBadgeCalm]}>
-                  <Text style={styles.capsuleBadgeText}>Calm</Text>
-                </View>
-              </View>
-              <Text style={styles.capsuleDescription}>
-                Active recovery for busy days. Helps manage stress and supports
-                sleep quality.
-              </Text>
-              <View style={styles.capsuleTags}>
-                <View style={styles.tag}>
-                  <Text style={styles.tagText}>Anywhere</Text>
-                </View>
-                <View style={styles.tag}>
-                  <Text style={styles.tagText}>All levels</Text>
-                </View>
-              </View>
-            </Animated.View>
-          </Animated.View>
-
-          {/* Safety Message */}
-          <Animated.View
-            entering={FadeInDown.delay(500).duration(600).springify()}
-            style={styles.safetyCard}
-          >
-            <Text style={styles.safetyIcon}>🔒</Text>
-            <Text style={styles.safetyText}>
-              All recommendations are based on your profile and adapt to your
-              feedback. Not medical advice—consult a professional for concerns.
+          <View style={styles.headerLeft}>
+            <Text style={[styles.greeting, { color: palette.textTertiary }]}>
+              Welcome back
             </Text>
-          </Animated.View>
+            <Text style={[styles.name, { color: palette.textPrimary }]}>
+              {firstName}
+            </Text>
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: palette.surface,
+                  borderColor: palette.border,
+                },
+              ]}
+              onPress={handleToggleTheme}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={
+                resolved === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
+              }
+            >
+              <IconSymbol
+                name={resolved === 'dark' ? 'sun.max.fill' : 'moon.fill'}
+                size={18}
+                color={palette.textPrimary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: palette.surface,
+                  borderColor: palette.border,
+                },
+              ]}
+              onPress={handleSignOut}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+            >
+              <IconSymbol name="gear" size={20} color={palette.textPrimary} />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
 
-          {/* Bottom Spacing */}
-          <View style={styles.bottomSpacing} />
-        </ScrollView>
-      </LinearGradient>
-    </View>
+        <ProfileCompletionBanner onStartQuestions={handleStartProfileQuestions} />
+
+        <Animated.View
+          entering={FadeInDown.delay(HEADER_DELAY + STAGGER).duration(motion.duration.base)}
+        >
+          <PrimaryAction
+            isStarting={isStarting}
+            checkinDone={checkinDone}
+            onPress={handleStartSession}
+          />
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 2).duration(motion.duration.base)}
+          style={styles.checkInRow}
+        >
+          <CheckInCard checkin={todaysCheckin} onPress={handleCheckIn} />
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 3).duration(motion.duration.base)}
+          style={styles.section}
+        >
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+              This week
+            </Text>
+            <Text style={[styles.sectionMeta, { color: palette.textTertiary }]}>
+              4 of 5 sessions
+            </Text>
+          </View>
+          <View style={styles.statsGrid}>
+            <StatCard
+              label="Streak"
+              value="7"
+              unit="days"
+              icon="flame.fill"
+              tint={palette.warning}
+            />
+            <StatCard
+              label="Sessions"
+              value="12"
+              unit="total"
+              icon="dumbbell.fill"
+              tint={palette.primary}
+            />
+            <StatCard
+              label="Energy"
+              value="8.5"
+              unit="avg"
+              icon="bolt.fill"
+              tint={palette.accentTeal}
+            />
+            <StatCard
+              label="Pain"
+              value="2.1"
+              unit="avg"
+              icon="heart.fill"
+              tint={palette.accentPink}
+            />
+          </View>
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 4).duration(motion.duration.base)}
+          style={styles.section}
+        >
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
+              Recommended
+            </Text>
+            <TouchableOpacity activeOpacity={0.6}>
+              <Text style={[styles.linkText, { color: palette.primary }]}>
+                See all
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <RecommendedCard
+            title="Hip mobility flow"
+            meta="15 min · 6 moves"
+            badge="Gentle"
+            badgeTint={palette.success}
+            description="Perfect for desk workers. Addresses lower back discomfort with gentle progressions."
+            tags={['No equipment', 'Beginner']}
+          />
+          <RecommendedCard
+            title="Breath & recovery"
+            meta="10 min · 4 techniques"
+            badge="Calm"
+            badgeTint={palette.accentTeal}
+            description="Active recovery for busy days. Helps manage stress and supports sleep quality."
+            tags={['Anywhere', 'All levels']}
+          />
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 5).duration(motion.duration.base)}
+          style={[
+            styles.safetyCard,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.border,
+            },
+          ]}
+        >
+          <IconSymbol name="info.circle" size={16} color={palette.textSecondary} />
+          <Text style={[styles.safetyText, { color: palette.textSecondary }]}>
+            Recommendations adapt to your check-ins. Not medical advice. Talk to a
+            professional for concerns.
+          </Text>
+        </Animated.View>
+
+        <View style={styles.bottomSpacing} />
+      </ScrollView>
+    </SafeAreaView>
   )
 }
 
+interface PrimaryActionProps {
+  isStarting: boolean
+  checkinDone: boolean
+  onPress: () => void
+}
+
+const PrimaryAction = memo(function PrimaryAction({
+  isStarting,
+  checkinDone,
+  onPress,
+}: PrimaryActionProps) {
+  const { palette, resolved, shadows } = useTheme()
+  const scale = useSharedValue(1)
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }))
+
+  const cardShadow = resolved === 'dark' ? shadows.primaryDark : shadows.primary
+
+  return (
+    <Pressable
+      onPressIn={() => {
+        scale.value = withSpring(0.98, motion.spring)
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, motion.spring)
+      }}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Start today's session"
+    >
+      <Animated.View
+        style={[
+          styles.primaryAction,
+          { backgroundColor: palette.primary },
+          cardShadow,
+          animatedStyle,
+        ]}
+      >
+        <View style={styles.primaryActionInner}>
+          <View style={styles.primaryActionTextWrap}>
+            <Text style={styles.primaryActionLabel}>Today</Text>
+            <Text style={styles.primaryActionTitle}>
+              {isStarting ? 'Building your session' : 'Start workout'}
+            </Text>
+            <Text style={styles.primaryActionSubtitle}>
+              {checkinDone
+                ? 'Personalized to your check-in'
+                : 'Personalized plan with live coaching'}
+            </Text>
+          </View>
+          <View style={styles.primaryActionIcon}>
+            <IconSymbol name="play.fill" size={22} color={palette.white} />
+          </View>
+        </View>
+      </Animated.View>
+    </Pressable>
+  )
+})
+
+interface CheckInCardProps {
+  checkin:
+    | {
+        energyLevel: number
+        painLevel: number
+        timeAvailable: string
+        workoutType: string
+      }
+    | null
+    | undefined
+  onPress: () => void
+}
+
+const CheckInCard = memo(function CheckInCard({
+  checkin,
+  onPress,
+}: CheckInCardProps) {
+  const { palette } = useTheme()
+  const isDone = !!checkin
+  return (
+    <TouchableOpacity
+      style={[
+        styles.checkInCard,
+        {
+          backgroundColor: palette.surface,
+          borderColor: palette.border,
+        },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={isDone ? 'Update check-in' : 'Start check-in'}
+    >
+      <View
+        style={[
+          styles.checkInIcon,
+          {
+            backgroundColor: isDone ? palette.successMuted : palette.primaryMuted,
+          },
+        ]}
+      >
+        <IconSymbol
+          name={isDone ? 'checkmark' : 'sparkles'}
+          size={18}
+          color={isDone ? palette.success : palette.primary}
+        />
+      </View>
+      <View style={styles.checkInContent}>
+        <Text style={[styles.checkInTitle, { color: palette.textPrimary }]}>
+          {isDone ? "Today's check-in" : 'Daily check-in'}
+        </Text>
+        <Text
+          style={[styles.checkInSubtitle, { color: palette.textSecondary }]}
+          numberOfLines={1}
+        >
+          {isDone && checkin
+            ? `Energy ${checkin.energyLevel}/10 · Pain ${checkin.painLevel}/10 · ${checkin.timeAvailable}m`
+            : 'Tell us how you feel today'}
+        </Text>
+      </View>
+      <IconSymbol name="chevron.right" size={18} color={palette.textTertiary} />
+    </TouchableOpacity>
+  )
+})
+
+interface StatCardProps {
+  label: string
+  value: string
+  unit: string
+  icon: React.ComponentProps<typeof IconSymbol>['name']
+  tint: string
+}
+
+const StatCard = memo(function StatCard({
+  label,
+  value,
+  unit,
+  icon,
+  tint,
+}: StatCardProps) {
+  const { palette } = useTheme()
+  return (
+    <View
+      style={[
+        styles.statCard,
+        {
+          backgroundColor: palette.surface,
+          borderColor: palette.border,
+        },
+      ]}
+    >
+      <View style={styles.statHeader}>
+        <Text style={[styles.statLabel, { color: palette.textSecondary }]}>
+          {label}
+        </Text>
+        <View style={[styles.statIcon, { backgroundColor: tint + '22' }]}>
+          <IconSymbol name={icon} size={12} color={tint} />
+        </View>
+      </View>
+      <View style={styles.statValueRow}>
+        <Text style={[styles.statValue, { color: palette.textPrimary }]}>
+          {value}
+        </Text>
+        <Text style={[styles.statUnit, { color: palette.textTertiary }]}>
+          {unit}
+        </Text>
+      </View>
+    </View>
+  )
+})
+
+interface RecommendedCardProps {
+  title: string
+  meta: string
+  badge: string
+  badgeTint: string
+  description: string
+  tags: string[]
+}
+
+const RecommendedCard = memo(function RecommendedCard({
+  title,
+  meta,
+  badge,
+  badgeTint,
+  description,
+  tags,
+}: RecommendedCardProps) {
+  const { palette } = useTheme()
+  return (
+    <TouchableOpacity
+      style={[
+        styles.recCard,
+        { backgroundColor: palette.surface, borderColor: palette.border },
+      ]}
+      activeOpacity={0.85}
+    >
+      <View style={styles.recHeader}>
+        <View style={styles.recHeaderLeft}>
+          <Text style={[styles.recTitle, { color: palette.textPrimary }]}>
+            {title}
+          </Text>
+          <Text style={[styles.recMeta, { color: palette.textTertiary }]}>
+            {meta}
+          </Text>
+        </View>
+        <View style={[styles.badge, { backgroundColor: badgeTint + '22' }]}>
+          <Text style={[styles.badgeText, { color: badgeTint }]}>{badge}</Text>
+        </View>
+      </View>
+      <Text style={[styles.recDescription, { color: palette.textSecondary }]}>
+        {description}
+      </Text>
+      <View style={styles.recTags}>
+        {tags.map(t => (
+          <View
+            key={t}
+            style={[styles.tag, { backgroundColor: palette.surfaceAlt }]}
+          >
+            <Text style={[styles.tagText, { color: palette.textSecondary }]}>
+              {t}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </TouchableOpacity>
+  )
+})
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  gradient: {
+  safeArea: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxxl,
   },
   header: {
-    marginBottom: 28,
-  },
-  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: spacing.xxl,
   },
-  headerText: {
+  headerLeft: {
     flex: 1,
   },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
   greeting: {
-    fontSize: 16,
-    color: '#6b7280',
-    fontWeight: '400',
+    ...typography.small,
+    marginBottom: 2,
   },
   name: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 4,
-    letterSpacing: -0.5,
+    ...typography.h1,
   },
-  subtitle: {
-    fontSize: 15,
-    color: '#9ca3af',
-    fontWeight: '400',
-  },
-  settingsButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#ffffff',
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-  },
-  settingsIcon: {
-    fontSize: 20,
-  },
-  aiCard: {
-    marginBottom: 32,
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#f97316',
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 16,
-  },
-  aiGradient: {
-    padding: 24,
-  },
-  aiIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  aiIcon: {
-    fontSize: 24,
-  },
-  aiTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 8,
-  },
-  aiDescription: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.95)',
-    lineHeight: 22,
-    marginBottom: 20,
-  },
-  aiButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
   },
-  aiButtonText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '600',
+  primaryAction: {
+    borderRadius: radius.xl,
+    marginTop: spacing.lg,
   },
-  statsContainer: {
-    marginBottom: 32,
+  primaryActionInner: {
+    padding: spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+  },
+  primaryActionTextWrap: {
+    flex: 1,
+  },
+  primaryActionLabel: {
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.85)',
+    marginBottom: 4,
+  },
+  primaryActionTitle: {
+    ...typography.h2,
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  primaryActionSubtitle: {
+    ...typography.small,
+    color: 'rgba(255,255,255,0.92)',
+  },
+  primaryActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkInRow: {
+    marginTop: spacing.md,
+  },
+  checkInCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+  },
+  checkInIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkInContent: {
+    flex: 1,
+  },
+  checkInTitle: {
+    ...typography.bodyStrong,
+  },
+  checkInSubtitle: {
+    ...typography.small,
+    marginTop: 2,
+  },
+  section: {
+    marginTop: spacing.xxxl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 16,
+    ...typography.h3,
+  },
+  sectionMeta: {
+    ...typography.small,
+  },
+  linkText: {
+    ...typography.smallStrong,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: spacing.md,
   },
   statCard: {
-    width: '48%',
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
+    width: '47.8%',
+    flexGrow: 1,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
   },
-  statGradient: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: '#6b7280',
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  statEmoji: {
-    fontSize: 20,
-  },
-  actionsContainer: {
-    marginBottom: 32,
-  },
-  primaryAction: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 12,
-    shadowColor: '#4f46e5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-  },
-  primaryActionGradient: {
-    padding: 20,
-  },
-  actionContent: {
+  statHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: spacing.md,
   },
-  primaryActionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 4,
+  statLabel: {
+    ...typography.smallStrong,
   },
-  primaryActionSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-  },
-  actionArrow: {
-    fontSize: 24,
-    color: '#ffffff',
-  },
-  secondaryActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  secondaryAction: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-  },
-  secondaryActionContent: {
-    padding: 16,
+  statIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.pill,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  secondaryActionIcon: {
-    fontSize: 28,
-    marginBottom: 8,
+  statValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
   },
-  secondaryActionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 4,
+  statValue: {
+    ...typography.metric,
   },
-  secondaryActionSubtitle: {
-    fontSize: 12,
-    color: '#9ca3af',
-    textAlign: 'center',
+  statUnit: {
+    ...typography.small,
   },
-  focusContainer: {
-    marginBottom: 32,
+  recCard: {
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 1,
   },
-  capsuleCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 12,
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-  },
-  capsuleHeader: {
+  recHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
-  capsuleTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 4,
+  recHeaderLeft: {
+    flex: 1,
+    paddingRight: spacing.md,
   },
-  capsuleTime: {
-    fontSize: 13,
-    color: '#9ca3af',
-    fontWeight: '500',
+  recTitle: {
+    ...typography.bodyStrong,
+    marginBottom: 2,
   },
-  capsuleBadge: {
-    backgroundColor: '#dcfce7',
-    paddingHorizontal: 10,
+  recMeta: {
+    ...typography.small,
+  },
+  badge: {
+    paddingHorizontal: spacing.md,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: radius.pill,
   },
-  capsuleBadgeCalm: {
-    backgroundColor: '#e0e7ff',
+  badgeText: {
+    ...typography.caption,
   },
-  capsuleBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#166534',
+  recDescription: {
+    ...typography.small,
+    marginBottom: spacing.md,
   },
-  capsuleDescription: {
-    fontSize: 14,
-    color: '#6b7280',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  capsuleTags: {
+  recTags: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   tag: {
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 10,
+    paddingHorizontal: spacing.md,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: radius.sm,
   },
   tagText: {
-    fontSize: 12,
-    color: '#6b7280',
-    fontWeight: '500',
+    ...typography.small,
+    fontWeight: '600',
   },
   safetyCard: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 12,
-    padding: 16,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: '#dbeafe',
-  },
-  safetyIcon: {
-    fontSize: 20,
+    marginTop: spacing.xl,
   },
   safetyText: {
     flex: 1,
-    fontSize: 13,
-    color: '#1e40af',
-    lineHeight: 18,
+    ...typography.small,
   },
   bottomSpacing: {
-    height: 40,
+    height: spacing.huge,
   },
 })

@@ -1,29 +1,59 @@
-import { Link } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { Link } from 'expo-router'
+import { StyleSheet, Text, View } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { radius, spacing, typography } from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
 
 export default function ModalScreen() {
+  const { palette } = useTheme()
+
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title">This is a modal</ThemedText>
-      <Link href="/" dismissTo style={styles.link}>
-        <ThemedText type="link">Go to home screen</ThemedText>
-      </Link>
-    </ThemedView>
-  );
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.bg }]}>
+      <View style={styles.container}>
+        <Text style={[styles.title, { color: palette.textPrimary }]}>Modal</Text>
+        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
+          A floating sheet for quick actions and confirmations.
+        </Text>
+        <Link
+          href="/"
+          dismissTo
+          style={[styles.link, { backgroundColor: palette.primary }]}
+        >
+          <Text style={[styles.linkText, { color: palette.white }]}>
+            Go back home
+          </Text>
+        </Link>
+      </View>
+    </SafeAreaView>
+  )
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: spacing.xxl,
+    gap: spacing.md,
+  },
+  title: {
+    ...typography.h1,
+  },
+  subtitle: {
+    ...typography.body,
+    textAlign: 'center',
   },
   link: {
-    marginTop: 15,
-    paddingVertical: 15,
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.xxl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
   },
-});
+  linkText: {
+    ...typography.bodyStrong,
+  },
+})

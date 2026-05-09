@@ -161,3 +161,14 @@ When working on this project:
 2. **Understand before implementing**: Read the relevant docs section before writing code
 
 3. **Follow existing patterns**: Look at existing components and screens for patterns to follow
+
+## Learned User Preferences
+
+- Match the Figma designs exactly: typography, asset sizes, and the body figure illustration.
+- Hide the bottom tab bar (Home/Library) on onboarding and account-completion screens.
+- Ship every screen with both light and dark mode styles.
+
+## Learned Workspace Facts
+
+- Primary Embodi Figma file (overall app design): https://www.figma.com/design/Btvt6p53EA2NQ6Z4XrUKFE/Embodi
+- Pain rating page Figma file (Interactive Pain Rating Page): https://www.figma.com/make/rFbFQtHf4kUxSp7f0Nu69O/Interactive-Pain-Rating-Page--Copy-

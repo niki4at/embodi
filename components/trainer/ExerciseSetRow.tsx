@@ -8,6 +8,10 @@ import {
   View,
 } from 'react-native'
 
+import { IconSymbol } from '@/components/ui/icon-symbol'
+import { radius, spacing, typography } from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
+
 import { TrackingMetric, WorkoutSet } from './types'
 
 export type SetPayload = {
@@ -54,17 +58,19 @@ export default function ExerciseSetRow({
   onSave,
   onFocusMetric,
 }: ExerciseSetRowProps) {
+  const { palette } = useTheme()
   const [metricValue, setMetricValue] = useState(
     existingSet?.weightKg?.toString() ||
       existingSet?.durationSec?.toString() ||
       existingSet?.distanceM?.toString() ||
-      ''
+      '',
   )
   const [secondaryValue, setSecondaryValue] = useState(
-    existingSet?.reps?.toString() || existingSet?.rpe?.toString() || ''
+    existingSet?.reps?.toString() || existingSet?.rpe?.toString() || '',
   )
   const [notes, setNotes] = useState(existingSet?.notes ?? '')
   const [isSaving, setIsSaving] = useState(false)
+  const [focusedField, setFocusedField] = useState<string | null>(null)
 
   const targetLabel = useMemo(() => {
     const min = targetReps[0]
@@ -103,58 +109,153 @@ export default function ExerciseSetRow({
     }
   }
 
+  const inputBackground = (focused: boolean) =>
+    focused ? palette.surfaceAlt : palette.surface
+  const inputBorder = (focused: boolean) =>
+    focused ? palette.primary : palette.border
+
   return (
-    <View style={styles.row}>
+    <View
+      style={[
+        styles.row,
+        {
+          borderColor: completed ? palette.successMuted : palette.border,
+          backgroundColor: completed
+            ? palette.successMuted
+            : palette.bgElevated,
+        },
+      ]}
+    >
       <View style={styles.rowHeader}>
-        <Text style={styles.setLabel}>Set {setNumber}</Text>
-        <Text style={styles.targetLabel}>{targetLabel}</Text>
-        {completed && <Text style={styles.completedBadge}>✓ Logged</Text>}
+        <View style={[styles.setBadge, { backgroundColor: palette.surfaceAlt }]}>
+          <Text style={[styles.setBadgeText, { color: palette.textPrimary }]}>
+            {setNumber}
+          </Text>
+        </View>
+        <View style={styles.headerInfo}>
+          <Text style={[styles.setLabel, { color: palette.textPrimary }]}>
+            Set {setNumber}
+          </Text>
+          <Text style={[styles.targetLabel, { color: palette.textTertiary }]}>
+            {targetLabel}
+          </Text>
+        </View>
+        {completed ? (
+          <View
+            style={[
+              styles.completedBadge,
+              { backgroundColor: palette.successMuted },
+            ]}
+          >
+            <IconSymbol
+              name="checkmark.circle.fill"
+              size={16}
+              color={palette.success}
+            />
+            <Text
+              style={[styles.completedBadgeText, { color: palette.success }]}
+            >
+              Logged
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.inputsRow}>
         <View style={styles.inputBlock}>
-          <Text style={styles.inputLabel}>{metricMeta.label}</Text>
+          <Text style={[styles.inputLabel, { color: palette.textTertiary }]}>
+            {metricMeta.label}
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                color: palette.textPrimary,
+                backgroundColor: inputBackground(focusedField === 'metric'),
+                borderColor: inputBorder(focusedField === 'metric'),
+              },
+            ]}
             value={metricValue}
             onChangeText={setMetricValue}
             placeholder={metricMeta.placeholder}
+            placeholderTextColor={palette.textMuted}
             keyboardType="numeric"
-            onFocus={onFocusMetric}
+            onFocus={() => {
+              setFocusedField('metric')
+              onFocusMetric?.()
+            }}
+            onBlur={() => setFocusedField(null)}
           />
         </View>
 
         {trackingMetric !== 'custom' && (
           <View style={styles.inputBlock}>
-            <Text style={styles.inputLabel}>{secondaryLabel}</Text>
+            <Text style={[styles.inputLabel, { color: palette.textTertiary }]}>
+              {secondaryLabel}
+            </Text>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  color: palette.textPrimary,
+                  backgroundColor: inputBackground(
+                    focusedField === 'secondary',
+                  ),
+                  borderColor: inputBorder(focusedField === 'secondary'),
+                },
+              ]}
               value={secondaryValue}
               onChangeText={setSecondaryValue}
               placeholder={showReps ? '10' : '6'}
+              placeholderTextColor={palette.textMuted}
               keyboardType="numeric"
+              onFocus={() => setFocusedField('secondary')}
+              onBlur={() => setFocusedField(null)}
             />
           </View>
         )}
       </View>
 
       <TextInput
-        style={[styles.input, styles.notesInput]}
+        style={[
+          styles.input,
+          styles.notesInput,
+          {
+            color: palette.textPrimary,
+            backgroundColor: inputBackground(focusedField === 'notes'),
+            borderColor: inputBorder(focusedField === 'notes'),
+          },
+        ]}
         placeholder="Notes or discomfort?"
+        placeholderTextColor={palette.textMuted}
         value={notes}
         onChangeText={setNotes}
+        onFocus={() => setFocusedField('notes')}
+        onBlur={() => setFocusedField(null)}
       />
 
       <TouchableOpacity
-        style={[styles.saveButton, completed && styles.saveButtonGhost]}
+        style={[
+          styles.saveButton,
+          {
+            backgroundColor: completed ? palette.surfaceAlt : palette.primary,
+            borderColor: palette.border,
+            borderWidth: completed ? 1 : 0,
+          },
+        ]}
         onPress={handleSave}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
         disabled={isSaving}
       >
         {isSaving ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={palette.white} />
         ) : (
-          <Text style={styles.saveButtonText}>
+          <Text
+            style={[
+              styles.saveButtonText,
+              { color: completed ? palette.textPrimary : palette.white },
+            ]}
+          >
             {completed ? 'Update set' : 'Log set'}
           </Text>
         )}
@@ -166,70 +267,75 @@ export default function ExerciseSetRow({
 const styles = StyleSheet.create({
   row: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    backgroundColor: '#fff',
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   rowHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  setBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setBadgeText: {
+    ...typography.bodyStrong,
+  },
+  headerInfo: {
+    flex: 1,
   },
   setLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    ...typography.bodyStrong,
   },
   targetLabel: {
-    fontSize: 13,
-    color: '#6b7280',
+    ...typography.small,
+    marginTop: 2,
   },
   completedBadge: {
-    fontSize: 12,
-    color: '#10b981',
-    fontWeight: '600',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
+  completedBadgeText: {
+    ...typography.caption,
   },
   inputsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
   inputBlock: {
     flex: 1,
   },
   inputLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 4,
+    ...typography.caption,
+    marginBottom: spacing.xs,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: '#111827',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    ...typography.body,
   },
   notesInput: {
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   saveButton: {
-    backgroundColor: '#6366f1',
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
-  saveButtonGhost: {
-    backgroundColor: '#4f46e5',
-  },
   saveButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
+    ...typography.bodyStrong,
   },
 })
-

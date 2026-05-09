@@ -1,15 +1,10 @@
 import * as Haptics from 'expo-haptics'
 import React from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import Animated, {
-  FadeInDown,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 
-const AnimatedTouchableOpacity =
-  Animated.createAnimatedComponent(TouchableOpacity)
+import { motion, radius, spacing, typography } from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
 
 export interface ChoiceOption<T extends string> {
   value: T
@@ -37,173 +32,123 @@ export default function CheckInChoice<T extends string>({
   columns = 2,
   delay = 0,
 }: CheckInChoiceProps<T>) {
+  const { palette } = useTheme()
+
   return (
     <Animated.View
-      entering={FadeInDown.delay(delay).duration(400).springify()}
+      entering={FadeInDown.delay(delay).duration(motion.duration.base)}
       style={styles.container}
     >
-      <Text style={styles.title}>{title}</Text>
-      {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      <Text style={[styles.title, { color: palette.textPrimary }]}>{title}</Text>
+      {subtitle ? (
+        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
+          {subtitle}
+        </Text>
+      ) : null}
 
-      <View
-        style={[
-          styles.optionsGrid,
-          columns === 1 && styles.singleColumn,
-          columns === 3 && styles.threeColumns,
-        ]}
-      >
-        {options.map((option, index) => (
-          <ChoiceButton
-            key={option.value}
-            option={option}
-            isSelected={value === option.value}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-              onChange(option.value)
-            }}
-            columns={columns}
-            index={index}
-          />
-        ))}
+      <View style={styles.grid}>
+        {options.map(option => {
+          const isSelected = value === option.value
+          return (
+            <TouchableOpacity
+              key={option.value}
+              style={[
+                styles.option,
+                columns === 1 && styles.optionFull,
+                columns === 2 && styles.optionHalf,
+                columns === 3 && styles.optionThird,
+                {
+                  backgroundColor: isSelected
+                    ? palette.primaryMuted
+                    : palette.surface,
+                  borderColor: isSelected ? palette.primary : palette.border,
+                },
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                onChange(option.value)
+              }}
+              activeOpacity={0.85}
+            >
+              {option.emoji ? (
+                <Text style={styles.emoji}>{option.emoji}</Text>
+              ) : null}
+              <Text
+                style={[
+                  styles.optionLabel,
+                  { color: isSelected ? palette.primary : palette.textPrimary },
+                ]}
+              >
+                {option.label}
+              </Text>
+              {option.description ? (
+                <Text
+                  style={[
+                    styles.optionDescription,
+                    {
+                      color: isSelected ? palette.primary : palette.textTertiary,
+                    },
+                  ]}
+                >
+                  {option.description}
+                </Text>
+              ) : null}
+            </TouchableOpacity>
+          )
+        })}
       </View>
     </Animated.View>
   )
 }
 
-interface ChoiceButtonProps<T extends string> {
-  option: ChoiceOption<T>
-  isSelected: boolean
-  onPress: () => void
-  columns: number
-  index: number
-}
-
-function ChoiceButton<T extends string>({
-  option,
-  isSelected,
-  onPress,
-  columns,
-}: ChoiceButtonProps<T>) {
-  const scale = useSharedValue(1)
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }))
-
-  const handlePressIn = () => {
-    scale.value = withSpring(0.96)
-  }
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1)
-  }
-
-  return (
-    <AnimatedTouchableOpacity
-      style={[
-        styles.option,
-        isSelected && styles.optionSelected,
-        columns === 1 && styles.optionFullWidth,
-        columns === 3 && styles.optionThird,
-        animatedStyle,
-      ]}
-      onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      activeOpacity={0.8}
-    >
-      {option.emoji && <Text style={styles.emoji}>{option.emoji}</Text>}
-      <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}>
-        {option.label}
-      </Text>
-      {option.description && (
-        <Text
-          style={[
-            styles.optionDescription,
-            isSelected && styles.optionDescriptionSelected,
-          ]}
-        >
-          {option.description}
-        </Text>
-      )}
-    </AnimatedTouchableOpacity>
-  )
-}
-
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 32,
+    marginBottom: spacing.xxl,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 4,
+    ...typography.h3,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 16,
+    ...typography.small,
+    marginBottom: spacing.md,
   },
-  optionsGrid: {
+  grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 12,
+    gap: spacing.md,
   },
-  singleColumn: {
-    flexDirection: 'column',
-  },
-  threeColumns: {},
   option: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    borderWidth: 1,
+    flexGrow: 1,
   },
-  optionFullWidth: {
-    minWidth: '100%',
+  optionFull: {
+    width: '100%',
     flexDirection: 'row',
     justifyContent: 'flex-start',
-    gap: 12,
+    gap: spacing.md,
+    alignItems: 'center',
+  },
+  optionHalf: {
+    minWidth: '47%',
   },
   optionThird: {
     minWidth: '30%',
-    flex: 1,
-  },
-  optionSelected: {
-    borderColor: '#4f46e5',
-    backgroundColor: '#eef2ff',
   },
   emoji: {
-    fontSize: 24,
-    marginBottom: 8,
+    fontSize: 22,
+    marginBottom: spacing.sm,
   },
   optionLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#374151',
+    ...typography.bodyStrong,
     textAlign: 'center',
-  },
-  optionLabelSelected: {
-    color: '#4f46e5',
   },
   optionDescription: {
-    fontSize: 12,
-    color: '#9ca3af',
+    ...typography.small,
     textAlign: 'center',
-    marginTop: 4,
-  },
-  optionDescriptionSelected: {
-    color: '#6366f1',
+    marginTop: 2,
   },
 })

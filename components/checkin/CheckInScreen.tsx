@@ -1,9 +1,8 @@
 import { api } from '@/convex/_generated/api'
 import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
-import { LinearGradient } from 'expo-linear-gradient'
 import { router, type Href } from 'expo-router'
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   ScrollView,
@@ -14,25 +13,21 @@ import {
   View,
 } from 'react-native'
 import Animated, {
-  FadeIn,
   FadeInDown,
-  FadeOut,
   SlideInRight,
   SlideOutLeft,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
 } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import BodyAreaSelector from './BodyAreaSelector'
+import { IconSymbol } from '@/components/ui/icon-symbol'
+import { PillButton } from '@/components/ui/pill-button'
+import { motion, radius, spacing, typography } from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
+
 import CheckInChoice, { type ChoiceOption } from './CheckInChoice'
 import CheckInSlider from './CheckInSlider'
+import { PainBodyMap, type BodyPart, type PainRatings } from './PainBodyMap'
 
-const AnimatedTouchableOpacity =
-  Animated.createAnimatedComponent(TouchableOpacity)
-
-// Check-in data types
 type SleepQuality = 'rough' | 'okay' | 'decent' | 'great'
 type WorkoutType = 'strength' | 'mobility' | 'cardio' | 'recovery' | 'mixed'
 type IntensityPreference = 'easy' | 'moderate' | 'challenging'
@@ -41,8 +36,7 @@ type TimeAvailable = '15' | '30' | '45' | '60'
 interface CheckInFormData {
   energyLevel: number
   sleepQuality: SleepQuality | null
-  painLevel: number
-  painAreas: string[]
+  painRatings: PainRatings
   stressLevel: number
   workoutType: WorkoutType | null
   intensityPreference: IntensityPreference | null
@@ -68,7 +62,7 @@ const WORKOUT_OPTIONS: ChoiceOption<WorkoutType>[] = [
 const INTENSITY_OPTIONS: ChoiceOption<IntensityPreference>[] = [
   { value: 'easy', label: 'Easy', emoji: '🌱', description: 'Keep it light' },
   { value: 'moderate', label: 'Moderate', emoji: '🔥', description: 'Steady effort' },
-  { value: 'challenging', label: 'Push me', emoji: '🚀', description: 'Challenge accepted' },
+  { value: 'challenging', label: 'Push me', emoji: '🚀', description: 'Go hard' },
 ]
 
 const TIME_OPTIONS: ChoiceOption<TimeAvailable>[] = [
@@ -81,13 +75,14 @@ const TIME_OPTIONS: ChoiceOption<TimeAvailable>[] = [
 const TOTAL_STEPS = 4
 
 export default function CheckInScreen() {
+  const { palette } = useTheme()
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [notesFocused, setNotesFocused] = useState(false)
   const [formData, setFormData] = useState<CheckInFormData>({
     energyLevel: 5,
     sleepQuality: null,
-    painLevel: 0,
-    painAreas: [],
+    painRatings: {},
     stressLevel: 2,
     workoutType: null,
     intensityPreference: null,
@@ -98,36 +93,33 @@ export default function CheckInScreen() {
   const onboardingData = useQuery(api.onboarding.getOnboarding)
   const createCheckin = useMutation(api.checkin.createCheckin)
 
-  const buttonScale = useSharedValue(1)
-
-  const buttonAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: buttonScale.value }],
-  }))
-
-  const handlePressIn = () => {
-    buttonScale.value = withSpring(0.96)
-  }
-
-  const handlePressOut = () => {
-    buttonScale.value = withSpring(1)
-  }
-
   const updateFormData = <K extends keyof CheckInFormData>(
     key: K,
-    value: CheckInFormData[K]
+    value: CheckInFormData[K],
   ) => {
-    setFormData((prev) => ({ ...prev, [key]: value }))
+    setFormData(prev => ({ ...prev, [key]: value }))
   }
+
+  const { painLevel, painAreas } = useMemo(() => {
+    const entries = Object.entries(formData.painRatings) as [BodyPart, number][]
+    const max = entries.reduce((acc, [, lvl]) => Math.max(acc, lvl), 0)
+    return {
+      painLevel: max,
+      painAreas: entries.filter(([, lvl]) => lvl > 0).map(([part]) => part),
+    }
+  }, [formData.painRatings])
 
   const canProceed = (): boolean => {
     switch (currentStep) {
-      case 0: // Energy & Sleep
+      case 0:
         return formData.sleepQuality !== null
-      case 1: // Pain & Stress (pain areas only required if pain > 3)
-        return formData.painLevel <= 3 || formData.painAreas.length > 0
-      case 2: // Workout preferences
-        return formData.workoutType !== null && formData.intensityPreference !== null
-      case 3: // Time
+      case 1:
+        return true
+      case 2:
+        return (
+          formData.workoutType !== null && formData.intensityPreference !== null
+        )
+      case 3:
         return formData.timeAvailable !== null
       default:
         return true
@@ -137,14 +129,14 @@ export default function CheckInScreen() {
   const handleNext = () => {
     if (currentStep < TOTAL_STEPS - 1) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      setCurrentStep((prev) => prev + 1)
+      setCurrentStep(prev => prev + 1)
     }
   }
 
   const handleBack = () => {
     if (currentStep > 0) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-      setCurrentStep((prev) => prev - 1)
+      setCurrentStep(prev => prev - 1)
     } else {
       router.back()
     }
@@ -153,7 +145,6 @@ export default function CheckInScreen() {
   const handleSubmit = async () => {
     if (isSubmitting) return
 
-    // Validate required fields
     if (
       !formData.sleepQuality ||
       !formData.workoutType ||
@@ -171,8 +162,8 @@ export default function CheckInScreen() {
         data: {
           energyLevel: formData.energyLevel,
           sleepQuality: formData.sleepQuality,
-          painLevel: formData.painLevel,
-          painAreas: formData.painAreas.length > 0 ? formData.painAreas : undefined,
+          painLevel,
+          painAreas: painAreas.length > 0 ? painAreas : undefined,
           stressLevel: formData.stressLevel,
           workoutType: formData.workoutType,
           intensityPreference: formData.intensityPreference,
@@ -198,6 +189,9 @@ export default function CheckInScreen() {
   }
 
   const firstName = onboardingData?.name?.split(' ')[0] || 'there'
+  const proceedEnabled = canProceed()
+  const isLast = currentStep === TOTAL_STEPS - 1
+  const buttonDisabled = !proceedEnabled || (isLast && isSubmitting)
 
   const renderStep = () => {
     switch (currentStep) {
@@ -205,35 +199,37 @@ export default function CheckInScreen() {
         return (
           <Animated.View
             key="step-0"
-            entering={SlideInRight.duration(300)}
-            exiting={SlideOutLeft.duration(200)}
+            entering={SlideInRight.duration(motion.duration.base)}
+            exiting={SlideOutLeft.duration(motion.duration.quick)}
           >
-            <Text style={styles.stepTitle}>How are you feeling today, {firstName}?</Text>
-            <Text style={styles.stepSubtitle}>
-              This helps me create the perfect session for you right now.
+            <Text style={[styles.stepTitle, { color: palette.textPrimary }]}>
+              How are you feeling today, {firstName}?
+            </Text>
+            <Text
+              style={[styles.stepSubtitle, { color: palette.textSecondary }]}
+            >
+              This shapes the session you get next.
             </Text>
 
             <CheckInSlider
-              title="Energy Level"
-              subtitle="How energized do you feel right now?"
+              title="Energy"
+              subtitle="How energised do you feel right now?"
               value={formData.energyLevel}
               min={1}
               max={10}
               minLabel="Running on empty"
               maxLabel="Ready to crush it"
-              onChange={(v) => updateFormData('energyLevel', v)}
-              colorStart="#fbbf24"
-              colorEnd="#22c55e"
-              delay={100}
+              onChange={v => updateFormData('energyLevel', v)}
+              delay={80}
             />
 
             <CheckInChoice
-              title="Sleep Quality"
+              title="Sleep quality"
               subtitle="How did you sleep last night?"
               options={SLEEP_OPTIONS}
               value={formData.sleepQuality}
-              onChange={(v) => updateFormData('sleepQuality', v)}
-              delay={200}
+              onChange={v => updateFormData('sleepQuality', v)}
+              delay={160}
             />
           </Animated.View>
         )
@@ -242,52 +238,36 @@ export default function CheckInScreen() {
         return (
           <Animated.View
             key="step-1"
-            entering={SlideInRight.duration(300)}
-            exiting={SlideOutLeft.duration(200)}
+            entering={SlideInRight.duration(motion.duration.base)}
+            exiting={SlideOutLeft.duration(motion.duration.quick)}
           >
-            <Text style={styles.stepTitle}>Any aches or stress today?</Text>
-            <Text style={styles.stepSubtitle}>
-              This helps me avoid movements that might aggravate you.
+            <Text style={[styles.stepTitle, { color: palette.textPrimary }]}>
+              Any aches today?
+            </Text>
+            <Text
+              style={[styles.stepSubtitle, { color: palette.textSecondary }]}
+            >
+              Tap any body part that hurts and rate the intensity. I&apos;ll steer
+              the session around what&apos;s flaring up.
             </Text>
 
-            <CheckInSlider
-              title="Pain / Discomfort"
-              subtitle="Rate any pain or discomfort you're feeling"
-              value={formData.painLevel}
-              min={0}
-              max={10}
-              minLabel="None"
-              maxLabel="Significant"
-              onChange={(v) => updateFormData('painLevel', v)}
-              colorStart="#22c55e"
-              colorEnd="#ef4444"
-              delay={100}
+            <PainBodyMap
+              value={formData.painRatings}
+              onChange={ratings => updateFormData('painRatings', ratings)}
             />
 
-            {formData.painLevel > 3 && (
-              <Animated.View entering={FadeIn.duration(300)} exiting={FadeOut.duration(200)}>
-                <BodyAreaSelector
-                  title="Where does it hurt?"
-                  subtitle="Tap all areas that feel uncomfortable"
-                  selectedAreas={formData.painAreas}
-                  onChange={(areas) => updateFormData('painAreas', areas)}
-                  delay={0}
-                />
-              </Animated.View>
-            )}
+            <View style={{ height: spacing.xl }} />
 
             <CheckInSlider
-              title="Stress Level"
-              subtitle="How's your mental load today?"
+              title="Stress"
+              subtitle="How's your mental load?"
               value={formData.stressLevel}
               min={1}
               max={5}
               minLabel="Clear-headed"
               maxLabel="Overwhelmed"
-              onChange={(v) => updateFormData('stressLevel', v)}
-              colorStart="#22c55e"
-              colorEnd="#f97316"
-              delay={formData.painLevel > 3 ? 300 : 200}
+              onChange={v => updateFormData('stressLevel', v)}
+              delay={160}
             />
           </Animated.View>
         )
@@ -296,22 +276,26 @@ export default function CheckInScreen() {
         return (
           <Animated.View
             key="step-2"
-            entering={SlideInRight.duration(300)}
-            exiting={SlideOutLeft.duration(200)}
+            entering={SlideInRight.duration(motion.duration.base)}
+            exiting={SlideOutLeft.duration(motion.duration.quick)}
           >
-            <Text style={styles.stepTitle}>What kind of session today?</Text>
-            <Text style={styles.stepSubtitle}>
-              Tell me what feels right and how hard you want to work.
+            <Text style={[styles.stepTitle, { color: palette.textPrimary }]}>
+              What kind of session today?
+            </Text>
+            <Text
+              style={[styles.stepSubtitle, { color: palette.textSecondary }]}
+            >
+              Pick the focus and how hard you want to work.
             </Text>
 
             <CheckInChoice
-              title="Workout Type"
+              title="Workout type"
               subtitle="What sounds good right now?"
               options={WORKOUT_OPTIONS}
               value={formData.workoutType}
-              onChange={(v) => updateFormData('workoutType', v)}
+              onChange={v => updateFormData('workoutType', v)}
               columns={2}
-              delay={100}
+              delay={80}
             />
 
             <CheckInChoice
@@ -319,9 +303,9 @@ export default function CheckInScreen() {
               subtitle="How hard do you want to push?"
               options={INTENSITY_OPTIONS}
               value={formData.intensityPreference}
-              onChange={(v) => updateFormData('intensityPreference', v)}
+              onChange={v => updateFormData('intensityPreference', v)}
               columns={3}
-              delay={200}
+              delay={160}
             />
           </Animated.View>
         )
@@ -330,35 +314,54 @@ export default function CheckInScreen() {
         return (
           <Animated.View
             key="step-3"
-            entering={SlideInRight.duration(300)}
-            exiting={SlideOutLeft.duration(200)}
+            entering={SlideInRight.duration(motion.duration.base)}
+            exiting={SlideOutLeft.duration(motion.duration.quick)}
           >
-            <Text style={styles.stepTitle}>How much time do you have?</Text>
-            <Text style={styles.stepSubtitle}>
-              I'll design a session that fits your schedule.
+            <Text style={[styles.stepTitle, { color: palette.textPrimary }]}>
+              How much time do you have?
+            </Text>
+            <Text
+              style={[styles.stepSubtitle, { color: palette.textSecondary }]}
+            >
+              I&apos;ll design a session that fits.
             </Text>
 
             <CheckInChoice
-              title="Time Available"
+              title="Time available"
               subtitle="Choose your session length"
               options={TIME_OPTIONS}
               value={formData.timeAvailable}
-              onChange={(v) => updateFormData('timeAvailable', v)}
+              onChange={v => updateFormData('timeAvailable', v)}
               columns={2}
-              delay={100}
+              delay={80}
             />
 
             <Animated.View
-              entering={FadeInDown.delay(200).duration(400)}
+              entering={FadeInDown.delay(160).duration(motion.duration.base)}
               style={styles.notesContainer}
             >
-              <Text style={styles.notesLabel}>Anything else I should know?</Text>
+              <Text
+                style={[styles.notesLabel, { color: palette.textPrimary }]}
+              >
+                Anything else I should know?
+              </Text>
               <TextInput
-                style={styles.notesInput}
-                placeholder="Optional: specific goals, limitations, or requests..."
-                placeholderTextColor="#9ca3af"
+                style={[
+                  styles.notesInput,
+                  {
+                    backgroundColor: palette.surface,
+                    borderColor: notesFocused
+                      ? palette.primary
+                      : palette.borderStrong,
+                    color: palette.textPrimary,
+                  },
+                ]}
+                placeholder="Goals, limitations or requests (optional)"
+                placeholderTextColor={palette.textTertiary}
                 value={formData.notes}
-                onChangeText={(text) => updateFormData('notes', text)}
+                onChangeText={text => updateFormData('notes', text)}
+                onFocus={() => setNotesFocused(true)}
+                onBlur={() => setNotesFocused(false)}
                 multiline
                 numberOfLines={3}
               />
@@ -371,33 +374,52 @@ export default function CheckInScreen() {
     }
   }
 
+  const progress = (currentStep + 1) / TOTAL_STEPS
+
   return (
-    <LinearGradient colors={['#fef3f2', '#ffffff', '#ffffff']} style={styles.gradient}>
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: palette.bg }]}
+      edges={['top']}
+    >
+      <View style={[styles.container, { backgroundColor: palette.bg }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Text style={styles.backText}>← Back</Text>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+              },
+            ]}
+            hitSlop={12}
+          >
+            <IconSymbol
+              name="chevron.left"
+              size={22}
+              color={palette.textPrimary}
+            />
           </TouchableOpacity>
 
-          {/* Progress indicator */}
-          <View style={styles.progressContainer}>
-            {Array.from({ length: TOTAL_STEPS }).map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.progressDot,
-                  index === currentStep && styles.progressDotActive,
-                  index < currentStep && styles.progressDotComplete,
-                ]}
-              />
-            ))}
+          <View
+            style={[styles.progressTrack, { backgroundColor: palette.surfaceAlt }]}
+          >
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  backgroundColor: palette.primary,
+                  width: `${progress * 100}%`,
+                },
+              ]}
+            />
           </View>
 
-          <View style={styles.headerSpacer} />
+          <Text style={[styles.stepCount, { color: palette.textSecondary }]}>
+            {currentStep + 1}/{TOTAL_STEPS}
+          </Text>
         </View>
 
-        {/* Content */}
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -407,186 +429,124 @@ export default function CheckInScreen() {
           {renderStep()}
         </ScrollView>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          {currentStep < TOTAL_STEPS - 1 ? (
-            <AnimatedTouchableOpacity
+        <View
+          style={[
+            styles.footer,
+            {
+              backgroundColor: palette.bg,
+              borderTopColor: palette.divider,
+            },
+          ]}
+        >
+          {isLast && isSubmitting ? (
+            <View
               style={[
-                styles.nextButton,
-                !canProceed() && styles.nextButtonDisabled,
-                buttonAnimatedStyle,
+                styles.submittingPill,
+                { backgroundColor: palette.primary },
               ]}
-              onPress={handleNext}
-              onPressIn={handlePressIn}
-              onPressOut={handlePressOut}
-              disabled={!canProceed()}
-              activeOpacity={0.8}
             >
-              <LinearGradient
-                colors={canProceed() ? ['#6366f1', '#4f46e5'] : ['#d1d5db', '#9ca3af']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.nextButtonGradient}
-              >
-                <Text style={styles.nextButtonText}>Continue</Text>
-              </LinearGradient>
-            </AnimatedTouchableOpacity>
+              <ActivityIndicator size="small" color={palette.white} />
+              <Text style={[styles.submittingLabel, { color: palette.white }]}>
+                Building your session…
+              </Text>
+            </View>
           ) : (
-            <AnimatedTouchableOpacity
-              style={[
-                styles.nextButton,
-                (!canProceed() || isSubmitting) && styles.nextButtonDisabled,
-                buttonAnimatedStyle,
-              ]}
-              onPress={handleSubmit}
-              onPressIn={handlePressIn}
-              onPressOut={handlePressOut}
-              disabled={!canProceed() || isSubmitting}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={
-                  canProceed() && !isSubmitting
-                    ? ['#f97316', '#ea580c']
-                    : ['#d1d5db', '#9ca3af']
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.nextButtonGradient}
-              >
-                {isSubmitting ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="small" color="#ffffff" />
-                    <Text style={styles.nextButtonText}>Building your session...</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.nextButtonText}>Start Session →</Text>
-                )}
-              </LinearGradient>
-            </AnimatedTouchableOpacity>
+            <PillButton
+              label={isLast ? 'Start session' : 'Continue'}
+              onPress={isLast ? handleSubmit : handleNext}
+              disabled={buttonDisabled}
+            />
           )}
         </View>
-      </SafeAreaView>
-    </LinearGradient>
+      </View>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  gradient: {
+  safeArea: {
     flex: 1,
   },
-  safeArea: {
+  container: {
     flex: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
   },
-  backButton: {
-    width: 80,
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  backText: {
-    fontSize: 16,
-    color: '#4f46e5',
-    fontWeight: '600',
+  progressTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
   },
-  progressContainer: {
-    flexDirection: 'row',
-    gap: 8,
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
   },
-  progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#e5e7eb',
-  },
-  progressDotActive: {
-    backgroundColor: '#4f46e5',
-    width: 24,
-  },
-  progressDotComplete: {
-    backgroundColor: '#22c55e',
-  },
-  headerSpacer: {
-    width: 80,
+  stepCount: {
+    ...typography.smallStrong,
+    minWidth: 30,
+    textAlign: 'right',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 32,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xxxl,
   },
   stepTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 8,
-    letterSpacing: -0.5,
+    ...typography.h1,
+    marginBottom: spacing.sm,
   },
   stepSubtitle: {
-    fontSize: 16,
-    color: '#6b7280',
-    marginBottom: 32,
-    lineHeight: 22,
+    ...typography.body,
+    marginBottom: spacing.xxl,
   },
   notesContainer: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   notesLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 12,
+    ...typography.h3,
+    marginBottom: spacing.md,
   },
   notesInput: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    borderRadius: 16,
-    padding: 16,
-    fontSize: 15,
-    color: '#1f2937',
-    minHeight: 100,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    ...typography.body,
+    minHeight: 110,
     textAlignVertical: 'top',
   },
   footer: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    paddingTop: 8,
-    backgroundColor: 'transparent',
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.lg,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  nextButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#4f46e5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  nextButtonDisabled: {
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  nextButtonGradient: {
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nextButtonText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  loadingContainer: {
+  submittingPill: {
+    height: 58,
+    borderRadius: radius.xl,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  submittingLabel: {
+    ...typography.button,
   },
 })

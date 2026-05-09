@@ -1,14 +1,7 @@
-import { api } from '@/convex/_generated/api'
-import { useMutation, useQuery } from 'convex/react'
-import * as Haptics from 'expo-haptics'
-import { LinearGradient } from 'expo-linear-gradient'
-import { router } from 'expo-router'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,30 +9,24 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import Animated, {
   FadeInDown,
   FadeInRight,
   FadeOutLeft,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
 } from 'react-native-reanimated'
+import { useMutation, useQuery } from 'convex/react'
+import * as Haptics from 'expo-haptics'
+import { router } from 'expo-router'
 
-const AnimatedTouchableOpacity =
-  Animated.createAnimatedComponent(TouchableOpacity)
-
-type ProfileQuestion = {
-  id: string
-  category: string
-  questionText: string
-  answerType: 'slider' | 'single' | 'multi' | 'text'
-  options?: string[]
-  sliderMin?: number
-  sliderMax?: number
-  sliderLabels?: string[]
-}
+import { api } from '@/convex/_generated/api'
+import { IconSymbol } from '@/components/ui/icon-symbol'
+import { PillButton } from '@/components/ui/pill-button'
+import { motion, radius, spacing, typography } from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
 
 export default function ProfileQuestionScreen() {
+  const { palette } = useTheme()
   const profileQuestions = useQuery(api.profileQuestions.getProfileQuestions)
   const existingAnswers = useQuery(api.profileQuestions.getProfileAnswers)
   const submitAnswer = useMutation(api.profileQuestions.submitQuestionAnswer)
@@ -53,24 +40,12 @@ export default function ProfileQuestionScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [hasInitialized, setHasInitialized] = useState(false)
 
-  const buttonScale = useSharedValue(1)
-
-  const buttonAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: buttonScale.value }],
-  }))
-
-  const handleButtonPressIn = () => {
-    buttonScale.value = withSpring(0.96)
-  }
-
-  const handleButtonPressOut = () => {
-    buttonScale.value = withSpring(1)
-  }
-
-  const questions = profileQuestions?.questions || []
+  const questions = useMemo(
+    () => profileQuestions?.questions || [],
+    [profileQuestions?.questions],
+  )
   const currentQuestion = questions[currentQuestionIndex]
 
-  // Create a map of existing answers by question ID
   const existingAnswerMap = useMemo(() => {
     const map: Record<string, string | number | string[]> = {}
     if (existingAnswers) {
@@ -81,7 +56,6 @@ export default function ProfileQuestionScreen() {
     return map
   }, [existingAnswers])
 
-  // Find next unanswered question
   const findNextUnansweredIndex = useCallback(() => {
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i]
@@ -92,60 +66,33 @@ export default function ProfileQuestionScreen() {
         return i
       }
     }
-    return -1 // All answered
+    return -1
   }, [questions, localAnswers, existingAnswerMap])
 
-  // Initialize to first unanswered question - only on first load
   useEffect(() => {
-    if (hasInitialized || questions.length === 0 || existingAnswers === undefined) return
-    
+    if (
+      hasInitialized ||
+      questions.length === 0 ||
+      existingAnswers === undefined
+    )
+      return
+
     const nextIndex = findNextUnansweredIndex()
     if (nextIndex !== -1 && nextIndex !== currentQuestionIndex) {
       setCurrentQuestionIndex(nextIndex)
     }
     setHasInitialized(true)
-  }, [findNextUnansweredIndex, questions.length, hasInitialized, currentQuestionIndex, existingAnswers])
+  }, [
+    findNextUnansweredIndex,
+    questions.length,
+    hasInitialized,
+    currentQuestionIndex,
+    existingAnswers,
+  ])
 
-  const handleSliderChange = (value: number) => {
+  const setAnswer = (value: string | number | string[]) => {
     if (currentQuestion) {
-      setLocalAnswers((prev) => ({
-        ...prev,
-        [currentQuestion.id]: Math.round(value),
-      }))
-    }
-  }
-
-  const handleSingleSelect = (option: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    if (currentQuestion) {
-      setLocalAnswers((prev) => ({
-        ...prev,
-        [currentQuestion.id]: option,
-      }))
-    }
-  }
-
-  const handleMultiSelect = (option: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    if (currentQuestion) {
-      const currentSelection =
-        (localAnswers[currentQuestion.id] as string[]) || []
-      const newSelection = currentSelection.includes(option)
-        ? currentSelection.filter((o) => o !== option)
-        : [...currentSelection, option]
-      setLocalAnswers((prev) => ({
-        ...prev,
-        [currentQuestion.id]: newSelection,
-      }))
-    }
-  }
-
-  const handleTextChange = (text: string) => {
-    if (currentQuestion) {
-      setLocalAnswers((prev) => ({
-        ...prev,
-        [currentQuestion.id]: text,
-      }))
+      setLocalAnswers(prev => ({ ...prev, [currentQuestion.id]: value }))
     }
   }
 
@@ -173,38 +120,27 @@ export default function ProfileQuestionScreen() {
     try {
       const answer = getCurrentAnswer()
       if (answer !== undefined) {
-        await submitAnswer({
-          questionId: currentQuestion.id,
-          answer,
-        })
+        await submitAnswer({ questionId: currentQuestion.id, answer })
       }
 
       const isAtEnd = currentQuestionIndex >= questions.length - 1
       const isReady = profileQuestions?.status === 'ready'
 
-      // Only complete if we're at the end AND questions are fully generated
       if (isAtEnd && isReady) {
-        // Batch save ALL local answers before completing (for reliability)
         const allAnswers = Object.entries(localAnswers)
           .filter(([, value]) => value !== undefined)
-          .map(([questionId, answer]) => ({
-            questionId,
-            answer: answer as string | number | string[],
-          }))
-        
+          .map(([questionId, value]) => ({ questionId, answer: value }))
+
         if (allAnswers.length > 0) {
           await submitAllAnswers({ answers: allAnswers })
         }
-        
-        // Complete the profile
+
         await completeProfile({})
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
         router.back()
       } else if (!isAtEnd) {
-        // Move to next question
-        setCurrentQuestionIndex((prev) => prev + 1)
+        setCurrentQuestionIndex(prev => prev + 1)
       }
-      // If isAtEnd but still generating, do nothing - UI will update when more questions arrive
     } catch (error) {
       console.error('Failed to submit answer:', error)
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
@@ -216,7 +152,7 @@ export default function ProfileQuestionScreen() {
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex((prev) => prev - 1)
+      setCurrentQuestionIndex(prev => prev - 1)
     } else {
       router.back()
     }
@@ -224,253 +160,384 @@ export default function ProfileQuestionScreen() {
 
   const handleSkip = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    
+
     const isAtEnd = currentQuestionIndex >= questions.length - 1
     const isReady = profileQuestions?.status === 'ready'
-    
-    // Only complete if at end AND questions are fully generated
+
     if (isAtEnd && isReady) {
       try {
-        // Batch save ALL local answers before completing
         const allAnswers = Object.entries(localAnswers)
           .filter(([, value]) => value !== undefined)
-          .map(([questionId, answer]) => ({
-            questionId,
-            answer: answer as string | number | string[],
-          }))
-        
+          .map(([questionId, value]) => ({ questionId, answer: value }))
+
         if (allAnswers.length > 0) {
           await submitAllAnswers({ answers: allAnswers })
         }
-        
+
         await completeProfile({})
         router.back()
       } catch (error) {
         console.error('Failed to complete profile:', error)
       }
     } else if (!isAtEnd) {
-      setCurrentQuestionIndex((prev) => prev + 1)
+      setCurrentQuestionIndex(prev => prev + 1)
     }
-    // If isAtEnd but still generating, do nothing - wait for more questions
   }
 
-  // Show failed state with back button
   if (profileQuestions?.status === 'failed') {
     return (
-      <SafeAreaView style={styles.container}>
-        <LinearGradient
-          colors={['#0f0f23', '#1a1a2e']}
-          style={styles.gradient}
-        >
-          <View style={styles.loadingContainer}>
-            <Text style={styles.failedEmoji}>⚠️</Text>
-            <Text style={styles.failedTitle}>Something went wrong</Text>
-            <Text style={styles.failedSubtitle}>
-              We couldn't generate your questions. Go back to retry.
-            </Text>
-            <TouchableOpacity 
-              style={styles.failedBackButton} 
-              onPress={() => router.back()}
-            >
-              <Text style={styles.failedBackButtonText}>← Go back</Text>
-            </TouchableOpacity>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.bg }]}>
+        <View style={styles.statusContainer}>
+          <View
+            style={[
+              styles.statusIcon,
+              { backgroundColor: palette.dangerMuted },
+            ]}
+          >
+            <IconSymbol name="info.circle" size={28} color={palette.danger} />
           </View>
-        </LinearGradient>
+          <Text style={[styles.statusTitle, { color: palette.textPrimary }]}>
+            Something went wrong
+          </Text>
+          <Text style={[styles.statusSubtitle, { color: palette.textSecondary }]}>
+            We couldn&apos;t generate your questions. Go back and retry.
+          </Text>
+          <PillButton
+            label="Go back"
+            onPress={() => router.back()}
+            fullWidth={false}
+          />
+        </View>
       </SafeAreaView>
     )
   }
 
-  // Show loading when no data yet or generating with no questions available
   const isGenerating = profileQuestions?.status === 'generating'
   const hasQuestions = questions.length > 0
-  
+
   if (!profileQuestions || (isGenerating && !hasQuestions)) {
     return (
-      <SafeAreaView style={styles.container}>
-        <LinearGradient
-          colors={['#0f0f23', '#1a1a2e']}
-          style={styles.gradient}
-        >
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingEmoji}>✨</Text>
-            <Text style={styles.loadingTitle}>Personalizing your questions...</Text>
-            <Text style={styles.loadingSubtitle}>
-              Creating questions tailored to your goals
-            </Text>
+      <SafeAreaView style={[styles.container, { backgroundColor: palette.bg }]}>
+        <View style={styles.statusContainer}>
+          <View
+            style={[
+              styles.statusIcon,
+              { backgroundColor: palette.primaryMuted },
+            ]}
+          >
+            <IconSymbol name="sparkles" size={28} color={palette.primary} />
           </View>
-        </LinearGradient>
+          <Text style={[styles.statusTitle, { color: palette.textPrimary }]}>
+            Personalizing your questions
+          </Text>
+          <Text style={[styles.statusSubtitle, { color: palette.textSecondary }]}>
+            Creating questions tailored to your goals.
+          </Text>
+        </View>
       </SafeAreaView>
     )
   }
 
-  if (!currentQuestion) {
-    return null
-  }
+  if (!currentQuestion) return null
 
-  // Use questions.length for progress while generating (totalCount may be 0)
-  // Once ready, totalCount is accurate
-  const totalQuestions = profileQuestions.status === 'ready' 
-    ? profileQuestions.totalCount 
-    : questions.length
-  
+  const totalQuestions =
+    profileQuestions.status === 'ready'
+      ? profileQuestions.totalCount
+      : questions.length
+
   const progress =
     totalQuestions > 0
       ? ((currentQuestionIndex + 1) / totalQuestions) * 100
       : 0
 
-  // During generation, only consider "last" if we're at the end AND status is ready
   const isAtEndOfAvailable = currentQuestionIndex >= questions.length - 1
-  const isLastQuestion = profileQuestions.status === 'ready' && isAtEndOfAvailable
-  
-  // If at end of available questions but still generating, show waiting state
+  const isLastQuestion =
+    profileQuestions.status === 'ready' && isAtEndOfAvailable
   const isWaitingForMore = isGenerating && isAtEndOfAvailable
 
-  // Check for safety flags (red indicators)
   const isSafetyQuestion =
     currentQuestion.category.toLowerCase().includes('safety') ||
     currentQuestion.questionText.toLowerCase().includes('symptom')
 
   return (
-    <SafeAreaView style={styles.container}>
-      <LinearGradient colors={['#0f0f23', '#1a1a2e']} style={styles.gradient}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-              <Text style={styles.backButtonText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.categoryLabel}>{currentQuestion.category}</Text>
-          </View>
-
-          {/* Progress */}
+    <SafeAreaView style={[styles.container, { backgroundColor: palette.bg }]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <View style={[styles.headerBar, { borderBottomColor: palette.divider }]}>
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+              },
+            ]}
+            onPress={handleBack}
+            hitSlop={12}
+          >
+            <IconSymbol
+              name="chevron.left"
+              size={20}
+              color={palette.textPrimary}
+            />
+          </TouchableOpacity>
           <View style={styles.progressContainer}>
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressText}>
-                Question {currentQuestionIndex + 1} of {totalQuestions}
-                {isGenerating && '+'}
-              </Text>
-              {isGenerating && (
-                <Text style={styles.generatingBadge}>Creating more...</Text>
-              )}
-            </View>
-            <View style={styles.progressBarBackground}>
-              <Animated.View
-                style={[styles.progressBarFill, { width: `${progress}%` }]}
+            <View
+              style={[
+                styles.progressTrack,
+                { backgroundColor: palette.surfaceAlt },
+              ]}
+            >
+              <View
+                style={[
+                  styles.progressFill,
+                  { backgroundColor: palette.primary, width: `${progress}%` },
+                ]}
               />
             </View>
-          </View>
-
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Question */}
-            <Animated.View
-              key={currentQuestion.id}
-              entering={FadeInRight.duration(400).springify()}
-              exiting={FadeOutLeft.duration(300)}
-              style={styles.questionContainer}
+            <Text
+              style={[styles.progressText, { color: palette.textTertiary }]}
             >
-              <Text style={styles.questionText}>
-                {currentQuestion.questionText}
-              </Text>
+              {currentQuestionIndex + 1} of {totalQuestions}
+              {isGenerating ? '+' : ''}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={handleSkip} hitSlop={12}>
+            <Text style={[styles.skipText, { color: palette.textSecondary }]}>
+              Skip
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-              {/* Slider type - Custom number picker */}
-              {currentQuestion.answerType === 'slider' && (
-                <View style={styles.sliderContainer}>
-                  <View style={styles.sliderValueContainer}>
-                    <Text style={styles.sliderValue}>
-                      {(getCurrentAnswer() as number) ??
-                        (currentQuestion.sliderMin ?? 0)}
-                    </Text>
-                  </View>
-                  <View style={styles.sliderTrack}>
-                    {Array.from(
-                      {
-                        length:
-                          (currentQuestion.sliderMax ?? 10) -
-                          (currentQuestion.sliderMin ?? 0) +
-                          1,
-                      },
-                      (_, i) => (currentQuestion.sliderMin ?? 0) + i
-                    ).map((value) => {
-                      const currentValue =
-                        (getCurrentAnswer() as number) ??
-                        (currentQuestion.sliderMin ?? 0)
-                      const isSelected = value === currentValue
-                      const isFilled = value <= currentValue
-                      return (
-                        <TouchableOpacity
-                          key={value}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Animated.View
+            key={currentQuestion.id}
+            entering={FadeInRight.duration(motion.duration.base)}
+            exiting={FadeOutLeft.duration(motion.duration.quick)}
+          >
+            <Text style={[styles.categoryLabel, { color: palette.primary }]}>
+              {currentQuestion.category}
+            </Text>
+            <Text style={[styles.questionText, { color: palette.textPrimary }]}>
+              {currentQuestion.questionText}
+            </Text>
+
+            {currentQuestion.answerType === 'slider' && (
+              <View style={styles.sliderBlock}>
+                <Text style={[styles.sliderValue, { color: palette.primary }]}>
+                  {(getCurrentAnswer() as number) ??
+                    currentQuestion.sliderMin ??
+                    0}
+                </Text>
+                <View style={styles.sliderTrack}>
+                  {Array.from(
+                    {
+                      length:
+                        (currentQuestion.sliderMax ?? 10) -
+                        (currentQuestion.sliderMin ?? 0) +
+                        1,
+                    },
+                    (_, i) => (currentQuestion.sliderMin ?? 0) + i,
+                  ).map(value => {
+                    const currentValue =
+                      (getCurrentAnswer() as number) ??
+                      (currentQuestion.sliderMin ?? 0)
+                    const isSelected = value === currentValue
+                    const isFilled = value <= currentValue
+                    return (
+                      <TouchableOpacity
+                        key={value}
+                        style={[
+                          styles.sliderDot,
+                          {
+                            backgroundColor: isSelected
+                              ? palette.primary
+                              : isFilled
+                                ? palette.primaryMuted
+                                : palette.surface,
+                            borderColor: isFilled
+                              ? palette.primary
+                              : palette.border,
+                          },
+                        ]}
+                        onPress={() => {
+                          Haptics.impactAsync(
+                            Haptics.ImpactFeedbackStyle.Light,
+                          )
+                          setAnswer(value)
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text
                           style={[
-                            styles.sliderDot,
-                            isFilled && styles.sliderDotFilled,
-                            isSelected && styles.sliderDotSelected,
+                            styles.sliderDotText,
+                            {
+                              color:
+                                isFilled || isSelected
+                                  ? isSelected
+                                    ? palette.white
+                                    : palette.primary
+                                  : palette.textTertiary,
+                            },
                           ]}
-                          onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-                            handleSliderChange(value)
-                          }}
-                          activeOpacity={0.7}
                         >
-                          <Text
-                            style={[
-                              styles.sliderDotText,
-                              (isFilled || isSelected) && styles.sliderDotTextSelected,
-                            ]}
-                          >
-                            {value}
-                          </Text>
-                        </TouchableOpacity>
-                      )
-                    })}
-                  </View>
-                  <View style={styles.sliderLabels}>
-                    {currentQuestion.sliderLabels?.map((label, index) => (
-                      <Text key={index} style={styles.sliderLabel}>
-                        {label}
-                      </Text>
-                    ))}
-                  </View>
+                          {value}
+                        </Text>
+                      </TouchableOpacity>
+                    )
+                  })}
                 </View>
-              )}
+                {currentQuestion.sliderLabels &&
+                  currentQuestion.sliderLabels.length > 0 && (
+                    <View style={styles.sliderLabels}>
+                      {currentQuestion.sliderLabels.map((label, idx) => (
+                        <Text
+                          key={idx}
+                          style={[
+                            styles.sliderLabelText,
+                            { color: palette.textTertiary },
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+              </View>
+            )}
 
-              {/* Single select type */}
-              {currentQuestion.answerType === 'single' && (
-                <View style={styles.optionsContainer}>
-                  {currentQuestion.options?.map((option, index) => {
-                    const isSelected = getCurrentAnswer() === option
+            {currentQuestion.answerType === 'single' && (
+              <View style={styles.optionsCol}>
+                {currentQuestion.options?.map((option, idx) => {
+                  const isSelected = getCurrentAnswer() === option
+                  return (
+                    <Animated.View
+                      key={option}
+                      entering={FadeInDown.delay(idx * 40).duration(
+                        motion.duration.base,
+                      )}
+                    >
+                      <TouchableOpacity
+                        style={[
+                          styles.optionRow,
+                          {
+                            backgroundColor: isSelected
+                              ? palette.primaryMuted
+                              : palette.surface,
+                            borderColor: isSelected
+                              ? palette.primary
+                              : palette.border,
+                          },
+                        ]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+                          setAnswer(option)
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <View
+                          style={[
+                            styles.radioOuter,
+                            {
+                              borderColor: isSelected
+                                ? palette.primary
+                                : palette.borderStrong,
+                            },
+                          ]}
+                        >
+                          {isSelected ? (
+                            <View
+                              style={[
+                                styles.radioInner,
+                                { backgroundColor: palette.primary },
+                              ]}
+                            />
+                          ) : null}
+                        </View>
+                        <Text
+                          style={[
+                            styles.optionText,
+                            {
+                              color: isSelected
+                                ? palette.textPrimary
+                                : palette.textSecondary,
+                              fontWeight: isSelected ? '600' : '400',
+                            },
+                          ]}
+                        >
+                          {option}
+                        </Text>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  )
+                })}
+              </View>
+            )}
+
+            {currentQuestion.answerType === 'multi' && (
+              <View>
+                <Text style={[styles.hint, { color: palette.textTertiary }]}>
+                  Select all that apply
+                </Text>
+                <View style={styles.chipGrid}>
+                  {currentQuestion.options?.map((option, idx) => {
+                    const selectedOptions =
+                      (getCurrentAnswer() as string[]) || []
+                    const isSelected = selectedOptions.includes(option)
+                    const isSafetyFlag =
+                      isSafetyQuestion &&
+                      !option.toLowerCase().includes('none')
+                    const chipBg = isSelected
+                      ? isSafetyFlag
+                        ? palette.dangerMuted
+                        : palette.primaryMuted
+                      : palette.surface
+                    const chipBorder = isSelected
+                      ? isSafetyFlag
+                        ? palette.danger
+                        : palette.primary
+                      : palette.border
+                    const chipColor = isSelected
+                      ? isSafetyFlag
+                        ? palette.danger
+                        : palette.primary
+                      : palette.textSecondary
                     return (
                       <Animated.View
                         key={option}
-                        entering={FadeInDown.delay(index * 50)
-                          .duration(400)
-                          .springify()}
+                        entering={FadeInDown.delay(idx * 30).duration(
+                          motion.duration.base,
+                        )}
                       >
                         <TouchableOpacity
                           style={[
-                            styles.optionCard,
-                            isSelected && styles.optionCardSelected,
+                            styles.chip,
+                            {
+                              backgroundColor: chipBg,
+                              borderColor: chipBorder,
+                            },
                           ]}
-                          onPress={() => handleSingleSelect(option)}
-                          activeOpacity={0.7}
+                          onPress={() => {
+                            Haptics.impactAsync(
+                              Haptics.ImpactFeedbackStyle.Light,
+                            )
+                            const newSelection = isSelected
+                              ? selectedOptions.filter(o => o !== option)
+                              : [...selectedOptions, option]
+                            setAnswer(newSelection)
+                          }}
+                          activeOpacity={0.85}
                         >
-                          <View
-                            style={[
-                              styles.radioOuter,
-                              isSelected && styles.radioOuterSelected,
-                            ]}
-                          >
-                            {isSelected && <View style={styles.radioInner} />}
-                          </View>
                           <Text
                             style={[
-                              styles.optionText,
-                              isSelected && styles.optionTextSelected,
+                              styles.chipText,
+                              { color: chipColor },
                             ]}
                           >
                             {option}
@@ -480,126 +547,77 @@ export default function ProfileQuestionScreen() {
                     )
                   })}
                 </View>
-              )}
-
-              {/* Multi select type */}
-              {currentQuestion.answerType === 'multi' && (
-                <View style={styles.multiContainer}>
-                  <Text style={styles.multiHint}>Select all that apply</Text>
-                  <View style={styles.chipGrid}>
-                    {currentQuestion.options?.map((option, index) => {
-                      const selectedOptions =
-                        (getCurrentAnswer() as string[]) || []
-                      const isSelected = selectedOptions.includes(option)
-                      const isSafetyFlag =
-                        isSafetyQuestion &&
-                        !option.toLowerCase().includes('none')
-                      return (
-                        <Animated.View
-                          key={option}
-                          entering={FadeInDown.delay(index * 30)
-                            .duration(400)
-                            .springify()}
-                        >
-                          <TouchableOpacity
-                            style={[
-                              styles.chip,
-                              isSelected && styles.chipSelected,
-                              isSelected &&
-                                isSafetyFlag &&
-                                styles.chipSafetySelected,
-                            ]}
-                            onPress={() => handleMultiSelect(option)}
-                            activeOpacity={0.7}
-                          >
-                            <Text
-                              style={[
-                                styles.chipText,
-                                isSelected && styles.chipTextSelected,
-                              ]}
-                            >
-                              {option}
-                            </Text>
-                            {isSelected && isSafetyFlag && (
-                              <View style={styles.safetyIndicator} />
-                            )}
-                          </TouchableOpacity>
-                        </Animated.View>
-                      )
-                    })}
+                {isSafetyQuestion && (
+                  <View
+                    style={[
+                      styles.safetyNote,
+                      {
+                        backgroundColor: palette.warningMuted,
+                        borderColor: 'rgba(245, 158, 11, 0.3)',
+                      },
+                    ]}
+                  >
+                    <IconSymbol
+                      name="info.circle"
+                      size={16}
+                      color={palette.warning}
+                    />
+                    <Text
+                      style={[
+                        styles.safetyNoteText,
+                        { color: palette.warning },
+                      ]}
+                    >
+                      Some symptoms may need medical assessment. Your plan will
+                      start with mobility-only sessions.
+                    </Text>
                   </View>
-                  {isSafetyQuestion && (
-                    <View style={styles.safetyNote}>
-                      <Text style={styles.safetyNoteText}>
-                        Some symptoms may require medical assessment. Your plan
-                        will start with mobility-only sessions.
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
+                )}
+              </View>
+            )}
 
-              {/* Text input type */}
-              {currentQuestion.answerType === 'text' && (
-                <View style={styles.textInputContainer}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Type your answer..."
-                    placeholderTextColor="#6b7280"
-                    value={(getCurrentAnswer() as string) || ''}
-                    onChangeText={handleTextChange}
-                    multiline
-                    textAlignVertical="top"
-                  />
-                </View>
-              )}
-            </Animated.View>
-          </ScrollView>
+            {currentQuestion.answerType === 'text' && (
+              <View style={styles.textInputContainer}>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    {
+                      backgroundColor: palette.surface,
+                      borderColor: palette.borderStrong,
+                      color: palette.textPrimary,
+                    },
+                  ]}
+                  placeholder="Type your answer"
+                  placeholderTextColor={palette.textTertiary}
+                  value={(getCurrentAnswer() as string) || ''}
+                  onChangeText={value => setAnswer(value)}
+                  multiline
+                  textAlignVertical="top"
+                />
+              </View>
+            )}
+          </Animated.View>
+        </ScrollView>
 
-          {/* Bottom buttons */}
-          <View style={styles.bottomContainer}>
-            <Animated.View style={[styles.nextButtonWrapper, buttonAnimatedStyle]}>
-              <Pressable
-                onPress={handleNext}
-                onPressIn={handleButtonPressIn}
-                onPressOut={handleButtonPressOut}
-                disabled={!canProceed() || isSubmitting}
-              >
-                <LinearGradient
-                  colors={
-                    canProceed() && !isSubmitting && !isWaitingForMore
-                      ? ['#6366f1', '#4f46e5']
-                      : ['#374151', '#1f2937']
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.nextButton}
-                >
-                  <Text style={styles.nextButtonText}>
-                    {isSubmitting
-                      ? 'Saving...'
-                      : isWaitingForMore
-                        ? 'Creating more questions...'
-                        : isLastQuestion
-                          ? 'Complete Profile'
-                          : 'Next'}
-                  </Text>
-                </LinearGradient>
-              </Pressable>
-            </Animated.View>
-
-            <TouchableOpacity 
-              onPress={handleSkip} 
-              style={styles.skipButton}
-              disabled={isWaitingForMore}
-            >
-              <Text style={[styles.skipButtonText, isWaitingForMore && styles.skipButtonTextDisabled]}>
-                {isLastQuestion ? 'Skip & finish later' : 'Skip this question'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </LinearGradient>
+        <View
+          style={[styles.bottomContainer, { borderTopColor: palette.divider }]}
+        >
+          <PillButton
+            label={
+              isSubmitting
+                ? 'Saving'
+                : isWaitingForMore
+                  ? 'Creating more questions'
+                  : isLastQuestion
+                    ? 'Complete profile'
+                    : 'Next'
+            }
+            onPress={handleNext}
+            disabled={!canProceed() || isSubmitting || isWaitingForMore}
+            loading={isSubmitting}
+          />
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
@@ -607,344 +625,192 @@ export default function ProfileQuestionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f23',
-  },
-  gradient: {
-    flex: 1,
   },
   keyboardView: {
     flex: 1,
   },
-  loadingContainer: {
+  statusContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: spacing.xxl,
+    gap: spacing.lg,
   },
-  loadingEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
+  statusIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  loadingTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#e0e7ff',
-    marginBottom: 8,
+  statusTitle: {
+    ...typography.h2,
     textAlign: 'center',
   },
-  loadingSubtitle: {
-    fontSize: 15,
-    color: '#a5b4fc',
+  statusSubtitle: {
+    ...typography.body,
     textAlign: 'center',
+    marginBottom: spacing.lg,
   },
-  failedEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  failedTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#fecaca',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  failedSubtitle: {
-    fontSize: 15,
-    color: '#fca5a5',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  failedBackButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  failedBackButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  header: {
+  headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: spacing.xl,
+    paddingTop: 12,
+    paddingBottom: spacing.lg,
+    gap: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  backButton: {
-    paddingVertical: 8,
-    paddingRight: 16,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#818cf8',
-    fontWeight: '500',
-  },
-  categoryLabel: {
-    fontSize: 14,
-    color: '#9ca3af',
-    fontWeight: '500',
+  iconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   progressContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    flex: 1,
+    gap: 6,
   },
-  progressHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  progressText: {
-    fontSize: 13,
-    color: '#6b7280',
-    fontWeight: '500',
-  },
-  generatingBadge: {
-    fontSize: 12,
-    color: '#a5b4fc',
-    fontWeight: '500',
-  },
-  progressBarBackground: {
-    height: 4,
-    backgroundColor: '#374151',
-    borderRadius: 2,
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
   },
-  progressBarFill: {
+  progressFill: {
     height: '100%',
-    backgroundColor: '#6366f1',
-    borderRadius: 2,
+  },
+  progressText: {
+    ...typography.caption,
+  },
+  skipText: {
+    ...typography.smallStrong,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xxxl,
   },
-  questionContainer: {
-    flex: 1,
+  categoryLabel: {
+    ...typography.caption,
+    marginBottom: spacing.sm,
   },
   questionText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 32,
-    lineHeight: 32,
+    ...typography.h1,
+    marginBottom: spacing.xxl,
   },
-  // Slider styles
-  sliderContainer: {
-    marginBottom: 24,
+  hint: {
+    ...typography.small,
+    marginBottom: spacing.md,
   },
-  sliderValueContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
+  sliderBlock: {
+    marginBottom: spacing.lg,
   },
   sliderValue: {
-    fontSize: 64,
-    fontWeight: '700',
-    color: '#6366f1',
+    ...typography.display,
+    fontSize: 56,
+    lineHeight: 64,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
   },
   sliderTrack: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   sliderDot: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#374151',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#4b5563',
-  },
-  sliderDotFilled: {
-    backgroundColor: '#4338ca',
-    borderColor: '#6366f1',
-  },
-  sliderDotSelected: {
-    backgroundColor: '#6366f1',
-    borderColor: '#818cf8',
-    transform: [{ scale: 1.2 }],
   },
   sliderDotText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9ca3af',
-  },
-  sliderDotTextSelected: {
-    color: '#ffffff',
+    ...typography.caption,
   },
   sliderLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8,
   },
-  sliderLabel: {
-    fontSize: 12,
-    color: '#9ca3af',
-    maxWidth: '30%',
+  sliderLabelText: {
+    ...typography.small,
+    maxWidth: '32%',
     textAlign: 'center',
   },
-  // Single select styles
-  optionsContainer: {
-    gap: 12,
+  optionsCol: {
+    gap: spacing.sm,
   },
-  optionCard: {
+  optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1f2937',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#374151',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  optionCardSelected: {
-    borderColor: '#6366f1',
-    backgroundColor: '#312e81',
+    gap: spacing.md,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
   },
   radioOuter: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#4b5563',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-  },
-  radioOuterSelected: {
-    borderColor: '#6366f1',
   },
   radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#6366f1',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   optionText: {
-    fontSize: 16,
-    color: '#d1d5db',
-    fontWeight: '500',
+    ...typography.body,
     flex: 1,
-  },
-  optionTextSelected: {
-    color: '#e0e7ff',
-    fontWeight: '600',
-  },
-  // Multi select styles
-  multiContainer: {
-    marginBottom: 24,
-  },
-  multiHint: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginBottom: 16,
   },
   chipGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: spacing.sm,
   },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1f2937',
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: '#374151',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 10,
-  },
-  chipSelected: {
-    borderColor: '#6366f1',
-    backgroundColor: '#312e81',
-  },
-  chipSafetySelected: {
-    borderColor: '#ef4444',
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderRadius: radius.pill,
+    borderWidth: 1,
   },
   chipText: {
-    fontSize: 14,
-    color: '#d1d5db',
-    fontWeight: '500',
-  },
-  chipTextSelected: {
-    color: '#e0e7ff',
-    fontWeight: '600',
-  },
-  safetyIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ef4444',
-    marginLeft: 8,
+    ...typography.smallStrong,
   },
   safetyNote: {
-    backgroundColor: 'rgba(249, 115, 22, 0.15)',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginTop: spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(249, 115, 22, 0.3)',
   },
   safetyNoteText: {
-    fontSize: 14,
-    color: '#fb923c',
-    lineHeight: 20,
+    flex: 1,
+    ...typography.small,
   },
-  // Text input styles
   textInputContainer: {
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   textInput: {
-    backgroundColor: '#1f2937',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#374151',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#ffffff',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    ...typography.body,
     minHeight: 120,
   },
-  // Bottom buttons
   bottomContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    paddingTop: 12,
-  },
-  nextButtonWrapper: {
-    marginBottom: 12,
-  },
-  nextButton: {
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  nextButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  skipButton: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  skipButtonText: {
-    fontSize: 15,
-    color: '#818cf8',
-    fontWeight: '500',
-  },
-  skipButtonTextDisabled: {
-    color: '#4b5563',
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
   },
 })
-

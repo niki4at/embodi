@@ -1,8 +1,4 @@
-import { api } from '@/convex/_generated/api'
-import { useAction, useQuery } from 'convex/react'
-import * as Haptics from 'expo-haptics'
-import { LinearGradient } from 'expo-linear-gradient'
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -15,12 +11,15 @@ import Animated, {
   FadeInDown,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated'
+import { useAction, useQuery } from 'convex/react'
+import * as Haptics from 'expo-haptics'
+
+import { api } from '@/convex/_generated/api'
+import { IconSymbol } from '@/components/ui/icon-symbol'
+import { motion, radius, spacing, typography } from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
 
 interface ProfileCompletionBannerProps {
   onStartQuestions: () => void
@@ -29,52 +28,15 @@ interface ProfileCompletionBannerProps {
 export default function ProfileCompletionBanner({
   onStartQuestions,
 }: ProfileCompletionBannerProps) {
+  const { palette } = useTheme()
   const profileQuestions = useQuery(api.profileQuestions.getProfileQuestions)
   const retryGeneration = useAction(api.profileQuestions.retryGenerateQuestions)
   const [isRetrying, setIsRetrying] = useState(false)
 
-  const bannerScale = useSharedValue(1)
-  const pulseOpacity = useSharedValue(0.6)
-  const shadowOpacity = useSharedValue(0)
-
-  useEffect(() => {
-    // Fade in shadow after entering animation
-    shadowOpacity.value = withDelay(600, withTiming(1, { duration: 300 }))
-
-    // Subtle pulse animation for the generating state
-    pulseOpacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 1000 }),
-        withTiming(0.6, { duration: 1000 })
-      ),
-      -1,
-      true
-    )
-  }, [shadowOpacity, pulseOpacity])
-
-  const bannerAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: bannerScale.value }],
+  const scale = useSharedValue(1)
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
   }))
-
-  const shadowStyle = useAnimatedStyle(() => ({
-    shadowColor: '#6366f1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: shadowOpacity.value * 0.2,
-    shadowRadius: 12,
-    elevation: shadowOpacity.value * 6,
-  }))
-
-  const pulseStyle = useAnimatedStyle(() => ({
-    opacity: pulseOpacity.value,
-  }))
-
-  const handlePressIn = () => {
-    bannerScale.value = withSpring(0.98)
-  }
-
-  const handlePressOut = () => {
-    bannerScale.value = withSpring(1)
-  }
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -95,120 +57,120 @@ export default function ProfileCompletionBanner({
     }
   }
 
-  // Don't render if no data yet or profile is completed
-  if (!profileQuestions) {
+  if (!profileQuestions || profileQuestions.status === 'completed') {
     return null
   }
 
-  if (profileQuestions.status === 'completed') {
-    return null
-  }
-
-  // Failed state - show retry button
   if (profileQuestions.status === 'failed') {
     return (
       <Animated.View
-        entering={FadeInDown.delay(100).duration(600).springify()}
+        entering={FadeInDown.duration(motion.duration.base)}
         style={styles.container}
       >
-        <Animated.View style={[styles.failedCard, shadowStyle]}>
-          <LinearGradient
-            colors={['#7f1d1d', '#991b1b']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.failedGradient}
-          >
-            <View style={styles.failedContent}>
-              <View style={styles.failedIconContainer}>
-                <Text style={styles.failedIcon}>⚠️</Text>
-              </View>
-              <View style={styles.failedTextContainer}>
-                <Text style={styles.failedTitle}>
-                  Question generation timed out
-                </Text>
-                <Text style={styles.failedSubtitle}>
-                  Our AI is busy. Tap to try again.
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={handleRetry}
-              disabled={isRetrying}
-              activeOpacity={0.8}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.dangerMuted,
+            },
+          ]}
+        >
+          <View style={styles.row}>
+            <View
+              style={[styles.iconWrap, { backgroundColor: palette.dangerMuted }]}
             >
-              {isRetrying ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text style={styles.retryButtonText}>Try again</Text>
-              )}
-            </TouchableOpacity>
-          </LinearGradient>
-        </Animated.View>
+              <IconSymbol name="info.circle" size={18} color={palette.danger} />
+            </View>
+            <View style={styles.textWrap}>
+              <Text style={[styles.title, { color: palette.textPrimary }]}>
+                Generation timed out
+              </Text>
+              <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
+                Tap to try again.
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={[styles.dangerButton, { backgroundColor: palette.danger }]}
+            onPress={handleRetry}
+            disabled={isRetrying}
+            activeOpacity={0.85}
+          >
+            {isRetrying ? (
+              <ActivityIndicator size="small" color={palette.white} />
+            ) : (
+              <Text style={[styles.dangerButtonText, { color: palette.white }]}>
+                Try again
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     )
   }
 
-  // Generating state - ALWAYS tappable so users navigate immediately
   if (profileQuestions.status === 'generating') {
     const questionsAvailable = profileQuestions.questions.length
     const hasQuestions = questionsAvailable > 0
 
     return (
       <Animated.View
-        entering={FadeInDown.delay(100).duration(600).springify()}
+        entering={FadeInDown.duration(motion.duration.base)}
         style={styles.container}
       >
         <Pressable
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
+          onPressIn={() => {
+            scale.value = withSpring(0.98, motion.spring)
+          }}
+          onPressOut={() => {
+            scale.value = withSpring(1, motion.spring)
+          }}
           onPress={handlePress}
         >
           <Animated.View
-            style={[styles.generatingCard, bannerAnimatedStyle, shadowStyle]}
+            style={[
+              styles.card,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+              },
+              animatedStyle,
+            ]}
           >
-            <LinearGradient
-              colors={['#1e1b4b', '#312e81']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.generatingGradient}
-            >
-              <View style={styles.generatingContent}>
-                <Animated.View style={[styles.sparkleContainer, pulseStyle]}>
-                  <Text style={styles.sparkleIcon}>✨</Text>
-                </Animated.View>
-                <View style={styles.generatingTextContainer}>
-                  <Text style={styles.generatingTitle}>
-                    {hasQuestions
-                      ? `${questionsAvailable} question${questionsAvailable > 1 ? 's' : ''} ready`
-                      : 'Personalizing your profile...'}
-                  </Text>
-                  <Text style={styles.generatingSubtitle}>
-                    {hasQuestions
-                      ? 'Start answering while more are created'
-                      : 'Tap to continue - questions arriving soon'}
-                  </Text>
-                </View>
-                <ActivityIndicator size="small" color="#a5b4fc" />
+            <View style={styles.row}>
+              <View
+                style={[
+                  styles.iconWrap,
+                  { backgroundColor: palette.primaryMuted },
+                ]}
+              >
+                <IconSymbol name="sparkles" size={18} color={palette.primary} />
               </View>
-
-              <View style={styles.generatingCta}>
-                <Text style={styles.generatingCtaText}>
-                  {hasQuestions ? 'Start now →' : 'Continue →'}
+              <View style={styles.textWrap}>
+                <Text style={[styles.title, { color: palette.textPrimary }]}>
+                  {hasQuestions
+                    ? `${questionsAvailable} question${questionsAvailable > 1 ? 's' : ''} ready`
+                    : 'Personalizing your profile'}
+                </Text>
+                <Text
+                  style={[styles.subtitle, { color: palette.textSecondary }]}
+                >
+                  {hasQuestions ? 'Start while more arrive' : 'Tap to continue'}
                 </Text>
               </View>
-            </LinearGradient>
+              <ActivityIndicator size="small" color={palette.primary} />
+            </View>
           </Animated.View>
         </Pressable>
       </Animated.View>
     )
   }
 
-  // Ready state - show prompt to complete profile
   const progress =
     profileQuestions.totalCount > 0
       ? Math.round(
-          (profileQuestions.answeredCount / profileQuestions.totalCount) * 100
+          (profileQuestions.answeredCount / profileQuestions.totalCount) * 100,
         )
       : 0
   const questionsRemaining =
@@ -216,59 +178,81 @@ export default function ProfileCompletionBanner({
 
   return (
     <Animated.View
-      entering={FadeInDown.delay(100).duration(600).springify()}
+      entering={FadeInDown.duration(motion.duration.base)}
       style={styles.container}
     >
       <Pressable
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
+        onPressIn={() => {
+          scale.value = withSpring(0.98, motion.spring)
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, motion.spring)
+        }}
         onPress={handlePress}
       >
         <Animated.View
-          style={[styles.readyCard, bannerAnimatedStyle, shadowStyle]}
+          style={[
+            styles.card,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.border,
+            },
+            animatedStyle,
+          ]}
         >
-          <LinearGradient
-            colors={['#1e1b4b', '#312e81']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.readyGradient}
-          >
-            <View style={styles.readyHeader}>
-              <View style={styles.iconBadge}>
-                <Text style={styles.iconEmoji}>📋</Text>
-              </View>
-              <View style={styles.progressBadge}>
-                <Text style={styles.progressText}>
-                  {questionsRemaining} left
-                </Text>
-              </View>
+          <View style={styles.headerRow}>
+            <View
+              style={[
+                styles.iconWrap,
+                { backgroundColor: palette.primaryMuted },
+              ]}
+            >
+              <IconSymbol name="list.bullet" size={18} color={palette.primary} />
             </View>
-
-            <Text style={styles.readyTitle}>Complete your profile</Text>
-            <Text style={styles.readySubtitle}>
-              Answer {questionsRemaining} quick questions to unlock a plan built
-              for you
-            </Text>
-
-            {/* Progress bar */}
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBarBackground}>
-                <Animated.View
-                  style={[styles.progressBarFill, { width: `${progress}%` }]}
-                />
-              </View>
-              <Text style={styles.progressPercentage}>{progress}%</Text>
-            </View>
-
-            <View style={styles.ctaContainer}>
-              <Text style={styles.ctaText}>
-                {profileQuestions.answeredCount > 0
-                  ? 'Continue'
-                  : 'Get started'}{' '}
-                →
+            <View
+              style={[styles.headerBadge, { backgroundColor: palette.primary }]}
+            >
+              <Text style={[styles.headerBadgeText, { color: palette.white }]}>
+                {questionsRemaining} left
               </Text>
             </View>
-          </LinearGradient>
+          </View>
+
+          <Text style={[styles.bigTitle, { color: palette.textPrimary }]}>
+            Complete your profile
+          </Text>
+          <Text style={[styles.bigSubtitle, { color: palette.textSecondary }]}>
+            Answer {questionsRemaining} quick questions to unlock a plan built for
+            you.
+          </Text>
+
+          <View style={styles.progressRow}>
+            <View
+              style={[
+                styles.progressTrack,
+                { backgroundColor: palette.surfaceAlt },
+              ]}
+            >
+              <View
+                style={[
+                  styles.progressFill,
+                  { backgroundColor: palette.primary, width: `${progress}%` },
+                ]}
+              />
+            </View>
+            <Text
+              style={[styles.progressText, { color: palette.textSecondary }]}
+            >
+              {progress}%
+            </Text>
+          </View>
+
+          <View style={[styles.cta, { backgroundColor: palette.primary }]}>
+            <Text style={[styles.ctaText, { color: palette.white }]}>
+              {profileQuestions.answeredCount > 0 ? 'Continue' : 'Get started'}
+            </Text>
+            <IconSymbol name="arrow.right" size={16} color={palette.white} />
+          </View>
         </Animated.View>
       </Pressable>
     </Animated.View>
@@ -277,196 +261,98 @@ export default function ProfileCompletionBanner({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 24,
+    marginTop: spacing.md,
   },
-  // Failed state styles
-  failedCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
+  card: {
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    padding: spacing.lg,
   },
-  failedGradient: {
-    padding: 16,
-  },
-  failedContent: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
+    gap: spacing.md,
   },
-  failedIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(254, 202, 202, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  failedIcon: {
-    fontSize: 20,
-  },
-  failedTextContainer: {
-    flex: 1,
-  },
-  failedTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fecaca',
-    marginBottom: 2,
-  },
-  failedSubtitle: {
-    fontSize: 13,
-    color: '#fca5a5',
-  },
-  retryButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  retryButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  // Generating state styles
-  generatingCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  generatingGradient: {
-    padding: 16,
-  },
-  generatingContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  sparkleContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(165, 180, 252, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sparkleIcon: {
-    fontSize: 20,
-  },
-  generatingTextContainer: {
-    flex: 1,
-  },
-  generatingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#e0e7ff',
-    marginBottom: 2,
-  },
-  generatingSubtitle: {
-    fontSize: 13,
-    color: '#a5b4fc',
-  },
-  generatingCta: {
-    marginTop: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  generatingCtaText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  // Ready state styles
-  readyCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  readyGradient: {
-    padding: 20,
-  },
-  readyHeader: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
-  iconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(165, 180, 252, 0.2)',
+  iconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconEmoji: {
-    fontSize: 22,
+  textWrap: {
+    flex: 1,
   },
-  progressBadge: {
-    backgroundColor: 'rgba(249, 115, 22, 0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+  title: {
+    ...typography.bodyStrong,
   },
-  progressText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#ffffff',
+  subtitle: {
+    ...typography.small,
+    marginTop: 2,
   },
-  readyTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 6,
+  bigTitle: {
+    ...typography.h3,
+    marginBottom: 4,
   },
-  readySubtitle: {
-    fontSize: 15,
-    color: '#c7d2fe',
-    lineHeight: 22,
-    marginBottom: 16,
+  bigSubtitle: {
+    ...typography.small,
+    marginBottom: spacing.lg,
   },
-  progressContainer: {
+  headerBadge: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
+  headerBadgeText: {
+    ...typography.caption,
+  },
+  progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
-  progressBarBackground: {
+  progressTrack: {
     flex: 1,
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
   },
-  progressBarFill: {
+  progressFill: {
     height: '100%',
-    backgroundColor: '#f97316',
-    borderRadius: 4,
   },
-  progressPercentage: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#e0e7ff',
-    minWidth: 40,
+  progressText: {
+    ...typography.smallStrong,
+    minWidth: 36,
+    textAlign: 'right',
   },
-  ctaContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
+  cta: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    gap: spacing.sm,
+    height: 48,
+    borderRadius: radius.lg,
   },
   ctaText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    ...typography.bodyStrong,
+    fontSize: 15,
+  },
+  dangerButton: {
+    height: 48,
+    borderRadius: radius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.md,
+  },
+  dangerButtonText: {
+    ...typography.bodyStrong,
+    fontSize: 15,
   },
 })

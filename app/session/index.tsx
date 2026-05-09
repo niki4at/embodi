@@ -1,6 +1,5 @@
 import { useAction, useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
-import { LinearGradient } from 'expo-linear-gradient'
 import { router, useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -20,6 +19,15 @@ import CoachBubble from '@/components/trainer/CoachBubble'
 import type { SetPayload } from '@/components/trainer/ExerciseSetRow'
 import { CoachComment, ExercisePlan } from '@/components/trainer/types'
 import WorkoutCard from '@/components/trainer/WorkoutCard'
+import { IconSymbol } from '@/components/ui/icon-symbol'
+import { PillButton } from '@/components/ui/pill-button'
+import {
+  motion,
+  radius,
+  spacing,
+  typography,
+} from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
 import { Id } from '@/convex/_generated/dataModel'
 
@@ -31,6 +39,7 @@ type TimerHandle = ReturnType<typeof setTimeout>
 type PercentString = `${number}%`
 
 export default function SessionScreen() {
+  const { palette, resolved, shadows } = useTheme()
   const params = useLocalSearchParams<SessionParams>()
   const sessionId =
     typeof params.sessionId === 'string'
@@ -39,7 +48,7 @@ export default function SessionScreen() {
 
   const sessionData = useQuery(
     api.trainer.getSessionWithSets,
-    sessionId ? { sessionId } : 'skip'
+    sessionId ? { sessionId } : 'skip',
   )
   const onboarding = useQuery(api.onboarding.getOnboarding)
   const logSet = useMutation(api.trainer.logSet)
@@ -51,6 +60,7 @@ export default function SessionScreen() {
   const [activeComment, setActiveComment] = useState<CoachComment | null>(null)
   const [isCompleting, setIsCompleting] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const [feedbackFocused, setFeedbackFocused] = useState(false)
   const [isSendingFeedback, setIsSendingFeedback] = useState(false)
   const hideTimerRef = useRef<TimerHandle | null>(null)
   const scheduledTimers = useRef<TimerHandle[]>([])
@@ -62,7 +72,7 @@ export default function SessionScreen() {
 
   const planExercises = useMemo<ExercisePlan[]>(() => {
     if (!session) return []
-    return session.plan.map((exercise) => ({
+    return session.plan.map(exercise => ({
       ...exercise,
       targetReps: Array.isArray(exercise.targetReps)
         ? exercise.targetReps
@@ -89,13 +99,13 @@ export default function SessionScreen() {
       () => {
         setActiveComment(null)
       },
-      Math.max((comment.delaySec ?? 5) * 1000, 3500)
+      Math.max((comment.delaySec ?? 5) * 1000, 3500),
     )
   }, [])
 
   const triggerComment = useCallback(
     (trigger: CoachComment['trigger'], exerciseId?: string) => {
-      const idx = coachQueueRef.current.findIndex((comment) => {
+      const idx = coachQueueRef.current.findIndex(comment => {
         if (comment.trigger !== trigger) return false
         if (
           exerciseId &&
@@ -109,7 +119,7 @@ export default function SessionScreen() {
       const [comment] = coachQueueRef.current.splice(idx, 1)
       displayComment(comment)
     },
-    [displayComment]
+    [displayComment],
   )
 
   useEffect(() => {
@@ -118,7 +128,7 @@ export default function SessionScreen() {
       if (hideTimerRef.current) {
         clearTimeout(hideTimerRef.current)
       }
-      timersRef.forEach((timer) => clearTimeout(timer))
+      timersRef.forEach(timer => clearTimeout(timer))
     }
   }, [])
 
@@ -146,30 +156,30 @@ export default function SessionScreen() {
       durationMin: session.durationMin,
       goal: session.goal,
     })
-      .then((comments) => {
-        const timed = comments.filter((comment) => comment.delaySec)
-        const immediate = comments.filter((comment) => !comment.delaySec)
+      .then(comments => {
+        const timed = comments.filter(comment => comment.delaySec)
+        const immediate = comments.filter(comment => !comment.delaySec)
         coachQueueRef.current = immediate
         const startComment = immediate.find(
-          (comment) => comment.trigger === 'session_start'
+          comment => comment.trigger === 'session_start',
         )
         if (startComment) {
           displayComment(startComment)
           coachQueueRef.current = coachQueueRef.current.filter(
-            (comment) => comment.id !== startComment.id
+            comment => comment.id !== startComment.id,
           )
         }
-        timed.forEach((comment) => {
+        timed.forEach(comment => {
           const timer = setTimeout(
             () => {
               displayComment(comment)
             },
-            (comment.delaySec ?? 0) * 1000
+            (comment.delaySec ?? 0) * 1000,
           )
           scheduledTimers.current.push(timer)
         })
       })
-      .catch((error) => {
+      .catch(error => {
         console.error('coach comments error', error)
       })
   }, [session, onboarding, prefetchComments, displayComment, planExercises])
@@ -186,14 +196,14 @@ export default function SessionScreen() {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
       triggerComment('after_set', exerciseId)
     },
-    [logSet, sessionId, triggerComment]
+    [logSet, sessionId, triggerComment],
   )
 
   const handleBeforeSet = useCallback(
     (exerciseId: string) => {
       triggerComment('before_set', exerciseId)
     },
-    [triggerComment]
+    [triggerComment],
   )
 
   const handleCompleteSession = useCallback(async () => {
@@ -227,111 +237,254 @@ export default function SessionScreen() {
 
   if (!sessionId) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <Text style={styles.errorText}>Missing session ID.</Text>
+      <SafeAreaView
+        style={[styles.centered, { backgroundColor: palette.bg }]}
+      >
+        <Text style={[styles.errorText, { color: palette.danger }]}>
+          Missing session ID.
+        </Text>
       </SafeAreaView>
     )
   }
 
   if (sessionData === undefined) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <SafeAreaView
+        style={[styles.centered, { backgroundColor: palette.bg }]}
+      >
+        <ActivityIndicator size="large" color={palette.primary} />
       </SafeAreaView>
     )
   }
 
   if (!session) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <Text style={styles.errorText}>Session not available.</Text>
+      <SafeAreaView
+        style={[styles.centered, { backgroundColor: palette.bg }]}
+      >
+        <Text style={[styles.errorText, { color: palette.danger }]}>
+          Session not available.
+        </Text>
       </SafeAreaView>
     )
   }
 
-  // Handle failed session generation
   if (session.status === 'failed') {
     return (
-      <LinearGradient colors={['#fef3f2', '#ffffff']} style={styles.gradient}>
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.centered}>
-            <Text style={styles.failedEmoji}>⚠️</Text>
-            <Text style={styles.failedTitle}>Session generation failed</Text>
-            <Text style={styles.failedSubtitle}>
-              Something went wrong. Please go back and try again.
-            </Text>
-            <TouchableOpacity 
-              style={styles.failedBackButton} 
-              onPress={() => router.back()}
-            >
-              <Text style={styles.failedBackButtonText}>← Go back</Text>
-            </TouchableOpacity>
+      <SafeAreaView
+        style={[styles.safeArea, { backgroundColor: palette.bg }]}
+        edges={['top']}
+      >
+        <View style={[styles.centered, { backgroundColor: palette.bg }]}>
+          <View
+            style={[
+              styles.failedIcon,
+              { backgroundColor: palette.dangerMuted },
+            ]}
+          >
+            <IconSymbol
+              name="exclamationmark.triangle.fill"
+              size={36}
+              color={palette.danger}
+            />
           </View>
-        </SafeAreaView>
-      </LinearGradient>
+          <Text style={[styles.failedTitle, { color: palette.textPrimary }]}>
+            Session generation failed
+          </Text>
+          <Text
+            style={[styles.failedSubtitle, { color: palette.textSecondary }]}
+          >
+            Something went wrong. Please head back and try again.
+          </Text>
+          <PillButton
+            label="Go back"
+            onPress={() => router.back()}
+            fullWidth={false}
+          />
+        </View>
+      </SafeAreaView>
     )
   }
 
   const isGenerating = session.status === 'generating'
   const hasExercises = planExercises.length > 0
+  const sessionShadow = resolved === 'dark' ? shadows.primaryDark : shadows.primary
 
   return (
-    <LinearGradient colors={['#fef3f2', '#ffffff']} style={styles.gradient}>
-      <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: palette.bg }]}
+      edges={['top']}
+    >
+      <View style={[styles.container, { backgroundColor: palette.bg }]}>
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+              },
+            ]}
+            hitSlop={12}
+          >
+            <IconSymbol
+              name="chevron.left"
+              size={22}
+              color={palette.textPrimary}
+            />
+          </TouchableOpacity>
+          <Text style={[styles.topBarTitle, { color: palette.textPrimary }]} numberOfLines={1}>
+            Session
+          </Text>
+          {session.healthFacts.length > 0 ? (
+            <TouchableOpacity
+              onPress={() => setShowCitations(true)}
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: palette.surface,
+                  borderColor: palette.border,
+                },
+              ]}
+              hitSlop={12}
+            >
+              <IconSymbol
+                name="book.closed"
+                size={20}
+                color={palette.textPrimary}
+              />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.iconButton} />
+          )}
+        </View>
+
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
           <Animated.View
-            entering={FadeInDown.duration(600)}
-            style={styles.header}
+            entering={FadeInDown.duration(motion.duration.base)}
+            style={[
+              styles.heroCard,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+              },
+            ]}
           >
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text style={styles.backText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.sessionTitle}>{session.goal}</Text>
-            <Text style={styles.sessionMeta}>
-              {isGenerating 
-                ? 'Building your personalized session...' 
+            <View
+              style={[
+                styles.heroBadge,
+                { backgroundColor: palette.primaryMuted },
+              ]}
+            >
+              <Text style={[styles.heroBadgeText, { color: palette.primary }]}>
+                {isGenerating ? 'BUILDING' : 'TODAY'}
+              </Text>
+            </View>
+            <Text style={[styles.heroTitle, { color: palette.textPrimary }]}>
+              {session.goal}
+            </Text>
+            <Text style={[styles.heroMeta, { color: palette.textSecondary }]}>
+              {isGenerating
+                ? 'Building your personalised session…'
                 : `${session.modality} · ${session.durationMin} min`}
             </Text>
 
             {!isGenerating && (
-              <>
-                <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: progressWidth }]} />
+              <View
+                style={[
+                  styles.heroStats,
+                  { backgroundColor: palette.surfaceAlt },
+                ]}
+              >
+                <View style={styles.heroStat}>
+                  <Text
+                    style={[styles.heroStatValue, { color: palette.textPrimary }]}
+                  >
+                    {sets.length}
+                  </Text>
+                  <Text
+                    style={[styles.heroStatLabel, { color: palette.textTertiary }]}
+                  >
+                    Sets logged
+                  </Text>
                 </View>
-                <Text style={styles.progressLabel}>
-                  {sets.length}/{totalTargetSets} sets logged
-                </Text>
-              </>
+                <View
+                  style={[
+                    styles.heroStatDivider,
+                    { backgroundColor: palette.border },
+                  ]}
+                />
+                <View style={styles.heroStat}>
+                  <Text
+                    style={[styles.heroStatValue, { color: palette.textPrimary }]}
+                  >
+                    {totalTargetSets}
+                  </Text>
+                  <Text
+                    style={[styles.heroStatLabel, { color: palette.textTertiary }]}
+                  >
+                    Total sets
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.heroStatDivider,
+                    { backgroundColor: palette.border },
+                  ]}
+                />
+                <View style={styles.heroStat}>
+                  <Text
+                    style={[styles.heroStatValue, { color: palette.textPrimary }]}
+                  >
+                    {Math.round(progress * 100)}%
+                  </Text>
+                  <Text
+                    style={[styles.heroStatLabel, { color: palette.textTertiary }]}
+                  >
+                    Done
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {!isGenerating && (
+              <View
+                style={[
+                  styles.progressBar,
+                  { backgroundColor: palette.surfaceAlt },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: progressWidth,
+                      backgroundColor: palette.primary,
+                    },
+                  ]}
+                />
+              </View>
             )}
 
             {isGenerating && (
               <View style={styles.generatingIndicator}>
-                <ActivityIndicator size="small" color="#6366f1" />
-                <Text style={styles.generatingText}>
-                  {hasExercises 
-                    ? `${planExercises.length} exercise${planExercises.length > 1 ? 's' : ''} ready, loading more...`
-                    : 'Creating your exercises...'}
+                <ActivityIndicator size="small" color={palette.primary} />
+                <Text
+                  style={[styles.generatingText, { color: palette.primary }]}
+                >
+                  {hasExercises
+                    ? `${planExercises.length} exercise${planExercises.length > 1 ? 's' : ''} ready, loading more…`
+                    : 'Creating your exercises…'}
                 </Text>
               </View>
             )}
-
-            {session.healthFacts.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setShowCitations(true)}
-                style={styles.healthFactButton}
-              >
-                <Text style={styles.healthFactText}>
-                  Health facts & citations →
-                </Text>
-              </TouchableOpacity>
-            )}
           </Animated.View>
 
-          {/* Show exercises as they stream in */}
-          {planExercises.map((exercise) => (
+          {planExercises.map(exercise => (
             <WorkoutCard
               key={exercise.id}
               exercise={exercise}
@@ -342,60 +495,69 @@ export default function SessionScreen() {
               onPrefetchComment={handleBeforeSet}
             />
           ))}
-          
-          {/* Show skeleton cards while generating and no exercises yet */}
+
           {isGenerating && !hasExercises && (
             <>
-              <View style={styles.skeletonCard}>
-                <View style={styles.skeletonTitle} />
-                <View style={styles.skeletonBody} />
-                <View style={styles.skeletonBody} />
-              </View>
-              <View style={styles.skeletonCard}>
-                <View style={styles.skeletonTitle} />
-                <View style={styles.skeletonBody} />
-                <View style={styles.skeletonBody} />
-              </View>
+              <SkeletonCard />
+              <SkeletonCard />
             </>
           )}
 
-          <View style={styles.feedbackCard}>
-            <Text style={styles.feedbackTitle}>
-              Report back to your trainer
+          <View
+            style={[
+              styles.feedbackCard,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+              },
+            ]}
+          >
+            <Text style={[styles.feedbackTitle, { color: palette.textPrimary }]}>
+              Report back to your coach
             </Text>
-            <Text style={styles.feedbackSubtitle}>
+            <Text
+              style={[styles.feedbackSubtitle, { color: palette.textSecondary }]}
+            >
               Share pain, energy levels, or medication changes so I can adapt
               the next block.
             </Text>
             <TextInput
-              style={styles.feedbackInput}
+              style={[
+                styles.feedbackInput,
+                {
+                  borderColor: feedbackFocused ? palette.primary : palette.border,
+                  backgroundColor: feedbackFocused
+                    ? palette.surfaceAlt
+                    : palette.bgElevated,
+                  color: palette.textPrimary,
+                },
+              ]}
               placeholder="Today's wins, flags, or notes"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={palette.textTertiary}
               value={feedback}
               onChangeText={setFeedback}
+              onFocus={() => setFeedbackFocused(true)}
+              onBlur={() => setFeedbackFocused(false)}
               multiline
             />
-            <TouchableOpacity
-              style={styles.feedbackButton}
+            <PillButton
+              label={isSendingFeedback ? 'Sending' : 'Send feedback'}
               onPress={handleSendFeedback}
               disabled={isSendingFeedback || !feedback.trim()}
-            >
-              <Text style={styles.feedbackButtonText}>
-                {isSendingFeedback ? 'Sending...' : 'Send feedback'}
-              </Text>
-            </TouchableOpacity>
+              loading={isSendingFeedback}
+              variant="secondary"
+            />
           </View>
 
-          <TouchableOpacity
-            style={styles.completeButton}
-            onPress={handleCompleteSession}
-            disabled={isCompleting}
-          >
-            <Text style={styles.completeButtonText}>
-              {isCompleting ? 'Saving...' : 'Complete session'}
-            </Text>
-          </TouchableOpacity>
-          <View style={{ height: 80 }} />
+          <View style={[styles.completeWrap, sessionShadow]}>
+            <PillButton
+              label={isCompleting ? 'Saving' : 'Complete session'}
+              onPress={handleCompleteSession}
+              disabled={isCompleting}
+              loading={isCompleting}
+            />
+          </View>
+          <View style={{ height: spacing.huge }} />
         </ScrollView>
 
         <CitationsPanel
@@ -404,193 +566,201 @@ export default function SessionScreen() {
           onClose={() => setShowCitations(false)}
         />
         <CoachBubble comment={activeComment} />
-      </SafeAreaView>
-    </LinearGradient>
+      </View>
+    </SafeAreaView>
+  )
+}
+
+function SkeletonCard() {
+  const { palette } = useTheme()
+  return (
+    <View
+      style={[
+        styles.skeletonCard,
+        { backgroundColor: palette.surface, borderColor: palette.border },
+      ]}
+    >
+      <View
+        style={[
+          styles.skeletonTitle,
+          { backgroundColor: palette.surfaceAlt },
+        ]}
+      />
+      <View
+        style={[styles.skeletonBody, { backgroundColor: palette.surfaceAlt }]}
+      />
+      <View
+        style={[
+          styles.skeletonBody,
+          { width: '70%', backgroundColor: palette.surfaceAlt },
+        ]}
+      />
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
   safeArea: {
     flex: 1,
   },
+  container: {
+    flex: 1,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  iconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBarTitle: {
+    ...typography.bodyStrong,
+  },
   scroll: {
-    paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.huge,
   },
-  header: {
-    paddingTop: 12,
-    paddingBottom: 20,
+  heroCard: {
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
   },
-  backText: {
-    color: '#4f46e5',
-    fontWeight: '600',
-    marginBottom: 12,
+  heroBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    marginBottom: spacing.md,
   },
-  sessionTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
+  heroBadgeText: {
+    ...typography.caption,
   },
-  sessionMeta: {
-    fontSize: 15,
-    color: '#6b7280',
-    marginBottom: 16,
+  heroTitle: {
+    ...typography.h1,
+  },
+  heroMeta: {
+    ...typography.body,
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  heroStats: {
+    flexDirection: 'row',
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  heroStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  heroStatValue: {
+    ...typography.h2,
+  },
+  heroStatLabel: {
+    ...typography.caption,
+    marginTop: 2,
+  },
+  heroStatDivider: {
+    width: StyleSheet.hairlineWidth,
   },
   progressBar: {
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: '#e5e7eb',
+    height: 8,
+    borderRadius: 4,
     overflow: 'hidden',
-    marginBottom: 8,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#6366f1',
+    borderRadius: 4,
   },
-  progressLabel: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginBottom: 12,
+  generatingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  healthFactButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#f3f4f6',
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  healthFactText: {
-    fontSize: 13,
-    color: '#111827',
-    fontWeight: '600',
+  generatingText: {
+    ...typography.smallStrong,
   },
   feedbackCard: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 20,
-    padding: 20,
-    backgroundColor: '#fff',
-    marginTop: 12,
-    marginBottom: 12,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
   },
   feedbackTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 6,
+    ...typography.h3,
+    marginBottom: spacing.xs,
   },
   feedbackSubtitle: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginBottom: 12,
+    ...typography.small,
+    marginBottom: spacing.md,
   },
   feedbackInput: {
     minHeight: 90,
-    borderRadius: 16,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: 14,
-    fontSize: 15,
-    color: '#111827',
-    marginBottom: 12,
+    padding: spacing.md,
+    ...typography.body,
+    marginBottom: spacing.md,
+    textAlignVertical: 'top',
   },
-  feedbackButton: {
-    backgroundColor: '#4f46e5',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  feedbackButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  completeButton: {
-    backgroundColor: '#0f172a',
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  completeButtonText: {
-    color: '#f8fafc',
-    fontSize: 16,
-    fontWeight: '700',
+  completeWrap: {
+    marginTop: spacing.sm,
   },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: spacing.xxl,
   },
   errorText: {
-    color: '#dc2626',
-    fontSize: 16,
+    ...typography.body,
   },
-  // Failed state styles
-  failedEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
+  failedIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
   },
   failedTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#dc2626',
-    marginBottom: 8,
+    ...typography.h2,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   failedSubtitle: {
-    fontSize: 15,
-    color: '#6b7280',
+    ...typography.body,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
   },
-  failedBackButton: {
-    backgroundColor: '#4f46e5',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  failedBackButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  // Generating state styles
-  generatingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-    paddingVertical: 8,
-  },
-  generatingText: {
-    fontSize: 14,
-    color: '#6366f1',
-    fontWeight: '500',
-  },
-  // Skeleton card styles
   skeletonCard: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
   },
   skeletonTitle: {
     width: '60%',
-    height: 24,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 8,
-    marginBottom: 12,
+    height: 22,
+    borderRadius: radius.sm,
+    marginBottom: spacing.md,
   },
   skeletonBody: {
     width: '100%',
-    height: 16,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 6,
-    marginBottom: 8,
+    height: 14,
+    borderRadius: radius.xs,
+    marginBottom: spacing.sm,
   },
 })
