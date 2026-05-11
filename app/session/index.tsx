@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import CitationsPanel from '@/components/trainer/CitationsPanel'
 import CoachBubble from '@/components/trainer/CoachBubble'
+import ExerciseMenuSheet from '@/components/trainer/ExerciseMenuSheet'
 import type { SetPayload } from '@/components/trainer/ExerciseSetRow'
 import { CoachComment, ExercisePlan } from '@/components/trainer/types'
 import WorkoutCard from '@/components/trainer/WorkoutCard'
@@ -62,6 +63,7 @@ export default function SessionScreen() {
   const [feedback, setFeedback] = useState('')
   const [feedbackFocused, setFeedbackFocused] = useState(false)
   const [isSendingFeedback, setIsSendingFeedback] = useState(false)
+  const [menuExerciseId, setMenuExerciseId] = useState<string | null>(null)
   const hideTimerRef = useRef<TimerHandle | null>(null)
   const scheduledTimers = useRef<TimerHandle[]>([])
   const coachQueueRef = useRef<CoachComment[]>([])
@@ -206,19 +208,36 @@ export default function SessionScreen() {
     [triggerComment],
   )
 
+  const handleOpenMenu = useCallback((exercise: ExercisePlan) => {
+    setMenuExerciseId(exercise.id)
+  }, [])
+
+  const handleCloseMenu = useCallback(() => {
+    setMenuExerciseId(null)
+  }, [])
+
+  const menuExercise = useMemo(
+    () => planExercises.find(ex => ex.id === menuExerciseId) ?? null,
+    [planExercises, menuExerciseId],
+  )
+
+  const menuExerciseHasSets = useMemo(() => {
+    if (!menuExerciseId) return false
+    return sets.some(set => set.exerciseId === menuExerciseId)
+  }, [sets, menuExerciseId])
+
   const handleCompleteSession = useCallback(async () => {
     if (!sessionId || isCompleting) return
     setIsCompleting(true)
     try {
       await completeSession({ sessionId })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-      triggerComment('session_end')
+      router.replace('/')
     } catch (error) {
       console.error('complete session error', error)
-    } finally {
       setIsCompleting(false)
     }
-  }, [sessionId, completeSession, triggerComment, isCompleting])
+  }, [sessionId, completeSession, isCompleting])
 
   const handleSendFeedback = useCallback(async () => {
     if (!sessionId || !feedback.trim() || isSendingFeedback) return
@@ -493,6 +512,7 @@ export default function SessionScreen() {
                 handleLogSet(exercise.id, setIndex, payload)
               }
               onPrefetchComment={handleBeforeSet}
+              onOpenMenu={handleOpenMenu}
             />
           ))}
 
@@ -564,6 +584,14 @@ export default function SessionScreen() {
           visible={showCitations}
           facts={session.healthFacts}
           onClose={() => setShowCitations(false)}
+        />
+        <ExerciseMenuSheet
+          visible={menuExercise !== null}
+          sessionId={sessionId}
+          exercise={menuExercise}
+          plan={planExercises}
+          hasLoggedSets={menuExerciseHasSets}
+          onClose={handleCloseMenu}
         />
         <CoachBubble comment={activeComment} />
       </View>

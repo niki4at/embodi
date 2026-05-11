@@ -9,7 +9,7 @@ import {
   mutation,
   query,
 } from './_generated/server'
-import { getOpenAI, getOpenAIModel } from './openai'
+import { getOpenAI, getOpenAIModel, openAIResponsesLowLatency } from './openai'
 
 // Types for profile questions
 type ProfileQuestion = {
@@ -899,6 +899,7 @@ Create a complete profile summary that captures all this information in a struct
 
   const response = await client.responses.create({
     model,
+    ...openAIResponsesLowLatency,
     input: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -1416,6 +1417,7 @@ async function generateQuestionsWithAIStreaming(
   try {
     response = await client.responses.create({
       model,
+      ...openAIResponsesLowLatency,
       tools: questionTools,
       input: [
         { role: 'system', content: systemPrompt },
@@ -1498,6 +1500,7 @@ async function generateQuestionsWithAIStreaming(
     // Continue the conversation with tool results
     response = await client.responses.create({
       model,
+      ...openAIResponsesLowLatency,
       tools: questionTools,
       previous_response_id: response.id,
       input: toolResults,

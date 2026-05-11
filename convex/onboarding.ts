@@ -130,6 +130,29 @@ export const hasCompletedOnboarding = query({
   },
 })
 
+// Toggle just the trackPeriod flag on the existing onboarding record.
+// Used by the settings screen so users can opt in or out post-onboarding.
+export const setTrackPeriod = mutation({
+  args: { trackPeriod: v.boolean() },
+  handler: async (ctx, { trackPeriod }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const existing = await ctx.db
+      .query('onboarding')
+      .withIndex('by_userId', (q) => q.eq('userId', identity.subject))
+      .first()
+    if (!existing) {
+      throw new Error('Complete onboarding before changing this setting')
+    }
+
+    await ctx.db.patch(existing._id, { trackPeriod })
+    return { trackPeriod }
+  },
+})
+
 export const deleteOnboarding = mutation({
   args: {},
   handler: async (ctx) => {

@@ -3,12 +3,13 @@ import { IconSymbol } from '@/components/ui/icon-symbol'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
-import { useAuth } from '@clerk/clerk-expo'
+import type { Id } from '@/convex/_generated/dataModel'
 import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import { router, type Href } from 'expo-router'
-import React, { memo, useCallback, useState } from 'react'
+import React, { memo, useCallback, useMemo, useState } from 'react'
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,40 +25,146 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated'
+import { computeCycleStatus, type CyclePhase } from '@/convex/cycle'
+import { WeeklyInsightsSection } from './weekly-insights'
+
+const CYCLE_PHASE_LABEL: Record<CyclePhase, string> = {
+  menstrual: 'Menstrual',
+  follicular: 'Follicular',
+  ovulatory: 'Ovulatory',
+  luteal: 'Luteal',
+  unknown: 'Tracking',
+}
 
 const HEADER_DELAY = 0
 const STAGGER = 70
+
+type TodaysCheckin = {
+  _id: Id<'daily_checkins'>
+  energyLevel: number
+  painLevel: number
+  timeAvailable: string
+  workoutType: string
+} | null | undefined
+
+type TodaysSession = {
+  _id: Id<'workout_sessions'>
+  status: 'generating' | 'generated' | 'in-progress' | 'completed' | 'failed'
+  goal: string
+  modality: string
+  durationMin: number
+  planCount: number
+  setsLogged: number
+  totalTargetSets: number
+} | null | undefined
+
+type TodayState =
+  | { kind: 'loading' }
+  | { kind: 'needs-checkin' }
+  | { kind: 'checkin-orphan' }
+  | { kind: 'generating'; sessionId: Id<'workout_sessions'> }
+  | {
+      kind: 'ready' | 'in-progress' | 'completed'
+      session: NonNullable<TodaysSession>
+    }
+
+function deriveTodayState(
+  checkin: TodaysCheckin,
+  session: TodaysSession,
+): TodayState {
+  if (checkin === undefined || session === undefined) {
+    return { kind: 'loading' }
+  }
+  if (session) {
+    if (session.status === 'generating') {
+      return { kind: 'generating', sessionId: session._id }
+    }
+    if (session.status === 'in-progress') {
+      return { kind: 'in-progress', session }
+    }
+    if (session.status === 'completed') {
+      return { kind: 'completed', session }
+    }
+    return { kind: 'ready', session }
+  }
+  if (checkin) {
+    return { kind: 'checkin-orphan' }
+  }
+  return { kind: 'needs-checkin' }
+}
 
 export default function HomeContent() {
   const { palette, resolved, toggle } = useTheme()
   const onboardingData = useQuery(api.onboarding.getOnboarding)
   const todaysCheckin = useQuery(api.checkin.getTodaysCheckin)
-  const deleteOnboarding = useMutation(api.onboarding.deleteOnboarding)
-  const createPendingSession = useMutation(api.trainer.createPendingSession)
-  const { signOut } = useAuth()
-  const [isStarting, setIsStarting] = useState(false)
+  const todaysSession = useQuery(api.trainer.getTodaysSession)
+  const cycleEnabled = onboardingData?.trackPeriod === true
+  const cycleData = useQuery(
+    api.cycle.getRecentEntries,
+    cycleEnabled ? { limit: 6 } : 'skip',
+  )
+  const startSessionFromCheckin = useMutation(
+    api.checkin.startSessionFromTodaysCheckin,
+  )
+  const [isRecoveringSession, setIsRecoveringSession] = useState(false)
 
-  const handleStartSession = useCallback(async () => {
-    if (isStarting) return
-    setIsStarting(true)
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      const sessionId = await createPendingSession({})
+  const cycleStatus = useMemo(() => {
+    if (!cycleEnabled || !cycleData) return null
+    return computeCycleStatus(cycleData.entries, Date.now())
+  }, [cycleEnabled, cycleData])
+
+  const state = deriveTodayState(todaysCheckin, todaysSession)
+
+  const navigateToSession = useCallback(
+    (sessionId: Id<'workout_sessions'>) => {
       const sessionHref = {
         pathname: '/session',
         params: { sessionId: String(sessionId) },
       } as unknown as Href
       router.push(sessionHref)
-    } catch (error) {
-      console.error('Failed to start session', error)
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-    } finally {
-      setIsStarting(false)
-    }
-  }, [createPendingSession, isStarting])
+    },
+    [],
+  )
 
-  const handleCheckIn = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+  const handleTodayPress = useCallback(async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+
+    switch (state.kind) {
+      case 'loading':
+        return
+      case 'needs-checkin':
+        router.push('/checkin')
+        return
+      case 'generating':
+      case 'ready':
+      case 'in-progress':
+      case 'completed': {
+        const sessionId =
+          state.kind === 'generating' ? state.sessionId : state.session._id
+        navigateToSession(sessionId)
+        return
+      }
+      case 'checkin-orphan': {
+        if (isRecoveringSession) return
+        setIsRecoveringSession(true)
+        try {
+          const sessionId = await startSessionFromCheckin({})
+          navigateToSession(sessionId)
+        } catch (error) {
+          console.error('Failed to start session from check-in', error)
+          await Haptics.notificationAsync(
+            Haptics.NotificationFeedbackType.Error,
+          )
+        } finally {
+          setIsRecoveringSession(false)
+        }
+        return
+      }
+    }
+  }, [state, navigateToSession, startSessionFromCheckin, isRecoveringSession])
+
+  const handleUpdateCheckIn = useCallback(() => {
+    Haptics.selectionAsync()
     router.push('/checkin')
   }, [])
 
@@ -65,15 +172,15 @@ export default function HomeContent() {
     router.push('/profile-questions')
   }, [])
 
-  const handleSignOut = useCallback(async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      await deleteOnboarding()
-      await signOut()
-    } catch (err) {
-      console.error('Sign out error', err)
-    }
-  }, [deleteOnboarding, signOut])
+  const handleOpenSettings = useCallback(() => {
+    Haptics.selectionAsync()
+    router.push('/settings')
+  }, [])
+
+  const handleOpenCycle = useCallback(() => {
+    Haptics.selectionAsync()
+    router.push('/cycle')
+  }, [])
 
   const handleToggleTheme = useCallback(() => {
     Haptics.selectionAsync()
@@ -82,7 +189,6 @@ export default function HomeContent() {
 
   const userName = onboardingData?.name || 'there'
   const firstName = userName.split(' ')[0]
-  const checkinDone = !!todaysCheckin
 
   return (
     <SafeAreaView
@@ -124,7 +230,7 @@ export default function HomeContent() {
               <IconSymbol
                 name={resolved === 'dark' ? 'sun.max.fill' : 'moon.fill'}
                 size={18}
-                color={palette.textPrimary}
+                color={resolved === 'dark' ? palette.white : palette.textPrimary}
               />
             </TouchableOpacity>
             <TouchableOpacity
@@ -135,12 +241,16 @@ export default function HomeContent() {
                   borderColor: palette.border,
                 },
               ]}
-              onPress={handleSignOut}
+              onPress={handleOpenSettings}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel="Settings"
             >
-              <IconSymbol name="gear" size={20} color={palette.textPrimary} />
+              <IconSymbol
+                name="gear"
+                size={20}
+                color={resolved === 'dark' ? palette.white : palette.textPrimary}
+              />
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -150,95 +260,80 @@ export default function HomeContent() {
         <Animated.View
           entering={FadeInDown.delay(HEADER_DELAY + STAGGER).duration(motion.duration.base)}
         >
-          <PrimaryAction
-            isStarting={isStarting}
-            checkinDone={checkinDone}
-            onPress={handleStartSession}
+          <TodayCard
+            state={state}
+            isRecovering={isRecoveringSession}
+            onPress={handleTodayPress}
           />
         </Animated.View>
 
-        <Animated.View
-          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 2).duration(motion.duration.base)}
-          style={styles.checkInRow}
-        >
-          <CheckInCard checkin={todaysCheckin} onPress={handleCheckIn} />
-        </Animated.View>
+        {todaysCheckin && (
+          <Animated.View
+            entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 2).duration(motion.duration.base)}
+            style={styles.checkInChipRow}
+          >
+            <TouchableOpacity
+              onPress={handleUpdateCheckIn}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Update today's check-in"
+              style={styles.checkInChip}
+            >
+              <IconSymbol
+                name="checkmark"
+                size={14}
+                color={palette.success}
+              />
+              <Text
+                style={[styles.checkInChipText, { color: palette.textSecondary }]}
+                numberOfLines={1}
+              >
+                Today&apos;s check-in · Energy {todaysCheckin.energyLevel}/10 · Pain{' '}
+                {todaysCheckin.painLevel}/10 · {todaysCheckin.timeAvailable}m
+              </Text>
+              <Text style={[styles.checkInChipAction, { color: palette.primary }]}>
+                Update
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {cycleEnabled && cycleData !== undefined && (
+          <Animated.View
+            entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 2.5).duration(motion.duration.base)}
+            style={styles.checkInChipRow}
+          >
+            <TouchableOpacity
+              onPress={handleOpenCycle}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Open cycle tracker"
+              style={styles.checkInChip}
+            >
+              <IconSymbol
+                name="drop.fill"
+                size={14}
+                color={palette.primary}
+              />
+              <Text
+                style={[styles.checkInChipText, { color: palette.textSecondary }]}
+                numberOfLines={1}
+              >
+                {cycleStatus && cycleStatus.hasData
+                  ? `Cycle · ${CYCLE_PHASE_LABEL[cycleStatus.phase]}${cycleStatus.dayOfCycle && cycleStatus.phase !== 'unknown' ? ` · day ${cycleStatus.dayOfCycle}` : ''}`
+                  : 'Cycle · Log your first period to start'}
+              </Text>
+              <Text style={[styles.checkInChipAction, { color: palette.primary }]}>
+                {cycleStatus?.hasData ? 'Open' : 'Log'}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
         <Animated.View
           entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 3).duration(motion.duration.base)}
-          style={styles.section}
         >
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-              This week
-            </Text>
-            <Text style={[styles.sectionMeta, { color: palette.textTertiary }]}>
-              4 of 5 sessions
-            </Text>
-          </View>
-          <View style={styles.statsGrid}>
-            <StatCard
-              label="Streak"
-              value="7"
-              unit="days"
-              icon="flame.fill"
-              tint={palette.warning}
-            />
-            <StatCard
-              label="Sessions"
-              value="12"
-              unit="total"
-              icon="dumbbell.fill"
-              tint={palette.primary}
-            />
-            <StatCard
-              label="Energy"
-              value="8.5"
-              unit="avg"
-              icon="bolt.fill"
-              tint={palette.accentTeal}
-            />
-            <StatCard
-              label="Pain"
-              value="2.1"
-              unit="avg"
-              icon="heart.fill"
-              tint={palette.accentPink}
-            />
-          </View>
-        </Animated.View>
-
-        <Animated.View
-          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 4).duration(motion.duration.base)}
-          style={styles.section}
-        >
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: palette.textPrimary }]}>
-              Recommended
-            </Text>
-            <TouchableOpacity activeOpacity={0.6}>
-              <Text style={[styles.linkText, { color: palette.primary }]}>
-                See all
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <RecommendedCard
-            title="Hip mobility flow"
-            meta="15 min · 6 moves"
-            badge="Gentle"
-            badgeTint={palette.success}
-            description="Perfect for desk workers. Addresses lower back discomfort with gentle progressions."
-            tags={['No equipment', 'Beginner']}
-          />
-          <RecommendedCard
-            title="Breath & recovery"
-            meta="10 min · 4 techniques"
-            badge="Calm"
-            badgeTint={palette.accentTeal}
-            description="Active recovery for busy days. Helps manage stress and supports sleep quality."
-            tags={['Anywhere', 'All levels']}
-          />
+          <WeeklyInsightsSection />
         </Animated.View>
 
         <Animated.View
@@ -264,232 +359,218 @@ export default function HomeContent() {
   )
 }
 
-interface PrimaryActionProps {
-  isStarting: boolean
-  checkinDone: boolean
+interface TodayCardProps {
+  state: TodayState
+  isRecovering: boolean
   onPress: () => void
 }
 
-const PrimaryAction = memo(function PrimaryAction({
-  isStarting,
-  checkinDone,
+type CardVariant = 'primary' | 'success' | 'muted'
+
+interface CardContent {
+  variant: CardVariant
+  label: string
+  title: string
+  subtitle: string
+  iconName: React.ComponentProps<typeof IconSymbol>['name']
+  showSpinner: boolean
+  progress?: number
+}
+
+function getCardContent(state: TodayState, isRecovering: boolean): CardContent {
+  switch (state.kind) {
+    case 'loading':
+      return {
+        variant: 'muted',
+        label: 'TODAY',
+        title: 'Loading',
+        subtitle: 'Fetching your day',
+        iconName: 'sparkles',
+        showSpinner: true,
+      }
+    case 'needs-checkin':
+      return {
+        variant: 'primary',
+        label: 'TODAY',
+        title: 'Build today\u2019s session',
+        subtitle: '4 quick questions, then your workout',
+        iconName: 'sparkles',
+        showSpinner: false,
+      }
+    case 'checkin-orphan':
+      return {
+        variant: 'primary',
+        label: 'TODAY',
+        title: isRecovering ? 'Starting' : 'Start today\u2019s session',
+        subtitle: 'Built from your check-in',
+        iconName: 'play.fill',
+        showSpinner: isRecovering,
+      }
+    case 'generating':
+      return {
+        variant: 'primary',
+        label: 'TODAY',
+        title: 'Building your session',
+        subtitle: 'Adapting to today\u2019s check-in',
+        iconName: 'sparkles',
+        showSpinner: true,
+      }
+    case 'ready': {
+      const { session } = state
+      return {
+        variant: 'primary',
+        label: 'TODAY',
+        title: session.goal,
+        subtitle: `${session.modality} \u00b7 ${session.durationMin} min \u00b7 ${session.planCount} exercises`,
+        iconName: 'play.fill',
+        showSpinner: false,
+      }
+    }
+    case 'in-progress': {
+      const { session } = state
+      const pct = session.totalTargetSets
+        ? Math.round((session.setsLogged / session.totalTargetSets) * 100)
+        : 0
+      return {
+        variant: 'primary',
+        label: 'IN PROGRESS',
+        title: 'Continue session',
+        subtitle: `${session.setsLogged} of ${session.totalTargetSets} sets \u00b7 ${pct}% done`,
+        iconName: 'arrow.right',
+        showSpinner: false,
+        progress: pct,
+      }
+    }
+    case 'completed':
+      return {
+        variant: 'success',
+        label: 'DONE TODAY',
+        title: 'Session complete',
+        subtitle: 'View your recap and notes',
+        iconName: 'checkmark',
+        showSpinner: false,
+      }
+  }
+}
+
+const TodayCard = memo(function TodayCard({
+  state,
+  isRecovering,
   onPress,
-}: PrimaryActionProps) {
+}: TodayCardProps) {
   const { palette, resolved, shadows } = useTheme()
   const scale = useSharedValue(1)
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }))
 
-  const cardShadow = resolved === 'dark' ? shadows.primaryDark : shadows.primary
+  const content = getCardContent(state, isRecovering)
+  const isLoading = state.kind === 'loading'
+
+  const backgroundColor =
+    content.variant === 'success'
+      ? palette.success
+      : content.variant === 'muted'
+        ? palette.surface
+        : palette.primary
+
+  const textOnSolid = '#FFFFFF'
+  const titleColor = content.variant === 'muted' ? palette.textPrimary : textOnSolid
+  const subtitleColor =
+    content.variant === 'muted'
+      ? palette.textSecondary
+      : 'rgba(255,255,255,0.92)'
+  const labelColor =
+    content.variant === 'muted'
+      ? palette.textTertiary
+      : 'rgba(255,255,255,0.85)'
+  const iconBgColor =
+    content.variant === 'muted'
+      ? palette.primaryMuted
+      : 'rgba(255,255,255,0.22)'
+  const iconColor = content.variant === 'muted' ? palette.primary : textOnSolid
+
+  const cardShadow =
+    content.variant === 'muted'
+      ? undefined
+      : resolved === 'dark'
+        ? shadows.primaryDark
+        : shadows.primary
 
   return (
     <Pressable
       onPressIn={() => {
+        if (isLoading) return
         scale.value = withSpring(0.98, motion.spring)
       }}
       onPressOut={() => {
         scale.value = withSpring(1, motion.spring)
       }}
       onPress={onPress}
+      disabled={isLoading}
       accessibilityRole="button"
-      accessibilityLabel="Start today's session"
+      accessibilityLabel={content.title}
     >
       <Animated.View
         style={[
           styles.primaryAction,
-          { backgroundColor: palette.primary },
+          {
+            backgroundColor,
+            borderWidth: content.variant === 'muted' ? 1 : 0,
+            borderColor: palette.border,
+          },
           cardShadow,
           animatedStyle,
         ]}
       >
         <View style={styles.primaryActionInner}>
           <View style={styles.primaryActionTextWrap}>
-            <Text style={styles.primaryActionLabel}>Today</Text>
-            <Text style={styles.primaryActionTitle}>
-              {isStarting ? 'Building your session' : 'Start workout'}
+            <Text style={[styles.primaryActionLabel, { color: labelColor }]}>
+              {content.label}
             </Text>
-            <Text style={styles.primaryActionSubtitle}>
-              {checkinDone
-                ? 'Personalized to your check-in'
-                : 'Personalized plan with live coaching'}
+            <Text
+              style={[styles.primaryActionTitle, { color: titleColor }]}
+              numberOfLines={2}
+            >
+              {content.title}
+            </Text>
+            <Text
+              style={[styles.primaryActionSubtitle, { color: subtitleColor }]}
+              numberOfLines={2}
+            >
+              {content.subtitle}
             </Text>
           </View>
-          <View style={styles.primaryActionIcon}>
-            <IconSymbol name="play.fill" size={22} color={palette.white} />
+          <View
+            style={[styles.primaryActionIcon, { backgroundColor: iconBgColor }]}
+          >
+            {content.showSpinner ? (
+              <ActivityIndicator size="small" color={iconColor} />
+            ) : (
+              <IconSymbol name={content.iconName} size={22} color={iconColor} />
+            )}
           </View>
         </View>
+        {content.progress !== undefined && (
+          <View
+            style={[
+              styles.progressTrack,
+              { backgroundColor: 'rgba(255,255,255,0.25)' },
+            ]}
+          >
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${Math.max(0, Math.min(100, content.progress))}%`,
+                  backgroundColor: textOnSolid,
+                },
+              ]}
+            />
+          </View>
+        )}
       </Animated.View>
     </Pressable>
-  )
-})
-
-interface CheckInCardProps {
-  checkin:
-    | {
-        energyLevel: number
-        painLevel: number
-        timeAvailable: string
-        workoutType: string
-      }
-    | null
-    | undefined
-  onPress: () => void
-}
-
-const CheckInCard = memo(function CheckInCard({
-  checkin,
-  onPress,
-}: CheckInCardProps) {
-  const { palette } = useTheme()
-  const isDone = !!checkin
-  return (
-    <TouchableOpacity
-      style={[
-        styles.checkInCard,
-        {
-          backgroundColor: palette.surface,
-          borderColor: palette.border,
-        },
-      ]}
-      onPress={onPress}
-      activeOpacity={0.85}
-      accessibilityRole="button"
-      accessibilityLabel={isDone ? 'Update check-in' : 'Start check-in'}
-    >
-      <View
-        style={[
-          styles.checkInIcon,
-          {
-            backgroundColor: isDone ? palette.successMuted : palette.primaryMuted,
-          },
-        ]}
-      >
-        <IconSymbol
-          name={isDone ? 'checkmark' : 'sparkles'}
-          size={18}
-          color={isDone ? palette.success : palette.primary}
-        />
-      </View>
-      <View style={styles.checkInContent}>
-        <Text style={[styles.checkInTitle, { color: palette.textPrimary }]}>
-          {isDone ? "Today's check-in" : 'Daily check-in'}
-        </Text>
-        <Text
-          style={[styles.checkInSubtitle, { color: palette.textSecondary }]}
-          numberOfLines={1}
-        >
-          {isDone && checkin
-            ? `Energy ${checkin.energyLevel}/10 · Pain ${checkin.painLevel}/10 · ${checkin.timeAvailable}m`
-            : 'Tell us how you feel today'}
-        </Text>
-      </View>
-      <IconSymbol name="chevron.right" size={18} color={palette.textTertiary} />
-    </TouchableOpacity>
-  )
-})
-
-interface StatCardProps {
-  label: string
-  value: string
-  unit: string
-  icon: React.ComponentProps<typeof IconSymbol>['name']
-  tint: string
-}
-
-const StatCard = memo(function StatCard({
-  label,
-  value,
-  unit,
-  icon,
-  tint,
-}: StatCardProps) {
-  const { palette } = useTheme()
-  return (
-    <View
-      style={[
-        styles.statCard,
-        {
-          backgroundColor: palette.surface,
-          borderColor: palette.border,
-        },
-      ]}
-    >
-      <View style={styles.statHeader}>
-        <Text style={[styles.statLabel, { color: palette.textSecondary }]}>
-          {label}
-        </Text>
-        <View style={[styles.statIcon, { backgroundColor: tint + '22' }]}>
-          <IconSymbol name={icon} size={12} color={tint} />
-        </View>
-      </View>
-      <View style={styles.statValueRow}>
-        <Text style={[styles.statValue, { color: palette.textPrimary }]}>
-          {value}
-        </Text>
-        <Text style={[styles.statUnit, { color: palette.textTertiary }]}>
-          {unit}
-        </Text>
-      </View>
-    </View>
-  )
-})
-
-interface RecommendedCardProps {
-  title: string
-  meta: string
-  badge: string
-  badgeTint: string
-  description: string
-  tags: string[]
-}
-
-const RecommendedCard = memo(function RecommendedCard({
-  title,
-  meta,
-  badge,
-  badgeTint,
-  description,
-  tags,
-}: RecommendedCardProps) {
-  const { palette } = useTheme()
-  return (
-    <TouchableOpacity
-      style={[
-        styles.recCard,
-        { backgroundColor: palette.surface, borderColor: palette.border },
-      ]}
-      activeOpacity={0.85}
-    >
-      <View style={styles.recHeader}>
-        <View style={styles.recHeaderLeft}>
-          <Text style={[styles.recTitle, { color: palette.textPrimary }]}>
-            {title}
-          </Text>
-          <Text style={[styles.recMeta, { color: palette.textTertiary }]}>
-            {meta}
-          </Text>
-        </View>
-        <View style={[styles.badge, { backgroundColor: badgeTint + '22' }]}>
-          <Text style={[styles.badgeText, { color: badgeTint }]}>{badge}</Text>
-        </View>
-      </View>
-      <Text style={[styles.recDescription, { color: palette.textSecondary }]}>
-        {description}
-      </Text>
-      <View style={styles.recTags}>
-        {tags.map(t => (
-          <View
-            key={t}
-            style={[styles.tag, { backgroundColor: palette.surfaceAlt }]}
-          >
-            <Text style={[styles.tagText, { color: palette.textSecondary }]}>
-              {t}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </TouchableOpacity>
   )
 })
 
@@ -533,6 +614,7 @@ const styles = StyleSheet.create({
   primaryAction: {
     borderRadius: radius.xl,
     marginTop: spacing.lg,
+    overflow: 'hidden',
   },
   primaryActionInner: {
     padding: spacing.xl,
@@ -545,158 +627,49 @@ const styles = StyleSheet.create({
   },
   primaryActionLabel: {
     ...typography.caption,
-    color: 'rgba(255,255,255,0.85)',
     marginBottom: 4,
   },
   primaryActionTitle: {
     ...typography.h2,
-    color: '#FFFFFF',
     marginBottom: 4,
   },
   primaryActionSubtitle: {
     ...typography.small,
-    color: 'rgba(255,255,255,0.92)',
   },
   primaryActionIcon: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkInRow: {
+  progressTrack: {
+    height: 6,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  checkInChipRow: {
     marginTop: spacing.md,
   },
-  checkInCard: {
+  checkInChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-  },
-  checkInIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkInContent: {
-    flex: 1,
-  },
-  checkInTitle: {
-    ...typography.bodyStrong,
-  },
-  checkInSubtitle: {
-    ...typography.small,
-    marginTop: 2,
-  },
-  section: {
-    marginTop: spacing.xxxl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  sectionTitle: {
-    ...typography.h3,
-  },
-  sectionMeta: {
-    ...typography.small,
-  },
-  linkText: {
-    ...typography.smallStrong,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  statCard: {
-    width: '47.8%',
-    flexGrow: 1,
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-  },
-  statHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  statLabel: {
-    ...typography.smallStrong,
-  },
-  statIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statValueRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
-  },
-  statValue: {
-    ...typography.metric,
-  },
-  statUnit: {
-    ...typography.small,
-  },
-  recCard: {
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-  },
-  recHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  recHeaderLeft: {
-    flex: 1,
-    paddingRight: spacing.md,
-  },
-  recTitle: {
-    ...typography.bodyStrong,
-    marginBottom: 2,
-  },
-  recMeta: {
-    ...typography.small,
-  },
-  badge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-  },
-  badgeText: {
-    ...typography.caption,
-  },
-  recDescription: {
-    ...typography.small,
-    marginBottom: spacing.md,
-  },
-  recTags: {
-    flexDirection: 'row',
     gap: spacing.sm,
-  },
-  tag: {
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    borderRadius: radius.sm,
   },
-  tagText: {
+  checkInChipText: {
     ...typography.small,
-    fontWeight: '600',
+    flex: 1,
+  },
+  checkInChipAction: {
+    ...typography.smallStrong,
   },
   safetyCard: {
     flexDirection: 'row',

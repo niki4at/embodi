@@ -4,7 +4,7 @@ import type {
     ResponseFormatTextJSONSchemaConfig,
 } from 'openai/resources/responses/responses'
 import { action } from './_generated/server'
-import { getOpenAI, getOpenAIModel } from './openai'
+import { getOpenAI, getOpenAIModel, openAIResponsesLowLatency } from './openai'
 
 export type Citation = {
   id: string
@@ -147,6 +147,7 @@ export async function distillCitationsForProfile(
   const model = getOpenAIModel()
   const factsRequest = {
     model,
+    ...openAIResponsesLowLatency,
     text: {
       format: {
         type: 'json_schema',
@@ -368,6 +369,7 @@ async function fetchOpenAICitations(
     const model = getOpenAIModel()
     const citationRequest = {
       model,
+      ...openAIResponsesLowLatency,
       tools: [{ type: 'web_search' as const }],
       text: {
         format: {

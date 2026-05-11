@@ -1,8 +1,8 @@
 import { api } from '@/convex/_generated/api'
 import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
-import { router, type Href } from 'expo-router'
-import React, { useMemo, useState } from 'react'
+import { router, useLocalSearchParams, type Href } from 'expo-router'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   ScrollView,
@@ -32,6 +32,78 @@ type SleepQuality = 'rough' | 'okay' | 'decent' | 'great'
 type WorkoutType = 'strength' | 'mobility' | 'cardio' | 'recovery' | 'mixed'
 type IntensityPreference = 'easy' | 'moderate' | 'challenging'
 type TimeAvailable = '15' | '30' | '45' | '60'
+
+type RecommendationSeed = {
+  title: string
+  modality: string
+  durationMin: number
+  moveCount: number
+  description: string
+  reasoning: string
+  tags: string[]
+  source: 'aligned' | 'exploration'
+}
+
+const VALID_WORKOUT_TYPES: WorkoutType[] = [
+  'strength',
+  'mobility',
+  'cardio',
+  'recovery',
+  'mixed',
+]
+
+const TIME_BUCKETS: TimeAvailable[] = ['15', '30', '45', '60']
+
+function workoutTypeFromModality(modality: string): WorkoutType | null {
+  const m = modality.toLowerCase()
+  if (m.includes('strength') || m.includes('lift') || m.includes('power'))
+    return 'strength'
+  if (m.includes('mobility') || m.includes('yoga') || m.includes('flex'))
+    return 'mobility'
+  if (m.includes('cardio') || m.includes('run') || m.includes('endurance'))
+    return 'cardio'
+  if (m.includes('recovery') || m.includes('breath') || m.includes('rest'))
+    return 'recovery'
+  if (m.includes('mixed') || m.includes('hybrid') || m.includes('full'))
+    return 'mixed'
+  if (VALID_WORKOUT_TYPES.includes(m as WorkoutType)) return m as WorkoutType
+  return null
+}
+
+function nearestTimeBucket(durationMin: number): TimeAvailable {
+  let best: TimeAvailable = '30'
+  let bestDelta = Infinity
+  for (const bucket of TIME_BUCKETS) {
+    const delta = Math.abs(parseInt(bucket, 10) - durationMin)
+    if (delta < bestDelta) {
+      bestDelta = delta
+      best = bucket
+    }
+  }
+  return best
+}
+
+function parseRecommendationSeed(raw: unknown): RecommendationSeed | null {
+  if (typeof raw !== 'string' || raw.length === 0) return null
+  try {
+    const parsed = JSON.parse(raw) as Partial<RecommendationSeed>
+    if (
+      typeof parsed.title === 'string' &&
+      typeof parsed.modality === 'string' &&
+      typeof parsed.durationMin === 'number' &&
+      typeof parsed.moveCount === 'number' &&
+      typeof parsed.description === 'string' &&
+      typeof parsed.reasoning === 'string' &&
+      Array.isArray(parsed.tags) &&
+      (parsed.source === 'aligned' || parsed.source === 'exploration')
+    ) {
+      return parsed as RecommendationSeed
+    }
+  } catch {
+    return null
+  }
+  return null
+}
 
 interface CheckInFormData {
   energyLevel: number
@@ -76,19 +148,45 @@ const TOTAL_STEPS = 4
 
 export default function CheckInScreen() {
   const { palette } = useTheme()
+  const params = useLocalSearchParams<{ rec?: string }>()
+  const recommendation = useMemo(
+    () => parseRecommendationSeed(params.rec),
+    [params.rec]
+  )
+
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [notesFocused, setNotesFocused] = useState(false)
-  const [formData, setFormData] = useState<CheckInFormData>({
-    energyLevel: 5,
-    sleepQuality: null,
-    painRatings: {},
-    stressLevel: 2,
-    workoutType: null,
-    intensityPreference: null,
-    timeAvailable: null,
-    notes: '',
+  const [formData, setFormData] = useState<CheckInFormData>(() => {
+    const seededWorkoutType = recommendation
+      ? workoutTypeFromModality(recommendation.modality)
+      : null
+    const seededTime = recommendation
+      ? nearestTimeBucket(recommendation.durationMin)
+      : null
+    return {
+      energyLevel: 5,
+      sleepQuality: null,
+      painRatings: {},
+      stressLevel: 2,
+      workoutType: seededWorkoutType,
+      intensityPreference: null,
+      timeAvailable: seededTime,
+      notes: '',
+    }
   })
+
+  // Re-pre-fill if the user navigates back into the screen with a different rec.
+  useEffect(() => {
+    if (!recommendation) return
+    setFormData((prev) => ({
+      ...prev,
+      workoutType:
+        prev.workoutType ?? workoutTypeFromModality(recommendation.modality),
+      timeAvailable:
+        prev.timeAvailable ?? nearestTimeBucket(recommendation.durationMin),
+    }))
+  }, [recommendation])
 
   const onboardingData = useQuery(api.onboarding.getOnboarding)
   const createCheckin = useMutation(api.checkin.createCheckin)
@@ -171,6 +269,7 @@ export default function CheckInScreen() {
           notes: formData.notes.trim() || undefined,
         },
         startSession: true,
+        recommendationSeed: recommendation ?? undefined,
       })
 
       if (result.sessionId) {
@@ -426,6 +525,60 @@ export default function CheckInScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {recommendation ? (
+            <Animated.View
+              entering={FadeInDown.duration(motion.duration.base)}
+              style={[
+                styles.recBanner,
+                {
+                  backgroundColor: palette.primaryMuted,
+                  borderColor: palette.primary + '33',
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.recBannerIcon,
+                  { backgroundColor: palette.primary + '22' },
+                ]}
+              >
+                <IconSymbol
+                  name="wand.and.stars"
+                  size={16}
+                  color={palette.primary}
+                />
+              </View>
+              <View style={styles.recBannerCopy}>
+                <Text
+                  style={[
+                    styles.recBannerLabel,
+                    { color: palette.primary },
+                  ]}
+                >
+                  Building from your pick
+                </Text>
+                <Text
+                  style={[
+                    styles.recBannerTitle,
+                    { color: palette.textPrimary },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {recommendation.title}
+                </Text>
+                <Text
+                  style={[
+                    styles.recBannerMeta,
+                    { color: palette.textSecondary },
+                  ]}
+                >
+                  {recommendation.modality} · {recommendation.durationMin} min ·{' '}
+                  {recommendation.moveCount} moves
+                </Text>
+              </View>
+            </Animated.View>
+          ) : null}
+
           {renderStep()}
         </ScrollView>
 
@@ -508,6 +661,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xxxl,
+  },
+  recBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginBottom: spacing.xl,
+  },
+  recBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recBannerCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  recBannerLabel: {
+    ...typography.smallStrong,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    fontSize: 11,
+  },
+  recBannerTitle: {
+    ...typography.bodyStrong,
+  },
+  recBannerMeta: {
+    ...typography.small,
   },
   stepTitle: {
     ...typography.h1,

@@ -82,6 +82,22 @@ function ThemedNavigation() {
             animation: 'slide_from_right',
           }}
         />
+        <Stack.Screen
+          name="settings"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="cycle"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
       </Stack>
       <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} />
     </NavThemeProvider>

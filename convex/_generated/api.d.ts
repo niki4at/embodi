@@ -8,13 +8,17 @@
  * @module
  */
 
+import type * as account from "../account.js";
 import type * as checkin from "../checkin.js";
 import type * as citations from "../citations.js";
+import type * as crons from "../crons.js";
+import type * as cycle from "../cycle.js";
 import type * as messages from "../messages.js";
 import type * as onboarding from "../onboarding.js";
 import type * as openai from "../openai.js";
 import type * as profileQuestions from "../profileQuestions.js";
 import type * as trainer from "../trainer.js";
+import type * as weeklyInsights from "../weeklyInsights.js";
 
 import type {
   ApiFromModules,
@@ -23,13 +27,17 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  account: typeof account;
   checkin: typeof checkin;
   citations: typeof citations;
+  crons: typeof crons;
+  cycle: typeof cycle;
   messages: typeof messages;
   onboarding: typeof onboarding;
   openai: typeof openai;
   profileQuestions: typeof profileQuestions;
   trainer: typeof trainer;
+  weeklyInsights: typeof weeklyInsights;
 }>;
 
 /**

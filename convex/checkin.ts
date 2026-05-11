@@ -3,6 +3,18 @@ import { internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
 import { internalQuery, mutation, query } from './_generated/server'
 
+// Recommendation seed shape (mirrors trainer.recommendationSeedArg)
+const recommendationSeedArg = v.object({
+  title: v.string(),
+  modality: v.string(),
+  durationMin: v.number(),
+  moveCount: v.number(),
+  description: v.string(),
+  reasoning: v.string(),
+  tags: v.array(v.string()),
+  source: v.union(v.literal('aligned'), v.literal('exploration')),
+})
+
 // Check-in data shape for validation
 const checkinDataArg = v.object({
   energyLevel: v.number(),
@@ -60,8 +72,12 @@ export const createCheckin = mutation({
   args: {
     data: checkinDataArg,
     startSession: v.optional(v.boolean()),
+    recommendationSeed: v.optional(recommendationSeedArg),
   },
-  handler: async (ctx, { data, startSession }): Promise<{
+  handler: async (
+    ctx,
+    { data, startSession, recommendationSeed }
+  ): Promise<{
     checkinId: Id<'daily_checkins'>
     sessionId?: Id<'workout_sessions'>
   }> => {
@@ -92,25 +108,28 @@ export const createCheckin = mutation({
     let sessionId: Id<'workout_sessions'> | undefined
 
     if (startSession) {
-      // Get user profile for goal
+      // Get user profile for goal (only used when no recommendation seeded the session)
       const onboarding = await ctx.db
         .query('onboarding')
         .withIndex('by_userId', (q) => q.eq('userId', userId))
         .first()
 
-      const goal = onboarding?.goal || 'Personalized session'
+      const goal =
+        recommendationSeed?.title ?? onboarding?.goal ?? 'Personalized session'
 
       // Create pending session linked to this check-in
       sessionId = await ctx.db.insert('workout_sessions', {
         userId,
         goal,
         modality: 'generating...',
-        durationMin: parseInt(data.timeAvailable, 10),
+        durationMin: recommendationSeed?.durationMin
+          ?? parseInt(data.timeAvailable, 10),
         status: 'generating',
         plan: [],
         healthFacts: [],
         citations: [],
         checkinId,
+        recommendationSeed,
         createdAt: now,
         updatedAt: now,
       })
@@ -118,15 +137,83 @@ export const createCheckin = mutation({
       // Update check-in with session link
       await ctx.db.patch(checkinId, { sessionId })
 
-      // Schedule background generation with check-in data
+      // Schedule background generation with check-in data + optional seed
       await ctx.scheduler.runAfter(0, internal.trainer.generateSessionPlan, {
         sessionId,
         userId,
         checkinId,
+        recommendationSeed,
       })
     }
 
     return { checkinId, sessionId }
+  },
+})
+
+// Start (or reuse) a workout session built from today's existing check-in.
+// Used when a user has already checked in but no session was generated, or to
+// retry after a failed generation. Returns the session ID either way.
+export const startSessionFromTodaysCheckin = mutation({
+  args: {},
+  handler: async (ctx): Promise<Id<'workout_sessions'>> => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const userId = identity.subject
+    const startOfToday = getStartOfToday()
+
+    const checkins = await ctx.db
+      .query('daily_checkins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .order('desc')
+      .take(5)
+
+    const todaysCheckin = checkins.find(
+      (checkin) => checkin.createdAt >= startOfToday
+    )
+    if (!todaysCheckin) {
+      throw new Error('No check-in for today')
+    }
+
+    if (todaysCheckin.sessionId) {
+      const existing = await ctx.db.get(todaysCheckin.sessionId)
+      if (existing && existing.status !== 'failed') {
+        return existing._id
+      }
+    }
+
+    const onboarding = await ctx.db
+      .query('onboarding')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+    const goal = onboarding?.goal || 'Personalized session'
+
+    const now = Date.now()
+    const sessionId = await ctx.db.insert('workout_sessions', {
+      userId,
+      goal,
+      modality: 'generating...',
+      durationMin: parseInt(todaysCheckin.timeAvailable, 10),
+      status: 'generating',
+      plan: [],
+      healthFacts: [],
+      citations: [],
+      checkinId: todaysCheckin._id,
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    await ctx.db.patch(todaysCheckin._id, { sessionId })
+
+    await ctx.scheduler.runAfter(0, internal.trainer.generateSessionPlan, {
+      sessionId,
+      userId,
+      checkinId: todaysCheckin._id,
+    })
+
+    return sessionId
   },
 })
 

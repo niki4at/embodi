@@ -20,8 +20,13 @@ import {
   type Citation as CitationSource,
   type CitationsProfile,
 } from './citations'
-import { getOpenAI, getOpenAIModel } from './openai'
+import { getOpenAI, getOpenAIModel, openAIResponsesLowLatency } from './openai'
 import { formatCheckinForPrompt, type CheckinData } from './checkin'
+import {
+  computeCycleStatus,
+  formatCycleForPrompt,
+  type CycleStatus,
+} from './cycle'
 
 type Citation = CitationSource
 
@@ -169,6 +174,28 @@ const planInputArg = v.object({
   citations: v.array(citationArg),
 })
 
+const recommendationSeedArg = v.object({
+  title: v.string(),
+  modality: v.string(),
+  durationMin: v.number(),
+  moveCount: v.number(),
+  description: v.string(),
+  reasoning: v.string(),
+  tags: v.array(v.string()),
+  source: v.union(v.literal('aligned'), v.literal('exploration')),
+})
+
+type RecommendationSeed = {
+  title: string
+  modality: string
+  durationMin: number
+  moveCount: number
+  description: string
+  reasoning: string
+  tags: string[]
+  source: 'aligned' | 'exploration'
+}
+
 export const generatePlanAndInsights = action({
   args: {},
   handler: async (ctx) => {
@@ -303,6 +330,63 @@ export const createPendingSession = mutation({
   },
 })
 
+// Start a fresh "today" session seeded by a weekly insights recommendation.
+// The trainer will build a real plan that delivers on the recommendation
+// while still respecting profile + today's check-in (if it exists).
+export const startSessionFromRecommendation = mutation({
+  args: { recommendation: recommendationSeedArg },
+  handler: async (ctx, { recommendation }): Promise<Id<'workout_sessions'>> => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const userId = identity.subject
+
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const startOfTodayMs = startOfToday.getTime()
+
+    const recentCheckins = await ctx.db
+      .query('daily_checkins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .order('desc')
+      .take(5)
+    const todaysCheckin = recentCheckins.find(
+      (c) => c.createdAt >= startOfTodayMs
+    )
+
+    const now = Date.now()
+    const sessionId = await ctx.db.insert('workout_sessions', {
+      userId,
+      goal: recommendation.title,
+      modality: 'generating...',
+      durationMin: recommendation.durationMin,
+      status: 'generating',
+      plan: [],
+      healthFacts: [],
+      citations: [],
+      checkinId: todaysCheckin?._id,
+      recommendationSeed: recommendation,
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    if (todaysCheckin && !todaysCheckin.sessionId) {
+      await ctx.db.patch(todaysCheckin._id, { sessionId })
+    }
+
+    await ctx.scheduler.runAfter(0, internal.trainer.generateSessionPlan, {
+      sessionId,
+      userId,
+      checkinId: todaysCheckin?._id,
+      recommendationSeed: recommendation,
+    })
+
+    return sessionId
+  },
+})
+
 // Internal mutation to update session metadata as generation progresses
 export const updateSessionMetadata = internalMutation({
   args: {
@@ -413,8 +497,12 @@ export const generateSessionPlan = internalAction({
     sessionId: v.id('workout_sessions'),
     userId: v.string(),
     checkinId: v.optional(v.id('daily_checkins')),
+    recommendationSeed: v.optional(recommendationSeedArg),
   },
-  handler: async (ctx, { sessionId, userId, checkinId }) => {
+  handler: async (
+    ctx,
+    { sessionId, userId, checkinId, recommendationSeed }
+  ) => {
     try {
       // Use internal queries with userId since we don't have auth context
       const profileDoc = await ctx.runQuery(
@@ -454,6 +542,20 @@ export const generateSessionPlan = internalAction({
         })
       }
 
+      // Fetch cycle status whenever the user opted in. The opt-in toggle is
+      // only exposed to users whose gender is 'female' or 'prefer-not-to-say',
+      // so consent alone is enough to drive the feature.
+      let cycleStatus: CycleStatus | null = null
+      if (profileDoc.trackPeriod) {
+        const cycleEntries = await ctx.runQuery(
+          internal.cycle.getCycleEntriesByUserId,
+          { userId }
+        )
+        if (cycleEntries.length > 0) {
+          cycleStatus = computeCycleStatus(cycleEntries, Date.now())
+        }
+      }
+
       // Fetch citations and health facts first (these are quick)
       const citations = await searchCitationsForProfile(profile)
       const healthFacts = await distillCitationsForProfile(profile, citations)
@@ -473,7 +575,9 @@ export const generateSessionPlan = internalAction({
         citations,
         healthFacts,
         profileSummary,
-        checkinData
+        checkinData,
+        recommendationSeed ?? null,
+        cycleStatus
       )
 
       // Update final metadata
@@ -494,6 +598,338 @@ export const generateSessionPlan = internalAction({
         sessionId,
       })
     }
+  },
+})
+
+// Remove an exercise from a session's plan. Also deletes any sets that
+// were logged against it so we don't leave orphans behind.
+export const removeExerciseFromSession = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    exerciseId: v.string(),
+  },
+  handler: async (ctx, { sessionId, exerciseId }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const session = await ctx.db.get(sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+
+    const updatedPlan = session.plan.filter((ex) => ex.id !== exerciseId)
+    if (updatedPlan.length === session.plan.length) return
+
+    await ctx.db.patch(sessionId, {
+      plan: updatedPlan,
+      updatedAt: Date.now(),
+    })
+
+    const sets = await ctx.db
+      .query('workout_sets')
+      .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
+      .collect()
+
+    await Promise.all(
+      sets
+        .filter((set) => set.exerciseId === exerciseId)
+        .map((set) => ctx.db.delete(set._id))
+    )
+  },
+})
+
+// Move an exercise to a new position in the plan. `newIndex` is the
+// target zero-based position after the move (clamped to plan bounds).
+export const reorderSessionExercise = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    exerciseId: v.string(),
+    newIndex: v.number(),
+  },
+  handler: async (ctx, { sessionId, exerciseId, newIndex }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const session = await ctx.db.get(sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+
+    const currentIndex = session.plan.findIndex((ex) => ex.id === exerciseId)
+    if (currentIndex === -1) return
+
+    const targetIndex = Math.max(
+      0,
+      Math.min(newIndex, session.plan.length - 1)
+    )
+    if (targetIndex === currentIndex) return
+
+    const newPlan = [...session.plan]
+    const [moved] = newPlan.splice(currentIndex, 1)
+    newPlan.splice(targetIndex, 0, moved)
+
+    await ctx.db.patch(sessionId, {
+      plan: newPlan,
+      updatedAt: Date.now(),
+    })
+  },
+})
+
+// Replace one exercise in a session with a new one. When the new exercise
+// has a different id, any sets logged against the old exercise are removed.
+export const replaceExerciseInSession = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    exerciseId: v.string(),
+    newExercise: exerciseArg,
+  },
+  handler: async (ctx, { sessionId, exerciseId, newExercise }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const session = await ctx.db.get(sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+
+    const idx = session.plan.findIndex((ex) => ex.id === exerciseId)
+    if (idx === -1) throw new Error('Exercise not in plan')
+
+    const updatedPlan = [...session.plan]
+    updatedPlan[idx] = newExercise
+    await ctx.db.patch(sessionId, {
+      plan: updatedPlan,
+      updatedAt: Date.now(),
+    })
+
+    if (newExercise.id !== exerciseId) {
+      const sets = await ctx.db
+        .query('workout_sets')
+        .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
+        .collect()
+      await Promise.all(
+        sets
+          .filter((set) => set.exerciseId === exerciseId)
+          .map((set) => ctx.db.delete(set._id))
+      )
+    }
+  },
+})
+
+// AI-powered exercise alternatives. Pass `userPrompt` to get a single
+// targeted replacement; omit it to get several alternatives the user can
+// pick from. Each returned exercise has a fresh id and is fully validated.
+export const generateExerciseAlternatives = action({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    exerciseId: v.string(),
+    userPrompt: v.optional(v.string()),
+    count: v.optional(v.number()),
+  },
+  handler: async (
+    ctx,
+    { sessionId, exerciseId, userPrompt, count }
+  ): Promise<ExercisePlan[]> => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const sessionData = await ctx.runQuery(api.trainer.getSessionWithSets, {
+      sessionId,
+    })
+    if (!sessionData) {
+      throw new Error('Session not found')
+    }
+    const exercise = sessionData.session.plan.find(
+      (ex) => ex.id === exerciseId
+    )
+    if (!exercise) {
+      throw new Error('Exercise not in plan')
+    }
+
+    const profileDoc = await ctx.runQuery(api.onboarding.getOnboarding, {})
+    if (!profileDoc) {
+      throw new Error('Onboarding data missing')
+    }
+    const profile: Profile = {
+      name: profileDoc.name,
+      age: profileDoc.age,
+      gender: profileDoc.gender,
+      goal: profileDoc.goal,
+      activityLevel: profileDoc.activityLevel,
+      timeAvailable: profileDoc.timeAvailable,
+      injuries: profileDoc.injuries,
+      conditions: profileDoc.conditions,
+      medications: profileDoc.medications,
+      smoking: profileDoc.smoking,
+      alcohol: profileDoc.alcohol,
+    }
+
+    const extendedProfile = await ctx.runQuery(
+      api.profileQuestions.getExtendedProfile,
+      {}
+    )
+    const profileSummary = extendedProfile?.profileSummary ?? null
+
+    const targetCount = Math.max(
+      1,
+      Math.min(count ?? (userPrompt ? 1 : 3), 4)
+    )
+
+    const otherExerciseNames = sessionData.session.plan
+      .filter((ex) => ex.id !== exerciseId)
+      .map((ex) => ex.name)
+
+    const systemPrompt = `You are an AI trainer recommending replacement exercises for a personalised session.
+
+Rules:
+- Honour the client's injuries, conditions, medications, and current state.
+- Match the same training intent (modality + body part) as the exercise being replaced unless the user explicitly asks for something different.
+- Avoid duplicating any exercise already in the session.
+- Cue breath, tempo, and intent. Use proven, evidence-aware approaches.
+- Output JSON matching the schema. Generate UNIQUE exercise ids that do not collide with the one being replaced.`
+
+    const userPromptParts: string[] = []
+    if (profileSummary) {
+      userPromptParts.push(
+        '=== CLIENT PROFILE ===',
+        profileSummary,
+        '=== END PROFILE ==='
+      )
+    } else {
+      userPromptParts.push('Profile JSON:', JSON.stringify(profile))
+    }
+    userPromptParts.push(
+      '',
+      'EXERCISE TO REPLACE:',
+      JSON.stringify(exercise, null, 2),
+      '',
+      otherExerciseNames.length
+        ? `Other exercises already in the session (don't duplicate): ${otherExerciseNames.join(', ')}`
+        : '',
+      '',
+      userPrompt
+        ? `User's specific request: "${userPrompt.slice(0, 500)}"`
+        : `Generate ${targetCount} distinct alternatives the user can pick from. Cover a range of angles (different equipment / progression / regression).`,
+      '',
+      `Return exactly ${targetCount} alternative${targetCount > 1 ? 's' : ''}.`
+    )
+
+    const client = getOpenAI()
+    const model = getOpenAIModel()
+
+    type AlternativeResponse = { alternatives: Partial<ExercisePlan>[] }
+    const altRequest: PlanResponseParams = {
+      model,
+      ...openAIResponsesLowLatency,
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'exercise_alternatives',
+          schema: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['alternatives'],
+            properties: {
+              alternatives: {
+                type: 'array',
+                minItems: targetCount,
+                maxItems: targetCount,
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: [
+                    'id',
+                    'name',
+                    'bodyPart',
+                    'modality',
+                    'instructions',
+                    'equipment',
+                    'targetSets',
+                    'targetReps',
+                    'tempo',
+                    'restSec',
+                    'cues',
+                    'trackingMetric',
+                    'durationMin',
+                    'intensityCue',
+                    'contraindications',
+                  ],
+                  properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' },
+                    bodyPart: { type: 'string' },
+                    modality: { type: 'string' },
+                    instructions: { type: 'string' },
+                    equipment: { type: 'array', items: { type: 'string' } },
+                    targetSets: { type: 'integer' },
+                    targetReps: {
+                      type: 'array',
+                      items: { type: 'integer' },
+                      minItems: 1,
+                      maxItems: 3,
+                    },
+                    tempo: { type: 'string' },
+                    restSec: { type: 'integer' },
+                    durationMin: { type: 'number' },
+                    intensityCue: { type: 'string' },
+                    contraindications: {
+                      type: 'array',
+                      items: { type: 'string' },
+                    },
+                    cues: { type: 'array', items: { type: 'string' } },
+                    trackingMetric: {
+                      type: 'string',
+                      enum: [
+                        'weight_reps',
+                        'duration',
+                        'distance',
+                        'breath',
+                        'custom',
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      input: [
+        {
+          role: 'system',
+          content: [{ type: 'input_text', text: systemPrompt }],
+        },
+        {
+          role: 'user',
+          content: [
+            { type: 'input_text', text: userPromptParts.join('\n') },
+          ],
+        },
+      ],
+    }
+
+    const response = await client.responses.parse<
+      PlanResponseParams,
+      AlternativeResponse
+    >(altRequest)
+    const parsed = response.output_parsed
+    if (!parsed) {
+      throw new Error('Could not generate alternatives')
+    }
+
+    // Force fresh ids so a replacement always invalidates orphaned set logs.
+    const alternatives = normalizeExercises(parsed.alternatives ?? []).map(
+      (ex) => ({ ...ex, id: generateExerciseId() })
+    )
+    return alternatives
   },
 })
 
@@ -560,10 +996,18 @@ export const logSet = mutation({
     }
 
     if (args.completeSession) {
+      const wasNotCompleted = session.status !== 'completed'
       await ctx.db.patch(args.sessionId, {
         status: 'completed',
         updatedAt: Date.now(),
       })
+      if (wasNotCompleted) {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.weeklyInsights.regenerateAfterCompletion,
+          { userId: identity.subject }
+        )
+      }
     }
   },
 })
@@ -608,10 +1052,19 @@ export const completeSession = mutation({
       throw new Error('Session not found')
     }
 
+    const wasNotCompleted = session.status !== 'completed'
     await ctx.db.patch(args.sessionId, {
       status: 'completed',
       updatedAt: Date.now(),
     })
+
+    if (wasNotCompleted) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.weeklyInsights.regenerateAfterCompletion,
+        { userId: identity.subject }
+      )
+    }
   },
 })
 
@@ -636,6 +1089,54 @@ export const getSessionWithSets = query({
       .collect()
 
     return { session, sets }
+  },
+})
+
+// Returns the most recent workout session created today (any status except 'failed'),
+// plus a summary of progress. Used by the home screen to render a single state-aware
+// CTA that reflects where the user is in their daily session lifecycle.
+export const getTodaysSession = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
+
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const startOfTodayMs = startOfToday.getTime()
+
+    const sessions = await ctx.db
+      .query('workout_sessions')
+      .withIndex('by_userId', (q) => q.eq('userId', identity.subject))
+      .order('desc')
+      .take(10)
+
+    const todays = sessions.find(
+      (session) =>
+        session.createdAt >= startOfTodayMs && session.status !== 'failed'
+    )
+    if (!todays) return null
+
+    const sets = await ctx.db
+      .query('workout_sets')
+      .withIndex('by_sessionId', (q) => q.eq('sessionId', todays._id))
+      .collect()
+
+    const totalTargetSets = todays.plan.reduce(
+      (acc, exercise) => acc + exercise.targetSets,
+      0
+    )
+
+    return {
+      _id: todays._id,
+      status: todays.status,
+      goal: todays.goal,
+      modality: todays.modality,
+      durationMin: todays.durationMin,
+      planCount: todays.plan.length,
+      setsLogged: sets.length,
+      totalTargetSets,
+    }
   },
 })
 
@@ -817,6 +1318,7 @@ Plans must account for sex, age, injuries, conditions, medications, and lifestyl
   try {
     const planRequest: PlanResponseParams = {
       model,
+      ...openAIResponsesLowLatency,
       text: {
         format: {
           type: 'json_schema',
@@ -944,7 +1446,9 @@ async function buildWorkoutPlanStreaming(
   citations: Citation[],
   facts: Fact[],
   profileSummary: string | null,
-  checkinData: CheckinData | null = null
+  checkinData: CheckinData | null = null,
+  recommendationSeed: RecommendationSeed | null = null,
+  cycleStatus: CycleStatus | null = null
 ): Promise<{ goalFocus: string; modality: string; durationMin: number }> {
   const client = getOpenAI()
   const model = getOpenAIModel()
@@ -974,6 +1478,37 @@ CRITICAL: The client has completed a pre-session check-in reporting their state 
 - Respect the time available they've specified for today`
   }
 
+  // Add cycle-phase awareness when the user opted in and we have data.
+  if (cycleStatus && cycleStatus.hasData) {
+    systemPromptText += `
+
+The client opted in to cycle-aware programming and has data logged. Use the cycle context (provided in the user message) to nudge volume, intensity, and exercise selection appropriately. Today's check-in still wins on intensity decisions when both are present.`
+  }
+
+  if (recommendationSeed) {
+    const sourceLabel =
+      recommendationSeed.source === 'exploration'
+        ? 'a "Try something new" recommendation (a modality the user has NOT tried recently)'
+        : 'an "Aligned" recommendation (matches their existing preferences)'
+    systemPromptText += `
+
+TODAY'S SESSION SEED: The user explicitly tapped ${sourceLabel} to start this session. The session you build MUST deliver on this recommendation:
+- Title: "${recommendationSeed.title}"
+- Modality: ${recommendationSeed.modality}
+- Target duration: ${recommendationSeed.durationMin} minutes
+- Target move count: ${recommendationSeed.moveCount} (±2)
+- What was promised: ${recommendationSeed.description}
+- Why it fits this client: ${recommendationSeed.reasoning}
+- Tags: ${recommendationSeed.tags.join(', ') || 'none'}
+
+Rules:
+1. Set goalFocus to the recommendation title (or a close paraphrase that captures its spirit).
+2. Match the modality and aim for the target duration within ±5 minutes.
+3. Pick exercises that visibly deliver on the promise above, not generic substitutes.
+4. Override the recommendation ONLY when an injury, condition, or check-in flag makes a specific exercise unsafe — and substitute a safer equivalent that still honors the spirit of the recommendation.
+5. Today's check-in (if present) still wins on intensity and pain-area exclusions.`
+  }
+
   systemPromptText += `
 
 IMPORTANT: Use the provided tools to build the plan step by step:
@@ -999,6 +1534,21 @@ IMPORTANT: Use the provided tools to build the plan step by step:
     userPromptParts.push('\n' + formatCheckinForPrompt(checkinData))
   }
 
+  if (cycleStatus && cycleStatus.hasData) {
+    const cycleBlock = formatCycleForPrompt(cycleStatus)
+    if (cycleBlock) {
+      userPromptParts.push('\n' + cycleBlock)
+    }
+  }
+
+  if (recommendationSeed) {
+    userPromptParts.push(
+      '\n=== RECOMMENDATION THE USER PICKED ===',
+      JSON.stringify(recommendationSeed, null, 2),
+      'Build the session around this recommendation. See system rules above.'
+    )
+  }
+
   userPromptParts.push(
     '\nRelevant health facts:',
     JSON.stringify(facts),
@@ -1016,61 +1566,55 @@ IMPORTANT: Use the provided tools to build the plan step by step:
   let exerciseCount = 0
   let continueLoop = true
   let iterations = 0
-  const maxIterations = 15
+  const maxIterations = 6
 
   try {
     console.log('[buildWorkoutPlanStreaming] Starting with model:', model)
 
-    // Use responses API with tools - non-streaming approach that works
-    let response = await client.responses.create({
-      model,
-      tools: exerciseTools,
-      input: [
-        { role: 'system', content: systemPromptText },
-        { role: 'user', content: userPromptParts.join('\n') },
-      ],
-    })
-
-    console.log(
-      '[buildWorkoutPlanStreaming] Initial response, output items:',
-      response.output.length
-    )
+    // True streaming: persist each tool call the moment its arguments
+    // finish streaming so the UI can render exercise #1 before the rest
+    // of the plan is generated.
+    let previousResponseId: string | undefined
+    let nextInput: unknown = [
+      { role: 'system', content: systemPromptText },
+      { role: 'user', content: userPromptParts.join('\n') },
+    ]
 
     while (continueLoop && iterations < maxIterations) {
       iterations++
 
-      // Check for tool calls in the response
-      const toolCalls = response.output.filter(
-        (
-          item
-        ): item is {
-          type: 'function_call'
-          call_id: string
-          name: string
-          arguments: string
-        } => item.type === 'function_call'
-      )
+      const streamParams = {
+        model,
+        ...openAIResponsesLowLatency,
+        tools: exerciseTools,
+        input: nextInput,
+        ...(previousResponseId
+          ? { previous_response_id: previousResponseId }
+          : {}),
+      } as unknown as Parameters<typeof client.responses.stream>[0]
 
       console.log(
-        `[buildWorkoutPlanStreaming] Iteration ${iterations}: ${toolCalls.length} tool calls`
+        `[buildWorkoutPlanStreaming] Iteration ${iterations}: starting stream`
       )
 
-      if (toolCalls.length === 0) {
-        break
-      }
-
+      const stream = client.responses.stream(streamParams)
       const toolResults: {
         type: 'function_call_output'
         call_id: string
         output: string
       }[] = []
+      let toolCallsInThisIteration = 0
 
-      // Process each tool call and persist IMMEDIATELY
-      for (const toolCall of toolCalls) {
+      for await (const event of stream) {
+        if (event.type !== 'response.output_item.done') continue
+        const item = event.item
+        if (item.type !== 'function_call') continue
+        toolCallsInThisIteration++
+
         try {
-          const args = JSON.parse(toolCall.arguments)
+          const args = JSON.parse(item.arguments)
 
-          switch (toolCall.name) {
+          switch (item.name) {
             case 'set_session_metadata':
               metadata = {
                 goalFocus: args.goalFocus || profile.goal,
@@ -1096,7 +1640,7 @@ IMPORTANT: Use the provided tools to build the plan step by step:
                 exercise,
               })
               console.log(
-                `[buildWorkoutPlanStreaming] Added exercise ${exerciseCount}: ${exercise.name}`
+                `[buildWorkoutPlanStreaming] Streamed exercise ${exerciseCount}: ${exercise.name}`
               )
               break
             }
@@ -1111,31 +1655,30 @@ IMPORTANT: Use the provided tools to build the plan step by step:
 
           toolResults.push({
             type: 'function_call_output',
-            call_id: toolCall.call_id,
+            call_id: item.call_id,
             output: JSON.stringify({ success: true, exerciseCount }),
           })
         } catch (parseError) {
           console.error(
-            `Error processing tool call ${toolCall.name}:`,
+            `Error processing tool call ${item.name}:`,
             parseError
           )
           toolResults.push({
             type: 'function_call_output',
-            call_id: toolCall.call_id,
+            call_id: item.call_id,
             output: JSON.stringify({ error: 'Failed to parse' }),
           })
         }
       }
 
-      if (!continueLoop) break
+      const finalResponse = await stream.finalResponse()
+      previousResponseId = finalResponse.id
 
-      // Continue the conversation with tool results
-      response = await client.responses.create({
-        model,
-        tools: exerciseTools,
-        previous_response_id: response.id,
-        input: toolResults,
-      })
+      if (!continueLoop) break
+      if (toolCallsInThisIteration === 0) break
+
+      // Feed tool results back so the model can keep going.
+      nextInput = toolResults
     }
 
     // If no exercises were added, use fallback

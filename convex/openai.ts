@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import type { Reasoning } from 'openai/resources/shared'
 
 let cachedOpenAI: OpenAI | null = null
 let cachedModel: string | null = null
@@ -21,4 +22,12 @@ export const getOpenAIModel = () => {
   }
   cachedModel = model
   return model
+}
+
+/**
+ * Responses API: minimal reasoning for lowest latency (GPT-5 family and other reasoning models).
+ * @see https://platform.openai.com/docs/guides/reasoning
+ */
+export const openAIResponsesLowLatency = {
+  reasoning: { effort: 'none' } satisfies Reasoning,
 }

@@ -1,7 +1,8 @@
 import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 
+import { IconSymbol } from '@/components/ui/icon-symbol'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 
@@ -13,6 +14,7 @@ type WorkoutCardProps = {
   sets: WorkoutSet[]
   onSaveSet: (setIndex: number, payload: SetPayload) => Promise<void>
   onPrefetchComment: (exerciseId: string) => void
+  onOpenMenu?: (exercise: ExercisePlan) => void
 }
 
 export default function WorkoutCard({
@@ -20,6 +22,7 @@ export default function WorkoutCard({
   sets,
   onSaveSet,
   onPrefetchComment,
+  onOpenMenu,
 }: WorkoutCardProps) {
   const { palette } = useTheme()
   const setArray = Array.from({ length: exercise.targetSets })
@@ -46,22 +49,47 @@ export default function WorkoutCard({
             {exercise.modality} · {exercise.bodyPart}
           </Text>
         </View>
-        <View
-          style={[styles.setCounter, { backgroundColor: palette.surfaceAlt }]}
-        >
-          <Text style={[styles.setCounterValue, { color: palette.primary }]}>
-            {completedCount}
-            <Text
-              style={[styles.setCounterMax, { color: palette.textTertiary }]}
-            >
-              /{exercise.targetSets}
-            </Text>
-          </Text>
-          <Text
-            style={[styles.setCounterLabel, { color: palette.textTertiary }]}
+        <View style={styles.headerActions}>
+          <View
+            style={[
+              styles.setCounter,
+              { backgroundColor: palette.surfaceAlt },
+            ]}
           >
-            SETS
-          </Text>
+            <Text style={[styles.setCounterValue, { color: palette.primary }]}>
+              {completedCount}
+              <Text
+                style={[styles.setCounterMax, { color: palette.textTertiary }]}
+              >
+                /{exercise.targetSets}
+              </Text>
+            </Text>
+            <Text
+              style={[styles.setCounterLabel, { color: palette.textTertiary }]}
+            >
+              SETS
+            </Text>
+          </View>
+          {onOpenMenu ? (
+            <TouchableOpacity
+              onPress={() => onOpenMenu(exercise)}
+              hitSlop={10}
+              accessibilityLabel={`Open options for ${exercise.name}`}
+              style={[
+                styles.menuButton,
+                {
+                  backgroundColor: palette.surfaceAlt,
+                  borderColor: palette.border,
+                },
+              ]}
+            >
+              <IconSymbol
+                name="ellipsis"
+                size={18}
+                color={palette.textPrimary}
+              />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
@@ -161,12 +189,25 @@ const styles = StyleSheet.create({
     ...typography.small,
     marginTop: 2,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   setCounter: {
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     alignItems: 'center',
     minWidth: 64,
+  },
+  menuButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   setCounterValue: {
     ...typography.h3,

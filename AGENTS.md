@@ -167,8 +167,19 @@ When working on this project:
 - Match the Figma designs exactly: typography, asset sizes, and the body figure illustration.
 - Hide the bottom tab bar (Home/Library) on onboarding and account-completion screens.
 - Ship every screen with both light and dark mode styles.
+- In dark mode, header controls (theme toggle and similar) should use the same white icon treatment as the settings icon; keep `IconSymbol` mappings complete so Android/web render the same glyphs.
+- Funnel every workout entry — including taps on recommended workouts — through the daily check-in flow so today's session is built on today's state, not stale onboarding data.
+- Avoid manual refresh buttons when the UI can refetch on its own; prefer automatic, data-driven updates.
+- Keep home-screen stat and insight cards at a uniform size and never let their text clip; pick a layout that fits the longest entry.
+- Settings must offer both a regular sign-out (data preserved) and a confirmation-gated delete-account action that wipes only the current user's records.
 
 ## Learned Workspace Facts
 
 - Primary Embodi Figma file (overall app design): https://www.figma.com/design/Btvt6p53EA2NQ6Z4XrUKFE/Embodi
 - Pain rating page Figma file (Interactive Pain Rating Page): https://www.figma.com/make/rFbFQtHf4kUxSp7f0Nu69O/Interactive-Pain-Rating-Page--Copy-
+- Convex OpenAI usage reads `OPENAI_MODEL` and `OPEN_API_KEY` from the Convex environment via `convex/openai.ts`; update the backend with `npx convex dev` or a deploy—Expo reload alone does not push Convex function changes.
+- For the Embodi body / line artwork, prefer the supplied JPG over the SVG when both exist (per design handoff).
+- The home screen uses a single state-aware `TodayCard` that always routes through check-in; `createPendingSession` in `convex/trainer.ts` is no longer wired to a no-context "Start workout" button.
+- `convex/weeklyInsights.ts` regenerates the home "This Week" stats and recommendations on the weekly cron in `convex/crons.ts` and again after each completed workout; user thumbs-up/down feedback is stored and fed back into future generations.
+- Menstrual-cycle tracking lives in `convex/cycle.ts` and `app/cycle.tsx`; it's opt-in via a Settings toggle shown only to users who selected female or "prefer not to say", and the current phase is passed into the trainer prompt in `convex/trainer.ts`.
+- Account management lives in `convex/account.ts`: sign-out preserves data, while delete-account is confirmation-gated and scoped to only the current user's records.

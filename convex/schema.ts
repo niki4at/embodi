@@ -116,6 +116,19 @@ export default defineSchema({
     citations: v.array(citationRef),
     // Link to pre-session check-in (if user checked in before starting)
     checkinId: v.optional(v.id('daily_checkins')),
+    // Captured when the session was started from a weekly recommendation card
+    recommendationSeed: v.optional(
+      v.object({
+        title: v.string(),
+        modality: v.string(),
+        durationMin: v.number(),
+        moveCount: v.number(),
+        description: v.string(),
+        reasoning: v.string(),
+        tags: v.array(v.string()),
+        source: v.union(v.literal('aligned'), v.literal('exploration')),
+      })
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -191,6 +204,150 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index('by_userId', ['userId']),
+
+  // AI-generated personalized weekly stats & recommendations
+  weekly_insights: defineTable({
+    userId: v.string(),
+    // Start of the ISO week (Monday 00:00 user local approximation, ms)
+    weekStart: v.number(),
+    status: v.union(
+      v.literal('generating'),
+      v.literal('ready'),
+      v.literal('failed')
+    ),
+    // How this insight was produced
+    source: v.union(
+      v.literal('batch'),
+      v.literal('on_demand'),
+      v.literal('cold_start'),
+      v.literal('after_workout')
+    ),
+    // Hash of the input data so we can tell if user data changed since generation
+    dataSignature: v.string(),
+    // Headline message for the week (1-2 sentences)
+    headline: v.optional(v.string()),
+    // Stats grid: 4 personalized cards picked from a wider menu by the model
+    stats: v.array(
+      v.object({
+        key: v.string(),
+        label: v.string(),
+        value: v.string(),
+        unit: v.string(),
+        icon: v.string(),
+        tint: v.string(),
+        // Optional one-line story explaining why this stat is interesting
+        story: v.optional(v.string()),
+        // Optional trend indicator: 'up' | 'down' | 'flat'
+        trend: v.optional(v.string()),
+      })
+    ),
+    // Recommendations aligned with what the user already does/likes
+    alignedRecommendations: v.array(
+      v.object({
+        id: v.string(),
+        title: v.string(),
+        durationMin: v.number(),
+        moveCount: v.number(),
+        modality: v.string(),
+        badge: v.string(),
+        badgeTint: v.string(),
+        description: v.string(),
+        tags: v.array(v.string()),
+        reasoning: v.string(),
+      })
+    ),
+    // Recommendations the user hasn't tried but the model thinks would help
+    explorationRecommendations: v.array(
+      v.object({
+        id: v.string(),
+        title: v.string(),
+        durationMin: v.number(),
+        moveCount: v.number(),
+        modality: v.string(),
+        badge: v.string(),
+        badgeTint: v.string(),
+        description: v.string(),
+        tags: v.array(v.string()),
+        reasoning: v.string(),
+        whyNew: v.string(),
+      })
+    ),
+    // Optional error message when status === 'failed'
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_userId_weekStart', ['userId', 'weekStart'])
+    .index('by_status', ['status']),
+
+  // User feedback on a generated weekly insight
+  weekly_insight_feedback: defineTable({
+    userId: v.string(),
+    insightId: v.id('weekly_insights'),
+    weekStart: v.number(),
+    rating: v.union(v.literal('liked'), v.literal('disliked')),
+    // Optional free-text comment
+    comment: v.optional(v.string()),
+    // Which sections the user reacted to (stats, aligned, exploration, headline)
+    sections: v.optional(v.array(v.string())),
+    createdAt: v.number(),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_insightId', ['insightId'])
+    .index('by_userId_weekStart', ['userId', 'weekStart']),
+
+  // Tracks pending OpenAI Batch API jobs for weekly insight generation
+  openai_batch_jobs: defineTable({
+    purpose: v.string(),
+    openaiBatchId: v.string(),
+    inputFileId: v.string(),
+    status: v.union(
+      v.literal('validating'),
+      v.literal('in_progress'),
+      v.literal('completed'),
+      v.literal('failed'),
+      v.literal('expired'),
+      v.literal('cancelled'),
+      v.literal('processed')
+    ),
+    weekStart: v.number(),
+    // Map of custom_id -> { userId, insightId } so we can route results
+    routing: v.array(
+      v.object({
+        customId: v.string(),
+        userId: v.string(),
+        insightId: v.id('weekly_insights'),
+      })
+    ),
+    requestedCount: v.number(),
+    completedCount: v.optional(v.number()),
+    failedCount: v.optional(v.number()),
+    outputFileId: v.optional(v.string()),
+    errorFileId: v.optional(v.string()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_status', ['status'])
+    .index('by_openaiBatchId', ['openaiBatchId']),
+
+  // Menstrual cycle entries for users who opted in via onboarding.
+  // One entry per cycle (period). startDate is captured at log time;
+  // endDate is patched in when the user marks the period over.
+  cycle_entries: defineTable({
+    userId: v.string(),
+    startDate: v.number(), // ms, normalized to local midnight
+    endDate: v.optional(v.number()),
+    flow: v.optional(
+      v.union(v.literal('light'), v.literal('medium'), v.literal('heavy'))
+    ),
+    symptoms: v.optional(v.array(v.string())),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_userId_startDate', ['userId', 'startDate']),
 
   // Daily check-ins for pre-session state capture
   daily_checkins: defineTable({
