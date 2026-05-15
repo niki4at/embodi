@@ -8,7 +8,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated'
+import Animated, {
+  Easing,
+  SlideInDown,
+  SlideOutDown,
+} from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { IconSymbol } from '@/components/ui/icon-symbol'
@@ -38,8 +42,12 @@ export default function CitationsPanel({
       <Pressable style={styles.backdrop} onPress={onClose} />
 
       <Animated.View
-        entering={SlideInDown.springify().damping(20)}
-        exiting={SlideOutDown}
+        entering={SlideInDown.duration(280).easing(
+          Easing.bezier(0.22, 1, 0.36, 1),
+        )}
+        exiting={SlideOutDown.duration(220).easing(
+          Easing.bezier(0.4, 0, 1, 1),
+        )}
         style={[
           styles.panel,
           shadows.lg,

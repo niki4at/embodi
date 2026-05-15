@@ -1,33 +1,46 @@
 import { useAction, useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import { router, useLocalSearchParams } from 'expo-router'
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import {
   ActivityIndicator,
+  Alert,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import Animated, { FadeInDown } from 'react-native-reanimated'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context'
 
 import CitationsPanel from '@/components/trainer/CitationsPanel'
 import CoachBubble from '@/components/trainer/CoachBubble'
 import ExerciseMenuSheet from '@/components/trainer/ExerciseMenuSheet'
 import type { SetPayload } from '@/components/trainer/ExerciseSetRow'
+import ExerciseTable from '@/components/trainer/ExerciseTable'
+import { MovementJourneyBar } from '@/components/trainer/MovementJourneyBar'
+import {
+  computePhaseProgress,
+  groupPlanByPhase,
+  PHASE_META,
+} from '@/components/trainer/phases'
 import { CoachComment, ExercisePlan } from '@/components/trainer/types'
-import WorkoutCard from '@/components/trainer/WorkoutCard'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { PillButton } from '@/components/ui/pill-button'
-import {
-  motion,
-  radius,
-  spacing,
-  typography,
-} from '@/constants/design'
+import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
 import { Id } from '@/convex/_generated/dataModel'
@@ -37,10 +50,13 @@ type SessionParams = {
 }
 
 type TimerHandle = ReturnType<typeof setTimeout>
-type PercentString = `${number}%`
+
+const SCROLL_HIDE_DELAY_MS = 1200
+const SCROLL_THRESHOLD_PX = 6
 
 export default function SessionScreen() {
   const { palette, resolved, shadows } = useTheme()
+  const insets = useSafeAreaInsets()
   const params = useLocalSearchParams<SessionParams>()
   const sessionId =
     typeof params.sessionId === 'string'
@@ -53,24 +69,29 @@ export default function SessionScreen() {
   )
   const onboarding = useQuery(api.onboarding.getOnboarding)
   const logSet = useMutation(api.trainer.logSet)
+  const removeSet = useMutation(api.trainer.removeSet)
+  const insertSetAfter = useMutation(api.trainer.insertSetAfter)
+  const deleteSetAt = useMutation(api.trainer.deleteSetAt)
   const completeSession = useMutation(api.trainer.completeSession)
-  const postFeedback = useMutation(api.trainer.postSessionFeedback)
+  const reorderExercise = useMutation(api.trainer.reorderSessionExercise)
+  const removeExercise = useMutation(api.trainer.removeExerciseFromSession)
   const prefetchComments = useAction(api.trainer.prefetchCoachComments)
 
   const [showCitations, setShowCitations] = useState(false)
   const [activeComment, setActiveComment] = useState<CoachComment | null>(null)
   const [isCompleting, setIsCompleting] = useState(false)
-  const [feedback, setFeedback] = useState('')
-  const [feedbackFocused, setFeedbackFocused] = useState(false)
-  const [isSendingFeedback, setIsSendingFeedback] = useState(false)
   const [menuExerciseId, setMenuExerciseId] = useState<string | null>(null)
+  const [journeyVisible, setJourneyVisible] = useState(false)
+
   const hideTimerRef = useRef<TimerHandle | null>(null)
+  const journeyTimerRef = useRef<TimerHandle | null>(null)
   const scheduledTimers = useRef<TimerHandle[]>([])
   const coachQueueRef = useRef<CoachComment[]>([])
   const commentsLoaded = useRef(false)
+  const lastScrollY = useRef(0)
 
   const session = sessionData?.session
-  const sets = sessionData?.sets ?? []
+  const sets = useMemo(() => sessionData?.sets ?? [], [sessionData?.sets])
 
   const planExercises = useMemo<ExercisePlan[]>(() => {
     if (!session) return []
@@ -82,25 +103,26 @@ export default function SessionScreen() {
     }))
   }, [session])
 
-  const totalTargetSets = useMemo(() => {
-    if (!planExercises.length) return 0
-    return planExercises.reduce((acc, ex) => acc + ex.targetSets, 0)
+  const groups = useMemo(() => {
+    if (!planExercises.length) return []
+    return groupPlanByPhase(planExercises)
   }, [planExercises])
 
-  const progress = totalTargetSets
-    ? Math.min(sets.length / totalTargetSets, 1)
-    : 0
-  const progressWidth: PercentString = `${Math.round(progress * 100)}%`
+  const phaseProgress = useMemo(
+    () => computePhaseProgress(planExercises, sets),
+    [planExercises, sets],
+  )
+
+  const totalTargetSets = useMemo(
+    () => planExercises.reduce((acc, ex) => acc + ex.targetSets, 0),
+    [planExercises],
+  )
 
   const displayComment = useCallback((comment: CoachComment) => {
-    if (hideTimerRef.current) {
-      clearTimeout(hideTimerRef.current)
-    }
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
     setActiveComment(comment)
     hideTimerRef.current = setTimeout(
-      () => {
-        setActiveComment(null)
-      },
+      () => setActiveComment(null),
       Math.max((comment.delaySec ?? 5) * 1000, 3500),
     )
   }, [])
@@ -125,17 +147,18 @@ export default function SessionScreen() {
   )
 
   useEffect(() => {
-    const timersRef = scheduledTimers.current
+    const timers = scheduledTimers.current
     return () => {
-      if (hideTimerRef.current) {
-        clearTimeout(hideTimerRef.current)
-      }
-      timersRef.forEach(timer => clearTimeout(timer))
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+      if (journeyTimerRef.current) clearTimeout(journeyTimerRef.current)
+      timers.forEach(timer => clearTimeout(timer))
     }
   }, [])
 
   useEffect(() => {
     if (!session || !onboarding || commentsLoaded.current) return
+    if (session.status !== 'generated' && session.status !== 'in-progress')
+      return
     commentsLoaded.current = true
 
     const profilePayload = {
@@ -159,32 +182,48 @@ export default function SessionScreen() {
       goal: session.goal,
     })
       .then(comments => {
-        const timed = comments.filter(comment => comment.delaySec)
-        const immediate = comments.filter(comment => !comment.delaySec)
+        const timed = comments.filter(c => c.delaySec)
+        const immediate = comments.filter(c => !c.delaySec)
         coachQueueRef.current = immediate
         const startComment = immediate.find(
-          comment => comment.trigger === 'session_start',
+          c => c.trigger === 'session_start',
         )
         if (startComment) {
           displayComment(startComment)
           coachQueueRef.current = coachQueueRef.current.filter(
-            comment => comment.id !== startComment.id,
+            c => c.id !== startComment.id,
           )
         }
         timed.forEach(comment => {
           const timer = setTimeout(
-            () => {
-              displayComment(comment)
-            },
+            () => displayComment(comment),
             (comment.delaySec ?? 0) * 1000,
           )
           scheduledTimers.current.push(timer)
         })
       })
-      .catch(error => {
-        console.error('coach comments error', error)
-      })
+      .catch(err => console.error('coach comments error', err))
   }, [session, onboarding, prefetchComments, displayComment, planExercises])
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const y = event.nativeEvent.contentOffset.y
+      const delta = Math.abs(y - lastScrollY.current)
+      lastScrollY.current = y
+
+      if (delta < SCROLL_THRESHOLD_PX) return
+
+      if (!journeyVisible) setJourneyVisible(true)
+
+      if (journeyTimerRef.current) {
+        clearTimeout(journeyTimerRef.current)
+      }
+      journeyTimerRef.current = setTimeout(() => {
+        setJourneyVisible(false)
+      }, SCROLL_HIDE_DELAY_MS)
+    },
+    [journeyVisible],
+  )
 
   const handleLogSet = useCallback(
     async (exerciseId: string, setIndex: number, payload: SetPayload) => {
@@ -201,20 +240,87 @@ export default function SessionScreen() {
     [logSet, sessionId, triggerComment],
   )
 
-  const handleBeforeSet = useCallback(
-    (exerciseId: string) => {
-      triggerComment('before_set', exerciseId)
+  const handleRemoveSet = useCallback(
+    async (exerciseId: string, setIndex: number) => {
+      if (!sessionId) return
+      await removeSet({ sessionId, exerciseId, setIndex })
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     },
+    [removeSet, sessionId],
+  )
+
+  const handleInsertSetAfter = useCallback(
+    async (exerciseId: string, afterSetIndex: number) => {
+      if (!sessionId) return
+      await insertSetAfter({ sessionId, exerciseId, afterSetIndex })
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    },
+    [insertSetAfter, sessionId],
+  )
+
+  const handleDeleteSetAt = useCallback(
+    async (exerciseId: string, setIndex: number) => {
+      if (!sessionId) return
+      await deleteSetAt({ sessionId, exerciseId, setIndex })
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    },
+    [deleteSetAt, sessionId],
+  )
+
+  const handlePrefetchComment = useCallback(
+    (exerciseId: string) => triggerComment('before_set', exerciseId),
     [triggerComment],
   )
 
-  const handleOpenMenu = useCallback((exercise: ExercisePlan) => {
-    setMenuExerciseId(exercise.id)
+  const handleReposition = useCallback(
+    async (exerciseId: string, direction: 'up' | 'down') => {
+      if (!sessionId) return
+      const currentIndex = planExercises.findIndex(ex => ex.id === exerciseId)
+      if (currentIndex === -1) return
+      const newIndex =
+        direction === 'up'
+          ? Math.max(0, currentIndex - 1)
+          : Math.min(planExercises.length - 1, currentIndex + 1)
+      if (newIndex === currentIndex) return
+      await Haptics.selectionAsync()
+      await reorderExercise({ sessionId, exerciseId, newIndex })
+    },
+    [sessionId, planExercises, reorderExercise],
+  )
+
+  const handleRemove = useCallback(
+    (exerciseId: string, hasSets: boolean) => {
+      if (!sessionId) return
+      const exercise = planExercises.find(ex => ex.id === exerciseId)
+      if (!exercise) return
+      Alert.alert(
+        `Remove ${exercise.name}?`,
+        hasSets
+          ? "This pulls the exercise out and deletes the sets you logged. You can't undo this."
+          : "This pulls the exercise out of today's session.",
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: async () => {
+              await Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Warning,
+              )
+              await removeExercise({ sessionId, exerciseId })
+            },
+          },
+        ],
+      )
+    },
+    [sessionId, planExercises, removeExercise],
+  )
+
+  const handleReplace = useCallback((exerciseId: string) => {
+    setMenuExerciseId(exerciseId)
   }, [])
 
-  const handleCloseMenu = useCallback(() => {
-    setMenuExerciseId(null)
-  }, [])
+  const handleCloseMenu = useCallback(() => setMenuExerciseId(null), [])
 
   const menuExercise = useMemo(
     () => planExercises.find(ex => ex.id === menuExerciseId) ?? null,
@@ -231,28 +337,15 @@ export default function SessionScreen() {
     setIsCompleting(true)
     try {
       await completeSession({ sessionId })
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      await Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Success,
+      )
       router.replace('/')
-    } catch (error) {
-      console.error('complete session error', error)
+    } catch (err) {
+      console.error('complete session error', err)
       setIsCompleting(false)
     }
   }, [sessionId, completeSession, isCompleting])
-
-  const handleSendFeedback = useCallback(async () => {
-    if (!sessionId || !feedback.trim() || isSendingFeedback) return
-    setIsSendingFeedback(true)
-    try {
-      await postFeedback({ sessionId, text: feedback.trim() })
-      setFeedback('')
-      triggerComment('session_end')
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    } catch (error) {
-      console.error('feedback error', error)
-    } finally {
-      setIsSendingFeedback(false)
-    }
-  }, [sessionId, feedback, postFeedback, isSendingFeedback, triggerComment])
 
   if (!sessionId) {
     return (
@@ -311,9 +404,9 @@ export default function SessionScreen() {
             Session generation failed
           </Text>
           <Text
-            style={[styles.failedSubtitle, { color: palette.textSecondary }]}
+            style={[styles.failedBody, { color: palette.textSecondary }]}
           >
-            Something went wrong. Please head back and try again.
+            Something went wrong. Head back and try again.
           </Text>
           <PillButton
             label="Go back"
@@ -325,19 +418,46 @@ export default function SessionScreen() {
     )
   }
 
-  const isGenerating = session.status === 'generating'
-  const hasExercises = planExercises.length > 0
-  const sessionShadow = resolved === 'dark' ? shadows.primaryDark : shadows.primary
+  const sessionShadow =
+    resolved === 'dark' ? shadows.primaryDark : shadows.primary
+  const allSetsLogged =
+    totalTargetSets > 0 && sets.length >= totalTargetSets
 
   return (
+    <GestureHandlerRootView style={styles.safeArea}>
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: palette.bg }]}
       edges={['top']}
     >
-      <View style={[styles.container, { backgroundColor: palette.bg }]}>
-        <View style={styles.topBar}>
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[
+            styles.iconButton,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.border,
+            },
+          ]}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <IconSymbol
+            name="chevron.left"
+            size={20}
+            color={palette.textPrimary}
+          />
+        </TouchableOpacity>
+        <Text
+          style={[styles.topBarTitle, { color: palette.textPrimary }]}
+          numberOfLines={1}
+        >
+          {session.goal}
+        </Text>
+        {session.healthFacts.length > 0 ? (
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => setShowCitations(true)}
             style={[
               styles.iconButton,
               {
@@ -346,405 +466,160 @@ export default function SessionScreen() {
               },
             ]}
             hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Science behind your session"
           >
             <IconSymbol
-              name="chevron.left"
-              size={22}
+              name="book.closed"
+              size={18}
               color={palette.textPrimary}
             />
           </TouchableOpacity>
-          <Text style={[styles.topBarTitle, { color: palette.textPrimary }]} numberOfLines={1}>
-            Session
+        ) : (
+          <View style={styles.iconButton} />
+        )}
+      </View>
+
+      <MovementJourneyBar
+        progress={phaseProgress}
+        visible={journeyVisible}
+        topInset={insets.top + 44}
+      />
+
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={32}
+      >
+        <Animated.View entering={FadeInDown.duration(motion.duration.base)}>
+          <Text style={[styles.sessionTitle, { color: palette.textPrimary }]}>
+            Movement journey
           </Text>
-          {session.healthFacts.length > 0 ? (
-            <TouchableOpacity
-              onPress={() => setShowCitations(true)}
-              style={[
-                styles.iconButton,
-                {
-                  backgroundColor: palette.surface,
-                  borderColor: palette.border,
-                },
-              ]}
-              hitSlop={12}
-            >
-              <IconSymbol
-                name="book.closed"
-                size={20}
-                color={palette.textPrimary}
-              />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.iconButton} />
-          )}
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-        >
-          <Animated.View
-            entering={FadeInDown.duration(motion.duration.base)}
-            style={[
-              styles.heroCard,
-              {
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
-              },
-            ]}
+          <Text
+            style={[styles.sessionMeta, { color: palette.textSecondary }]}
           >
-            <View
-              style={[
-                styles.heroBadge,
-                { backgroundColor: palette.primaryMuted },
-              ]}
-            >
-              <Text style={[styles.heroBadgeText, { color: palette.primary }]}>
-                {isGenerating ? 'BUILDING' : 'TODAY'}
-              </Text>
-            </View>
-            <Text style={[styles.heroTitle, { color: palette.textPrimary }]}>
-              {session.goal}
-            </Text>
-            <Text style={[styles.heroMeta, { color: palette.textSecondary }]}>
-              {isGenerating
-                ? 'Building your personalised session…'
-                : `${session.modality} · ${session.durationMin} min`}
-            </Text>
+            {session.modality} · {session.durationMin} min · {sets.length}/
+            {totalTargetSets} sets
+          </Text>
+        </Animated.View>
 
-            {!isGenerating && (
-              <View
-                style={[
-                  styles.heroStats,
-                  { backgroundColor: palette.surfaceAlt },
-                ]}
-              >
-                <View style={styles.heroStat}>
-                  <Text
-                    style={[styles.heroStatValue, { color: palette.textPrimary }]}
-                  >
-                    {sets.length}
-                  </Text>
-                  <Text
-                    style={[styles.heroStatLabel, { color: palette.textTertiary }]}
-                  >
-                    Sets logged
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.heroStatDivider,
-                    { backgroundColor: palette.border },
-                  ]}
-                />
-                <View style={styles.heroStat}>
-                  <Text
-                    style={[styles.heroStatValue, { color: palette.textPrimary }]}
-                  >
-                    {totalTargetSets}
-                  </Text>
-                  <Text
-                    style={[styles.heroStatLabel, { color: palette.textTertiary }]}
-                  >
-                    Total sets
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.heroStatDivider,
-                    { backgroundColor: palette.border },
-                  ]}
-                />
-                <View style={styles.heroStat}>
-                  <Text
-                    style={[styles.heroStatValue, { color: palette.textPrimary }]}
-                  >
-                    {Math.round(progress * 100)}%
-                  </Text>
-                  <Text
-                    style={[styles.heroStatLabel, { color: palette.textTertiary }]}
-                  >
-                    Done
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {!isGenerating && (
-              <View
-                style={[
-                  styles.progressBar,
-                  { backgroundColor: palette.surfaceAlt },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: progressWidth,
-                      backgroundColor: palette.primary,
-                    },
-                  ]}
-                />
-              </View>
-            )}
-
-            {isGenerating && (
-              <View style={styles.generatingIndicator}>
-                <ActivityIndicator size="small" color={palette.primary} />
+        {groups.map(group =>
+          group.exercises.length === 0 ? null : (
+            <View key={group.phase} style={styles.phaseBlock}>
+              <View style={styles.phaseHeader}>
+                <Text style={styles.phaseEmoji}>
+                  {PHASE_META[group.phase].emoji}
+                </Text>
                 <Text
-                  style={[styles.generatingText, { color: palette.primary }]}
+                  style={[styles.phaseLabel, { color: palette.primary }]}
                 >
-                  {hasExercises
-                    ? `${planExercises.length} exercise${planExercises.length > 1 ? 's' : ''} ready, loading more…`
-                    : 'Creating your exercises…'}
+                  {PHASE_META[group.phase].label}
                 </Text>
               </View>
-            )}
-          </Animated.View>
+              {group.exercises.map(({ exercise, planIndex }) => {
+                const hasSets = sets.some(s => s.exerciseId === exercise.id)
+                return (
+                  <ExerciseTable
+                    key={exercise.id}
+                    exercise={exercise}
+                    sets={sets}
+                    planIndex={planIndex}
+                    planLength={planExercises.length}
+                    hasLoggedSets={hasSets}
+                    showSwipeHint={planIndex === 0}
+                    onSaveSet={(setIndex, payload) =>
+                      handleLogSet(exercise.id, setIndex, payload)
+                    }
+                    onRemoveSet={setIndex =>
+                      handleRemoveSet(exercise.id, setIndex)
+                    }
+                    onInsertSetAfter={afterSetIndex =>
+                      handleInsertSetAfter(exercise.id, afterSetIndex)
+                    }
+                    onDeleteSetAt={setIndex =>
+                      handleDeleteSetAt(exercise.id, setIndex)
+                    }
+                    onPrefetchComment={handlePrefetchComment}
+                    onReplace={() => handleReplace(exercise.id)}
+                    onReposition={direction =>
+                      handleReposition(exercise.id, direction)
+                    }
+                    onRemove={() => handleRemove(exercise.id, hasSets)}
+                  />
+                )
+              })}
+            </View>
+          ),
+        )}
 
-          {planExercises.map(exercise => (
-            <WorkoutCard
-              key={exercise.id}
-              exercise={exercise}
-              sets={sets}
-              onSaveSet={(setIndex, payload) =>
-                handleLogSet(exercise.id, setIndex, payload)
-              }
-              onPrefetchComment={handleBeforeSet}
-              onOpenMenu={handleOpenMenu}
-            />
-          ))}
-
-          {isGenerating && !hasExercises && (
-            <>
-              <SkeletonCard />
-              <SkeletonCard />
-            </>
-          )}
-
+        {session.status === 'generating' ? (
           <View
             style={[
-              styles.feedbackCard,
+              styles.generatingPill,
               {
                 backgroundColor: palette.surface,
                 borderColor: palette.border,
               },
             ]}
           >
-            <Text style={[styles.feedbackTitle, { color: palette.textPrimary }]}>
-              Report back to your coach
-            </Text>
+            <ActivityIndicator size="small" color={palette.primary} />
             <Text
-              style={[styles.feedbackSubtitle, { color: palette.textSecondary }]}
+              style={[styles.generatingText, { color: palette.textSecondary }]}
             >
-              Share pain, energy levels, or medication changes so I can adapt
-              the next block.
+              More moves on the way…
             </Text>
-            <TextInput
-              style={[
-                styles.feedbackInput,
-                {
-                  borderColor: feedbackFocused ? palette.primary : palette.border,
-                  backgroundColor: feedbackFocused
-                    ? palette.surfaceAlt
-                    : palette.bgElevated,
-                  color: palette.textPrimary,
-                },
-              ]}
-              placeholder="Today's wins, flags, or notes"
-              placeholderTextColor={palette.textTertiary}
-              value={feedback}
-              onChangeText={setFeedback}
-              onFocus={() => setFeedbackFocused(true)}
-              onBlur={() => setFeedbackFocused(false)}
-              multiline
-            />
-            <PillButton
-              label={isSendingFeedback ? 'Sending' : 'Send feedback'}
-              onPress={handleSendFeedback}
-              disabled={isSendingFeedback || !feedback.trim()}
-              loading={isSendingFeedback}
-              variant="secondary"
-            />
           </View>
+        ) : null}
 
-          <View style={[styles.completeWrap, sessionShadow]}>
-            <PillButton
-              label={isCompleting ? 'Saving' : 'Complete session'}
-              onPress={handleCompleteSession}
-              disabled={isCompleting}
-              loading={isCompleting}
-            />
-          </View>
-          <View style={{ height: spacing.huge }} />
-        </ScrollView>
+        <View style={{ height: spacing.huge * 2 }} />
+      </ScrollView>
 
-        <CitationsPanel
-          visible={showCitations}
-          facts={session.healthFacts}
-          onClose={() => setShowCitations(false)}
-        />
-        <ExerciseMenuSheet
-          visible={menuExercise !== null}
-          sessionId={sessionId}
-          exercise={menuExercise}
-          plan={planExercises}
-          hasLoggedSets={menuExerciseHasSets}
-          onClose={handleCloseMenu}
-        />
-        <CoachBubble comment={activeComment} />
+      <View
+        style={[
+          styles.footer,
+          { backgroundColor: palette.bg, borderTopColor: palette.divider },
+        ]}
+      >
+        <View style={sessionShadow}>
+          <PillButton
+            label={
+              isCompleting
+                ? 'Saving'
+                : allSetsLogged
+                  ? 'Finish session'
+                  : 'Complete session'
+            }
+            onPress={handleCompleteSession}
+            disabled={isCompleting}
+            loading={isCompleting}
+          />
+        </View>
       </View>
-    </SafeAreaView>
-  )
-}
 
-function SkeletonCard() {
-  const { palette } = useTheme()
-  return (
-    <View
-      style={[
-        styles.skeletonCard,
-        { backgroundColor: palette.surface, borderColor: palette.border },
-      ]}
-    >
-      <View
-        style={[
-          styles.skeletonTitle,
-          { backgroundColor: palette.surfaceAlt },
-        ]}
+      <CitationsPanel
+        visible={showCitations}
+        facts={session.healthFacts}
+        onClose={() => setShowCitations(false)}
       />
-      <View
-        style={[styles.skeletonBody, { backgroundColor: palette.surfaceAlt }]}
+      <ExerciseMenuSheet
+        visible={menuExercise !== null}
+        sessionId={sessionId}
+        exercise={menuExercise}
+        plan={planExercises}
+        hasLoggedSets={menuExerciseHasSets}
+        onClose={handleCloseMenu}
+        initialMode="replace"
       />
-      <View
-        style={[
-          styles.skeletonBody,
-          { width: '70%', backgroundColor: palette.surfaceAlt },
-        ]}
-      />
-    </View>
+      <CoachBubble comment={activeComment} />
+    </SafeAreaView>
+    </GestureHandlerRootView>
   )
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-  },
-  iconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    ...typography.bodyStrong,
-  },
-  scroll: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.huge,
-  },
-  heroCard: {
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-  },
-  heroBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    marginBottom: spacing.md,
-  },
-  heroBadgeText: {
-    ...typography.caption,
-  },
-  heroTitle: {
-    ...typography.h1,
-  },
-  heroMeta: {
-    ...typography.body,
-    marginTop: spacing.xs,
-    marginBottom: spacing.lg,
-  },
-  heroStats: {
-    flexDirection: 'row',
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  heroStat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  heroStatValue: {
-    ...typography.h2,
-  },
-  heroStatLabel: {
-    ...typography.caption,
-    marginTop: 2,
-  },
-  heroStatDivider: {
-    width: StyleSheet.hairlineWidth,
-  },
-  progressBar: {
-    height: 8,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  generatingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  generatingText: {
-    ...typography.smallStrong,
-  },
-  feedbackCard: {
-    borderWidth: 1,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-  },
-  feedbackTitle: {
-    ...typography.h3,
-    marginBottom: spacing.xs,
-  },
-  feedbackSubtitle: {
-    ...typography.small,
-    marginBottom: spacing.md,
-  },
-  feedbackInput: {
-    minHeight: 90,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    padding: spacing.md,
-    ...typography.body,
-    marginBottom: spacing.md,
-    textAlignVertical: 'top',
-  },
-  completeWrap: {
-    marginTop: spacing.sm,
   },
   centered: {
     flex: 1,
@@ -754,6 +629,81 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.body,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBarTitle: {
+    flex: 1,
+    ...typography.bodyStrong,
+    textAlign: 'center',
+  },
+  scroll: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.huge + 80,
+  },
+  sessionTitle: {
+    ...typography.h1,
+    marginBottom: spacing.xs,
+  },
+  sessionMeta: {
+    ...typography.small,
+    marginBottom: spacing.lg,
+  },
+  phaseBlock: {
+    marginBottom: spacing.xs,
+  },
+  phaseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  phaseEmoji: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  phaseLabel: {
+    ...typography.h3,
+    fontSize: 18,
+  },
+  generatingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  generatingText: {
+    ...typography.small,
+  },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   failedIcon: {
     width: 72,
@@ -768,27 +718,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
-  failedSubtitle: {
+  failedBody: {
     ...typography.body,
     textAlign: 'center',
     marginBottom: spacing.xxl,
-  },
-  skeletonCard: {
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-  },
-  skeletonTitle: {
-    width: '60%',
-    height: 22,
-    borderRadius: radius.sm,
-    marginBottom: spacing.md,
-  },
-  skeletonBody: {
-    width: '100%',
-    height: 14,
-    borderRadius: radius.xs,
-    marginBottom: spacing.sm,
   },
 })

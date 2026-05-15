@@ -274,7 +274,7 @@ export default function CheckInScreen() {
 
       if (result.sessionId) {
         const sessionHref = {
-          pathname: '/session',
+          pathname: '/session/ready',
           params: { sessionId: String(result.sessionId) },
         } as unknown as Href
         router.replace(sessionHref)

@@ -2,7 +2,6 @@ import { useAction, useMutation } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import React, { useEffect, useState } from 'react'
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,7 +12,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated'
+import Animated, {
+  Easing,
+  SlideInDown,
+  SlideOutDown,
+} from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { IconSymbol } from '@/components/ui/icon-symbol'
@@ -34,6 +37,7 @@ type ExerciseMenuSheetProps = {
   plan: ExercisePlan[]
   hasLoggedSets: boolean
   onClose: () => void
+  initialMode?: Mode
 }
 
 const truncate = (value: string, max: number) =>
@@ -46,6 +50,7 @@ export default function ExerciseMenuSheet({
   plan,
   hasLoggedSets,
   onClose,
+  initialMode = 'main',
 }: ExerciseMenuSheetProps) {
   const { palette, shadows } = useTheme()
   const insets = useSafeAreaInsets()
@@ -57,7 +62,7 @@ export default function ExerciseMenuSheet({
   const removeExercise = useMutation(api.trainer.removeExerciseFromSession)
   const reorderExercise = useMutation(api.trainer.reorderSessionExercise)
 
-  const [mode, setMode] = useState<Mode>('main')
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [prompt, setPrompt] = useState('')
   const [alternatives, setAlternatives] = useState<ExercisePlan[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
@@ -68,7 +73,7 @@ export default function ExerciseMenuSheet({
 
   useEffect(() => {
     if (!visible) {
-      setMode('main')
+      setMode(initialMode)
       setPrompt('')
       setAlternatives([])
       setIsGenerating(false)
@@ -77,7 +82,7 @@ export default function ExerciseMenuSheet({
       setIsRemoving(false)
       setErrorMessage(null)
     }
-  }, [visible])
+  }, [visible, initialMode])
 
   if (!visible || !exercise) return null
 
@@ -594,8 +599,12 @@ export default function ExerciseMenuSheet({
         pointerEvents="box-none"
       >
         <Animated.View
-          entering={SlideInDown.springify().damping(20)}
-          exiting={SlideOutDown}
+          entering={SlideInDown.duration(280).easing(
+            Easing.bezier(0.22, 1, 0.36, 1),
+          )}
+          exiting={SlideOutDown.duration(220).easing(
+            Easing.bezier(0.4, 0, 1, 1),
+          )}
           style={[
             styles.panel,
             shadows.lg,

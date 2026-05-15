@@ -172,6 +172,9 @@ When working on this project:
 - Avoid manual refresh buttons when the UI can refetch on its own; prefer automatic, data-driven updates.
 - Keep home-screen stat and insight cards at a uniform size and never let their text clip; pick a layout that fits the longest entry.
 - Settings must offer both a regular sign-out (data preserved) and a confirmation-gated delete-account action that wipes only the current user's records.
+- Surface the log-session-style layout at the top of the home screen; coach-assisted is the primary path into the guided session-build flow that used to sit behind "build today's session," so omit a redundant standalone "build today's session" control when that layout is present.
+- On the active session / workout builder, reveal each exercise as soon as it is ready instead of waiting for the whole list before showing anything; give each row a compact menu to remove an exercise, replace it (pick from the library or tell the trainer what to substitute), or move it immediately before or after another exercise in the order.
+- When the user completes a session, navigate them back to the home screen.
 
 ## Learned Workspace Facts
 

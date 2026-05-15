@@ -679,6 +679,42 @@ export const reorderSessionExercise = mutation({
   },
 })
 
+// Reorder the plan to match a caller-supplied ordering of exercise ids.
+// Drag-to-reorder UIs commit the entire phase's new order in one call so
+// neighbour items animate to their final spots without intermediate flicker.
+export const reorderSessionPlan = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    orderedIds: v.array(v.string()),
+  },
+  handler: async (ctx, { sessionId, orderedIds }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const session = await ctx.db.get(sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+
+    if (orderedIds.length !== session.plan.length) return
+
+    const byId = new Map(session.plan.map((ex) => [ex.id, ex]))
+    const newPlan: typeof session.plan = []
+    for (const id of orderedIds) {
+      const exercise = byId.get(id)
+      if (!exercise) return
+      newPlan.push(exercise)
+    }
+
+    await ctx.db.patch(sessionId, {
+      plan: newPlan,
+      updatedAt: Date.now(),
+    })
+  },
+})
+
 // Replace one exercise in a session with a new one. When the new exercise
 // has a different id, any sets logged against the old exercise are removed.
 export const replaceExerciseInSession = mutation({
@@ -1008,6 +1044,126 @@ export const logSet = mutation({
           { userId: identity.subject }
         )
       }
+    }
+  },
+})
+
+// Remove a single logged set. Defaults to deleting the highest-indexed
+// set for the exercise, which mirrors the "− Remove set" affordance in the
+// movement journey UI (it always trims the trailing extra row the user
+// added). Pass `setIndex` explicitly to delete a specific set.
+export const removeSet = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    exerciseId: v.string(),
+    setIndex: v.optional(v.number()),
+  },
+  handler: async (ctx, { sessionId, exerciseId, setIndex }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const session = await ctx.db.get(sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+
+    const exerciseSets = await ctx.db
+      .query('workout_sets')
+      .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
+      .collect()
+      .then((rows) => rows.filter((set) => set.exerciseId === exerciseId))
+
+    if (exerciseSets.length === 0) return
+
+    const target =
+      setIndex != null
+        ? exerciseSets.find((set) => set.setIndex === setIndex)
+        : exerciseSets.reduce((highest, set) =>
+            set.setIndex > highest.setIndex ? set : highest,
+          )
+
+    if (!target) return
+
+    await ctx.db.delete(target._id)
+  },
+})
+
+// Make room for a new set right after `afterSetIndex`. Any logged sets
+// with a higher index get bumped up by one so the inserted row appears
+// in the gap. Idempotent — a no-op when no sets need shifting.
+export const insertSetAfter = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    exerciseId: v.string(),
+    afterSetIndex: v.number(),
+  },
+  handler: async (ctx, { sessionId, exerciseId, afterSetIndex }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const session = await ctx.db.get(sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+
+    const exerciseSets = await ctx.db
+      .query('workout_sets')
+      .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
+      .collect()
+      .then((rows) => rows.filter((set) => set.exerciseId === exerciseId))
+
+    // Shift descending so we never collide with an existing index mid-loop.
+    const toShift = exerciseSets
+      .filter((set) => set.setIndex > afterSetIndex)
+      .sort((a, b) => b.setIndex - a.setIndex)
+
+    for (const set of toShift) {
+      await ctx.db.patch(set._id, { setIndex: set.setIndex + 1 })
+    }
+  },
+})
+
+// Delete the set at `setIndex` and compact subsequent sets down by one
+// so rows don't leave gaps after a swipe-to-delete. Safe when the row
+// has no logged data (just performs the shift).
+export const deleteSetAt = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    exerciseId: v.string(),
+    setIndex: v.number(),
+  },
+  handler: async (ctx, { sessionId, exerciseId, setIndex }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const session = await ctx.db.get(sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+
+    const exerciseSets = await ctx.db
+      .query('workout_sets')
+      .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
+      .collect()
+      .then((rows) => rows.filter((set) => set.exerciseId === exerciseId))
+
+    const target = exerciseSets.find((set) => set.setIndex === setIndex)
+    if (target) {
+      await ctx.db.delete(target._id)
+    }
+
+    const toShift = exerciseSets
+      .filter((set) => set.setIndex > setIndex)
+      .sort((a, b) => a.setIndex - b.setIndex)
+
+    for (const set of toShift) {
+      await ctx.db.patch(set._id, { setIndex: set.setIndex - 1 })
     }
   },
 })

@@ -82,6 +82,14 @@ const MAPPING = {
   'figure.yoga': 'self-improvement',
   'wind': 'air',
   'lungs.fill': 'air',
+  'line.3.horizontal': 'drag-handle',
+  'line.horizontal.3': 'drag-handle',
+  'figure.walk': 'directions-walk',
+  'bicycle': 'pedal-bike',
+  'stopwatch': 'timer',
+  'lightbulb': 'lightbulb-outline',
+  'lightbulb.fill': 'lightbulb',
+  'eye': 'visibility',
 } as IconMapping;
 
 /**

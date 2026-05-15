@@ -83,6 +83,13 @@ function ThemedNavigation() {
           }}
         />
         <Stack.Screen
+          name="session/ready"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
           name="settings"
           options={{
             presentation: 'modal',
@@ -96,6 +103,13 @@ function ThemedNavigation() {
             presentation: 'modal',
             headerShown: false,
             animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="build-workout"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
           }}
         />
       </Stack>

@@ -26,6 +26,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated'
 import { computeCycleStatus, type CyclePhase } from '@/convex/cycle'
+import { StartMovementCard } from './start-movement-card'
 import { WeeklyInsightsSection } from './weekly-insights'
 
 const CYCLE_PHASE_LABEL: Record<CyclePhase, string> = {
@@ -67,6 +68,8 @@ type TodayState =
       kind: 'ready' | 'in-progress' | 'completed'
       session: NonNullable<TodaysSession>
     }
+
+type TodayCardState = Exclude<TodayState, { kind: 'needs-checkin' }>
 
 function deriveTodayState(
   checkin: TodaysCheckin,
@@ -116,9 +119,12 @@ export default function HomeContent() {
   const state = deriveTodayState(todaysCheckin, todaysSession)
 
   const navigateToSession = useCallback(
-    (sessionId: Id<'workout_sessions'>) => {
+    (
+      sessionId: Id<'workout_sessions'>,
+      destination: 'ready' | 'logging' = 'logging',
+    ) => {
       const sessionHref = {
-        pathname: '/session',
+        pathname: destination === 'ready' ? '/session/ready' : '/session',
         params: { sessionId: String(sessionId) },
       } as unknown as Href
       router.push(sessionHref)
@@ -131,17 +137,18 @@ export default function HomeContent() {
 
     switch (state.kind) {
       case 'loading':
-        return
       case 'needs-checkin':
-        router.push('/checkin')
         return
       case 'generating':
-      case 'ready':
-      case 'in-progress':
-      case 'completed': {
+      case 'ready': {
         const sessionId =
           state.kind === 'generating' ? state.sessionId : state.session._id
-        navigateToSession(sessionId)
+        navigateToSession(sessionId, 'ready')
+        return
+      }
+      case 'in-progress':
+      case 'completed': {
+        navigateToSession(state.session._id, 'logging')
         return
       }
       case 'checkin-orphan': {
@@ -149,7 +156,7 @@ export default function HomeContent() {
         setIsRecoveringSession(true)
         try {
           const sessionId = await startSessionFromCheckin({})
-          navigateToSession(sessionId)
+          navigateToSession(sessionId, 'ready')
         } catch (error) {
           console.error('Failed to start session from check-in', error)
           await Haptics.notificationAsync(
@@ -162,6 +169,14 @@ export default function HomeContent() {
       }
     }
   }, [state, navigateToSession, startSessionFromCheckin, isRecoveringSession])
+
+  const handleAskCoach = useCallback(() => {
+    router.push('/checkin')
+  }, [])
+
+  const handleStartMyOwn = useCallback(() => {
+    router.push('/build-workout' as Href)
+  }, [])
 
   const handleUpdateCheckIn = useCallback(() => {
     Haptics.selectionAsync()
@@ -260,11 +275,18 @@ export default function HomeContent() {
         <Animated.View
           entering={FadeInDown.delay(HEADER_DELAY + STAGGER).duration(motion.duration.base)}
         >
-          <TodayCard
-            state={state}
-            isRecovering={isRecoveringSession}
-            onPress={handleTodayPress}
-          />
+          {state.kind === 'needs-checkin' ? (
+            <StartMovementCard
+              onAskCoach={handleAskCoach}
+              onStartMyOwn={handleStartMyOwn}
+            />
+          ) : (
+            <TodayCard
+              state={state}
+              isRecovering={isRecoveringSession}
+              onPress={handleTodayPress}
+            />
+          )}
         </Animated.View>
 
         {todaysCheckin && (
@@ -360,7 +382,7 @@ export default function HomeContent() {
 }
 
 interface TodayCardProps {
-  state: TodayState
+  state: TodayCardState
   isRecovering: boolean
   onPress: () => void
 }
@@ -377,7 +399,10 @@ interface CardContent {
   progress?: number
 }
 
-function getCardContent(state: TodayState, isRecovering: boolean): CardContent {
+function getCardContent(
+  state: TodayCardState,
+  isRecovering: boolean,
+): CardContent {
   switch (state.kind) {
     case 'loading':
       return {
@@ -387,15 +412,6 @@ function getCardContent(state: TodayState, isRecovering: boolean): CardContent {
         subtitle: 'Fetching your day',
         iconName: 'sparkles',
         showSpinner: true,
-      }
-    case 'needs-checkin':
-      return {
-        variant: 'primary',
-        label: 'TODAY',
-        title: 'Build today\u2019s session',
-        subtitle: '4 quick questions, then your workout',
-        iconName: 'sparkles',
-        showSpinner: false,
       }
     case 'checkin-orphan':
       return {
