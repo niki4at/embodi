@@ -27,6 +27,11 @@ import Animated, {
 } from 'react-native-reanimated'
 import { computeCycleStatus, type CyclePhase } from '@/convex/cycle'
 import { StartMovementCard } from './start-movement-card'
+import {
+  deriveTodayState,
+  shouldShowStartMovementCard,
+  type TodayCardState,
+} from './today-state'
 import { WeeklyInsightsSection } from './weekly-insights'
 
 const CYCLE_PHASE_LABEL: Record<CyclePhase, string> = {
@@ -39,62 +44,6 @@ const CYCLE_PHASE_LABEL: Record<CyclePhase, string> = {
 
 const HEADER_DELAY = 0
 const STAGGER = 70
-
-type TodaysCheckin = {
-  _id: Id<'daily_checkins'>
-  energyLevel: number
-  painLevel: number
-  timeAvailable: string
-  workoutType: string
-} | null | undefined
-
-type TodaysSession = {
-  _id: Id<'workout_sessions'>
-  status: 'generating' | 'generated' | 'in-progress' | 'completed' | 'failed'
-  goal: string
-  modality: string
-  durationMin: number
-  planCount: number
-  setsLogged: number
-  totalTargetSets: number
-} | null | undefined
-
-type TodayState =
-  | { kind: 'loading' }
-  | { kind: 'needs-checkin' }
-  | { kind: 'checkin-orphan' }
-  | { kind: 'generating'; sessionId: Id<'workout_sessions'> }
-  | {
-      kind: 'ready' | 'in-progress' | 'completed'
-      session: NonNullable<TodaysSession>
-    }
-
-type TodayCardState = Exclude<TodayState, { kind: 'needs-checkin' }>
-
-function deriveTodayState(
-  checkin: TodaysCheckin,
-  session: TodaysSession,
-): TodayState {
-  if (checkin === undefined || session === undefined) {
-    return { kind: 'loading' }
-  }
-  if (session) {
-    if (session.status === 'generating') {
-      return { kind: 'generating', sessionId: session._id }
-    }
-    if (session.status === 'in-progress') {
-      return { kind: 'in-progress', session }
-    }
-    if (session.status === 'completed') {
-      return { kind: 'completed', session }
-    }
-    return { kind: 'ready', session }
-  }
-  if (checkin) {
-    return { kind: 'checkin-orphan' }
-  }
-  return { kind: 'needs-checkin' }
-}
 
 export default function HomeContent() {
   const { palette, resolved, toggle } = useTheme()
@@ -275,7 +224,7 @@ export default function HomeContent() {
         <Animated.View
           entering={FadeInDown.delay(HEADER_DELAY + STAGGER).duration(motion.duration.base)}
         >
-          {state.kind === 'needs-checkin' ? (
+          {shouldShowStartMovementCard(state) ? (
             <StartMovementCard
               onAskCoach={handleAskCoach}
               onStartMyOwn={handleStartMyOwn}
@@ -457,15 +406,6 @@ function getCardContent(
         progress: pct,
       }
     }
-    case 'completed':
-      return {
-        variant: 'success',
-        label: 'DONE TODAY',
-        title: 'Session complete',
-        subtitle: 'View your recap and notes',
-        iconName: 'checkmark',
-        showSpinner: false,
-      }
   }
 }
 
