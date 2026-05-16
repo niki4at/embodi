@@ -24,10 +24,9 @@ export type TodayState =
   | { kind: 'needs-checkin' }
   | { kind: 'checkin-orphan' }
   | { kind: 'generating'; sessionId: Id<'workout_sessions'> }
-  | {
-      kind: 'ready' | 'in-progress' | 'completed'
-      session: NonNullable<TodaysSession>
-    }
+  | { kind: 'ready'; session: NonNullable<TodaysSession> }
+  | { kind: 'in-progress'; session: NonNullable<TodaysSession> }
+  | { kind: 'completed'; session: NonNullable<TodaysSession> }
 
 export type StartMovementCardState = Extract<
   TodayState,
