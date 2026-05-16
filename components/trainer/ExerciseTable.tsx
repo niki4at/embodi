@@ -23,6 +23,12 @@ import Animated, {
   FadeIn,
   FadeOut,
   LinearTransition,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated'
 
 import { IconSymbol } from '@/components/ui/icon-symbol'
@@ -555,11 +561,7 @@ function SwipeableRow({
             { backgroundColor: palette.successMuted },
           ]}
         >
-          <View
-            style={[styles.swipeActionIcon, { backgroundColor: palette.success }]}
-          >
-            <IconSymbol name="plus" size={14} color={palette.white} />
-          </View>
+          <IconSymbol name="plus" size={18} color={palette.success} />
           <Text style={[styles.swipeActionLabel, { color: palette.success }]}>
             Add set
           </Text>
@@ -575,11 +577,7 @@ function SwipeableRow({
             <Text style={[styles.swipeActionLabel, { color: palette.danger }]}>
               Delete
             </Text>
-            <View
-              style={[styles.swipeActionIcon, { backgroundColor: palette.danger }]}
-            >
-              <IconSymbol name="trash" size={14} color={palette.white} />
-            </View>
+            <IconSymbol name="trash" size={18} color={palette.danger} />
           </View>
         ) : (
           <View style={styles.swipeBackdropHalf} />
@@ -693,6 +691,32 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
   )
   const [isSaving, setIsSaving] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
+  const [primaryFocused, setPrimaryFocused] = useState(false)
+  const [secondaryFocused, setSecondaryFocused] = useState(false)
+
+  const completedProgress = useSharedValue(completed ? 1 : 0)
+  const pulse = useSharedValue(1)
+  const prevCompletedRef = useRef(completed)
+
+  useEffect(() => {
+    completedProgress.value = withTiming(completed ? 1 : 0, { duration: 240 })
+    if (completed && !prevCompletedRef.current) {
+      pulse.value = withSequence(
+        withTiming(1.025, { duration: 110 }),
+        withSpring(1, { damping: 9, stiffness: 260, mass: 0.4 }),
+      )
+    }
+    prevCompletedRef.current = completed
+  }, [completed, completedProgress, pulse])
+
+  const rowAnimatedStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      completedProgress.value,
+      [0, 1],
+      [palette.bgElevated, palette.successSolid],
+    ),
+    transform: [{ scale: pulse.value }],
+  }))
 
   useImperativeHandle(
     ref,
@@ -773,16 +797,7 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
   return (
     <Animated.View
       layout={LinearTransition.duration(180)}
-      style={[
-        styles.rowBlock,
-        { backgroundColor: palette.bgElevated },
-        completed
-          ? { backgroundColor: palette.successMuted }
-          : null,
-        isOpen
-          ? { backgroundColor: palette.surfaceAlt }
-          : null,
-      ]}
+      style={[styles.rowBlock, rowAnimatedStyle]}
     >
       <Pressable onPress={onToggle} style={styles.row}>
         <Text style={[styles.cellSet, { color: palette.textPrimary }]}>
@@ -795,43 +810,33 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
           {previousLabel}
         </Text>
         <TextInput
-          style={[
-            styles.cellInput,
-            {
-              color: palette.textPrimary,
-              backgroundColor: palette.bgElevated,
-              borderColor: isOpen ? palette.primary : palette.border,
-            },
-          ]}
+          style={[styles.cellInput, { color: palette.textPrimary }]}
           value={primary}
           onChangeText={setPrimary}
-          placeholder={columns.primaryPlaceholder}
+          placeholder={primaryFocused ? '' : columns.primaryPlaceholder}
           placeholderTextColor={palette.textMuted}
           keyboardType={
             columns.primaryKey === 'notes' ? 'default' : 'numeric'
           }
           onFocus={() => {
+            setPrimaryFocused(true)
             if (!isOpen) onToggle()
           }}
+          onBlur={() => setPrimaryFocused(false)}
         />
         {columns.secondaryLabel ? (
           <TextInput
-            style={[
-              styles.cellInput,
-              {
-                color: palette.textPrimary,
-                backgroundColor: palette.bgElevated,
-                borderColor: isOpen ? palette.primary : palette.border,
-              },
-            ]}
+            style={[styles.cellInput, { color: palette.textPrimary }]}
             value={secondary}
             onChangeText={setSecondary}
-            placeholder={columns.secondaryPlaceholder}
+            placeholder={secondaryFocused ? '' : columns.secondaryPlaceholder}
             placeholderTextColor={palette.textMuted}
             keyboardType="numeric"
             onFocus={() => {
+              setSecondaryFocused(true)
               if (!isOpen) onToggle()
             }}
+            onBlur={() => setSecondaryFocused(false)}
           />
         ) : (
           <View style={styles.cellInput} />
@@ -844,24 +849,18 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
           accessibilityState={{ checked: completed, disabled: isSaving || isClearing }}
           onPress={completed ? handleClear : handleSave}
           disabled={isSaving || isClearing || (completed && !onClear)}
-          style={[
-            styles.cellCheck,
-            {
-              backgroundColor: completed ? palette.success : 'transparent',
-              borderColor: completed ? palette.success : palette.border,
-            },
-          ]}
+          style={styles.cellCheck}
         >
           {isSaving || isClearing ? (
             <ActivityIndicator
               size="small"
-              color={completed ? palette.white : palette.primary}
+              color={completed ? palette.success : palette.primary}
             />
           ) : (
             <IconSymbol
               name="checkmark"
-              size={14}
-              color={completed ? palette.white : palette.textTertiary}
+              size={completed ? 20 : 16}
+              color={completed ? palette.success : palette.textMuted}
             />
           )}
         </Pressable>
@@ -1120,7 +1119,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   headCellCheck: {
-    width: 30,
+    width: 34,
   },
   rowBlock: {
     borderRadius: radius.sm,
@@ -1144,19 +1143,17 @@ const styles = StyleSheet.create({
   },
   cellInput: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: radius.sm,
     paddingVertical: 8,
-    paddingHorizontal: spacing.xs,
+    paddingHorizontal: 0,
     textAlign: 'center',
+    textAlignVertical: 'center',
+    backgroundColor: 'transparent',
     ...typography.bodyStrong,
     fontSize: 14,
   },
   cellCheck: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1,
+    width: 34,
+    height: 34,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1227,13 +1224,6 @@ const styles = StyleSheet.create({
   },
   swipeSpacer: {
     width: SWIPE_SPACER_WIDTH,
-  },
-  swipeActionIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   swipeActionLabel: {
     ...typography.smallStrong,

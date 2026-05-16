@@ -38,6 +38,7 @@ export const lightPalette = {
 
   success: '#22C55E',
   successMuted: 'rgba(34, 197, 94, 0.16)',
+  successSolid: '#DCF6E5',
   warning: '#F59E0B',
   warningMuted: 'rgba(245, 158, 11, 0.18)',
   danger: '#FF6B6B',
@@ -88,6 +89,7 @@ export const darkPalette = {
 
   success: '#34D399',
   successMuted: 'rgba(52, 211, 153, 0.18)',
+  successSolid: '#1B3A37',
   warning: '#FBBF24',
   warningMuted: 'rgba(251, 191, 36, 0.18)',
   danger: '#FF7A7A',
