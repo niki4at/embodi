@@ -10,6 +10,9 @@ import React, {
 } from 'react'
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -45,11 +48,13 @@ type ExerciseTableProps = {
   planLength: number
   hasLoggedSets: boolean
   showSwipeHint?: boolean
+  exerciseNotes?: string
   onSaveSet: (setIndex: number, payload: SetPayload) => Promise<void>
   onRemoveSet?: (setIndex: number) => Promise<void>
   onInsertSetAfter?: (afterSetIndex: number) => Promise<void>
   onDeleteSetAt?: (setIndex: number) => Promise<void>
   onPrefetchComment?: (exerciseId: string) => void
+  onSaveExerciseNotes?: (notes: string) => Promise<void> | void
   onReplace?: () => void
   onReposition?: (direction: 'up' | 'down') => void
   onRemove?: () => void
@@ -66,6 +71,9 @@ type ColumnConfig = {
   secondaryLabel: string | null
   secondaryPlaceholder: string
   secondaryKey: keyof SetPayload | null
+  tertiaryLabel: string | null
+  tertiaryPlaceholder: string
+  tertiaryKey: keyof SetPayload | null
 }
 
 const COLUMN_CONFIG: Record<TrackingMetric, ColumnConfig> = {
@@ -76,6 +84,9 @@ const COLUMN_CONFIG: Record<TrackingMetric, ColumnConfig> = {
     secondaryLabel: 'REPS',
     secondaryPlaceholder: '—',
     secondaryKey: 'reps',
+    tertiaryLabel: 'RPE',
+    tertiaryPlaceholder: '—',
+    tertiaryKey: 'rpe',
   },
   duration: {
     primaryLabel: 'SEC',
@@ -84,6 +95,9 @@ const COLUMN_CONFIG: Record<TrackingMetric, ColumnConfig> = {
     secondaryLabel: 'RPE',
     secondaryPlaceholder: '—',
     secondaryKey: 'rpe',
+    tertiaryLabel: null,
+    tertiaryPlaceholder: '',
+    tertiaryKey: null,
   },
   distance: {
     primaryLabel: 'M',
@@ -92,6 +106,9 @@ const COLUMN_CONFIG: Record<TrackingMetric, ColumnConfig> = {
     secondaryLabel: 'RPE',
     secondaryPlaceholder: '—',
     secondaryKey: 'rpe',
+    tertiaryLabel: null,
+    tertiaryPlaceholder: '',
+    tertiaryKey: null,
   },
   breath: {
     primaryLabel: 'COUNT',
@@ -100,6 +117,9 @@ const COLUMN_CONFIG: Record<TrackingMetric, ColumnConfig> = {
     secondaryLabel: null,
     secondaryPlaceholder: '',
     secondaryKey: null,
+    tertiaryLabel: null,
+    tertiaryPlaceholder: '',
+    tertiaryKey: null,
   },
   custom: {
     primaryLabel: 'NOTES',
@@ -108,6 +128,9 @@ const COLUMN_CONFIG: Record<TrackingMetric, ColumnConfig> = {
     secondaryLabel: null,
     secondaryPlaceholder: '',
     secondaryKey: null,
+    tertiaryLabel: null,
+    tertiaryPlaceholder: '',
+    tertiaryKey: null,
   },
 }
 
@@ -148,18 +171,52 @@ export default function ExerciseTable({
   planLength,
   hasLoggedSets,
   showSwipeHint,
+  exerciseNotes,
   onSaveSet,
   onRemoveSet,
   onInsertSetAfter,
   onDeleteSetAt,
   onPrefetchComment,
+  onSaveExerciseNotes,
   onReplace,
   onReposition,
   onRemove,
 }: ExerciseTableProps) {
   const { palette } = useTheme()
-  const [expanded, setExpanded] = useState(false)
-  const [openSetIndex, setOpenSetIndex] = useState<number | null>(null)
+  // Two independent disclosures: info (instructions/cues/equipment) is
+  // opened by tapping the exercise name; actions (Notes / Replace / Move /
+  // Remove) live behind the chevron.
+  const [infoOpen, setInfoOpen] = useState(false)
+  const [actionsOpen, setActionsOpen] = useState(false)
+  const [notesOpen, setNotesOpen] = useState(false)
+  const [notesDraft, setNotesDraft] = useState(exerciseNotes ?? '')
+  const [savingNotes, setSavingNotes] = useState(false)
+
+  const hasNotes = (exerciseNotes ?? '').trim().length > 0
+
+  useEffect(() => {
+    if (!notesOpen) setNotesDraft(exerciseNotes ?? '')
+  }, [exerciseNotes, notesOpen])
+
+  const openNotes = useCallback(() => {
+    setNotesDraft(exerciseNotes ?? '')
+    setNotesOpen(true)
+  }, [exerciseNotes])
+
+  const closeNotes = useCallback(() => {
+    setNotesOpen(false)
+  }, [])
+
+  const saveNotes = useCallback(async () => {
+    if (savingNotes) return
+    setSavingNotes(true)
+    try {
+      await Promise.resolve(onSaveExerciseNotes?.(notesDraft.trim()))
+      setNotesOpen(false)
+    } finally {
+      setSavingNotes(false)
+    }
+  }, [notesDraft, onSaveExerciseNotes, savingNotes])
 
   const columns = COLUMN_CONFIG[exercise.trackingMetric]
 
@@ -167,8 +224,6 @@ export default function ExerciseTable({
     () => sets.filter(s => s.exerciseId === exercise.id),
     [sets, exercise.id],
   )
-
-  const completedCount = exerciseSets.length
 
   const maxLoggedSetIndex = useMemo(
     () =>
@@ -211,17 +266,16 @@ export default function ExerciseTable({
   }, [maxLoggedSetIndex, slots.length, exercise.id])
 
   const rowCount = slots.length
-  const handleToggleExpand = () => {
-    setExpanded(prev => !prev)
-  }
+  const handleToggleInfo = useCallback(() => {
+    setInfoOpen(prev => !prev)
+  }, [])
+  const handleToggleActions = useCallback(() => {
+    setActionsOpen(prev => !prev)
+  }, [])
 
-  const handleToggleRow = useCallback(
-    (setNumber: number) => {
-      setOpenSetIndex(prev => (prev === setNumber ? null : setNumber))
-      onPrefetchComment?.(exercise.id)
-    },
-    [exercise.id, onPrefetchComment],
-  )
+  const handlePrefetchComment = useCallback(() => {
+    onPrefetchComment?.(exercise.id)
+  }, [exercise.id, onPrefetchComment])
 
   const registerRowRef = useCallback(
     (slotKey: string) => (handle: SetRowHandle | null) => {
@@ -270,12 +324,6 @@ export default function ExerciseTable({
         delete next[slotKey]
         return next
       })
-      setOpenSetIndex(prev => {
-        if (prev == null) return prev
-        if (prev === setNumber) return null
-        // Anything below the deleted row just shifted up by one.
-        return prev > setNumber ? prev - 1 : prev
-      })
       if (onDeleteSetAt) {
         await onDeleteSetAt(setNumber).catch(() => {})
       }
@@ -294,21 +342,33 @@ export default function ExerciseTable({
         },
       ]}
     >
-      <Pressable onPress={handleToggleExpand} style={styles.header}>
-        <View style={styles.headerText}>
+      <View style={styles.header}>
+        <Pressable
+          onPress={handleToggleInfo}
+          accessibilityRole="button"
+          accessibilityLabel={
+            infoOpen ? 'Hide exercise details' : 'Show exercise details'
+          }
+          style={styles.headerText}
+        >
           <Text style={[styles.title, { color: palette.primary }]}>
             {exercise.name}
           </Text>
-          {expanded ? null : (
+          {infoOpen ? null : (
             <Text
               style={[styles.subtitle, { color: palette.textTertiary }]}
               numberOfLines={1}
             >
-              {exercise.bodyPart} · {completedCount}/{exercise.targetSets} sets
+              {exercise.bodyPart}
             </Text>
           )}
-        </View>
-        <View
+        </Pressable>
+        <Pressable
+          onPress={handleToggleActions}
+          accessibilityRole="button"
+          accessibilityLabel={
+            actionsOpen ? 'Hide exercise actions' : 'Show exercise actions'
+          }
           style={[
             styles.chevWrap,
             {
@@ -318,14 +378,14 @@ export default function ExerciseTable({
           ]}
         >
           <IconSymbol
-            name={expanded ? 'chevron.up' : 'chevron.down'}
+            name={actionsOpen ? 'chevron.up' : 'chevron.down'}
             size={18}
             color={palette.textPrimary}
           />
-        </View>
-      </Pressable>
+        </Pressable>
+      </View>
 
-      {expanded ? (
+      {infoOpen ? (
         <Animated.View
           entering={FadeIn.duration(180)}
           exiting={FadeOut.duration(140)}
@@ -376,7 +436,13 @@ export default function ExerciseTable({
         <Text style={[styles.headCellSet, { color: palette.textTertiary }]}>
           SET
         </Text>
-        <Text style={[styles.headCellPrev, { color: palette.textTertiary }]}>
+        <Text
+          style={[
+            styles.headCellPrev,
+            columns.tertiaryLabel ? styles.headCellPrevCompact : null,
+            { color: palette.textTertiary },
+          ]}
+        >
           PREVIOUS
         </Text>
         <Text style={[styles.headCellInput, { color: palette.textTertiary }]}>
@@ -391,6 +457,13 @@ export default function ExerciseTable({
         ) : (
           <View style={styles.headCellInput} />
         )}
+        {columns.tertiaryLabel ? (
+          <Text
+            style={[styles.headCellInput, { color: palette.textTertiary }]}
+          >
+            {columns.tertiaryLabel}
+          </Text>
+        ) : null}
         <View style={styles.headCellCheck} />
       </View>
 
@@ -412,18 +485,18 @@ export default function ExerciseTable({
               columns={columns}
               existing={existing}
               prefill={prefills[slotKey]}
-              isOpen={openSetIndex === setNumber}
-              onToggle={() => handleToggleRow(setNumber)}
+              exerciseNotes={exerciseNotes}
               onSave={payload => onSaveSet(setNumber, payload)}
               onClear={
                 onRemoveSet ? () => onRemoveSet(setNumber) : undefined
               }
+              onFirstFocus={handlePrefetchComment}
             />
           </SwipeableRow>
         )
       })}
 
-      {expanded && (onReplace || onReposition || onRemove) ? (
+      {actionsOpen ? (
         <Animated.View
           entering={FadeIn.duration(180)}
           exiting={FadeOut.duration(140)}
@@ -432,6 +505,12 @@ export default function ExerciseTable({
             { borderTopColor: palette.divider },
           ]}
         >
+          <ActionButton
+            icon="square.and.pencil"
+            label="Notes"
+            onPress={openNotes}
+            active={hasNotes}
+          />
           {onReplace ? (
             <ActionButton
               icon="arrow.clockwise"
@@ -466,6 +545,96 @@ export default function ExerciseTable({
           ) : null}
         </Animated.View>
       ) : null}
+
+      <Modal
+        visible={notesOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={closeNotes}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.notesModalBackdrop}
+        >
+          <Pressable
+            style={StyleSheet.absoluteFillObject}
+            onPress={closeNotes}
+            accessibilityRole="button"
+            accessibilityLabel="Close notes"
+          />
+          <View
+            style={[
+              styles.notesModalCard,
+              {
+                backgroundColor: palette.bgElevated,
+                borderColor: palette.border,
+              },
+            ]}
+          >
+            <View style={styles.notesModalHeader}>
+              <Text
+                style={[
+                  styles.notesModalTitle,
+                  { color: palette.textPrimary },
+                ]}
+                numberOfLines={1}
+              >
+                {exercise.name} notes
+              </Text>
+              <Pressable
+                onPress={closeNotes}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                style={[
+                  styles.notesModalClose,
+                  {
+                    backgroundColor: palette.surfaceAlt,
+                    borderColor: palette.border,
+                  },
+                ]}
+              >
+                <IconSymbol name="xmark" size={14} color={palette.textPrimary} />
+              </Pressable>
+            </View>
+            <TextInput
+              value={notesDraft}
+              onChangeText={setNotesDraft}
+              placeholder="Form cues, energy, anything to remember next time..."
+              placeholderTextColor={palette.textMuted}
+              multiline
+              autoFocus
+              style={[
+                styles.notesModalInput,
+                {
+                  color: palette.textPrimary,
+                  backgroundColor: palette.surface,
+                  borderColor: palette.border,
+                },
+              ]}
+            />
+            <Pressable
+              onPress={saveNotes}
+              disabled={savingNotes}
+              accessibilityRole="button"
+              style={[
+                styles.notesModalSave,
+                { backgroundColor: palette.primary },
+                savingNotes ? styles.notesModalSaveBusy : null,
+              ]}
+            >
+              {savingNotes ? (
+                <ActivityIndicator size="small" color={palette.white} />
+              ) : (
+                <Text
+                  style={[styles.notesModalSaveText, { color: palette.white }]}
+                >
+                  Save notes
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </Animated.View>
   )
 }
@@ -618,10 +787,14 @@ type SetRowProps = {
    * Used only when `existing` is undefined; existing logged data always wins.
    */
   prefill?: SetPayload
-  isOpen: boolean
-  onToggle: () => void
+  /**
+   * Exercise-level notes piggybacked into each saved set so notes captured
+   * via the header "Notes" button persist alongside metric data.
+   */
+  exerciseNotes?: string
   onSave: (payload: SetPayload) => Promise<void>
   onClear?: () => Promise<void>
+  onFirstFocus?: () => void
 }
 
 type SetRowHandle = {
@@ -640,6 +813,64 @@ function fieldFromSource<K extends keyof WorkoutSet>(
   return (source as Partial<WorkoutSet>)[key]
 }
 
+type CellInputProps = {
+  value: string
+  onChangeText: (text: string) => void
+  placeholder: string
+  keyboardType?: 'default' | 'numeric'
+  onActivate?: () => void
+}
+
+/**
+ * Cell input that stays inert (editable={false}) until the user taps it.
+ * The wrapping Pressable handles the "is this a tap" decision; horizontal
+ * swipes and vertical scrolls travel through to the parent gesture
+ * handlers because a non-editable TextInput never claims the touch.
+ */
+function CellInput({
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType = 'numeric',
+  onActivate,
+}: CellInputProps) {
+  const { palette } = useTheme()
+  const inputRef = useRef<TextInput>(null)
+  const [editing, setEditing] = useState(false)
+
+  // Focus only after the editable=true prop has rendered, otherwise the
+  // native side ignores the focus call.
+  useEffect(() => {
+    if (editing) inputRef.current?.focus()
+  }, [editing])
+
+  const handlePress = useCallback(() => {
+    if (editing) return
+    setEditing(true)
+    onActivate?.()
+  }, [editing, onActivate])
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      style={styles.cellInput}
+      android_disableSound
+    >
+      <TextInput
+        ref={inputRef}
+        editable={editing}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={editing ? '' : placeholder}
+        placeholderTextColor={palette.textMuted}
+        keyboardType={keyboardType}
+        onBlur={() => setEditing(false)}
+        style={[styles.cellInputText, { color: palette.textPrimary }]}
+      />
+    </Pressable>
+  )
+}
+
 const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
   {
     setNumber,
@@ -647,10 +878,10 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
     columns,
     existing,
     prefill,
-    isOpen,
-    onToggle,
+    exerciseNotes,
     onSave,
     onClear,
+    onFirstFocus,
   },
   ref,
 ) {
@@ -681,18 +912,27 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
         )
       : ''
 
+  const initialTertiary =
+    columns.tertiaryKey != null && source != null
+      ? String(
+          (fieldFromSource(source, columns.tertiaryKey as keyof WorkoutSet) as
+            | number
+            | undefined) ?? '',
+        )
+      : ''
+
   const [primary, setPrimary] = useState(initialPrimary)
   const [secondary, setSecondary] = useState(initialSecondary)
-  const [rpe, setRpe] = useState<number | undefined>(
-    fieldFromSource(source, 'rpe') as number | undefined,
-  )
-  const [notes, setNotes] = useState(
-    (fieldFromSource(source, 'notes') as string | undefined) ?? '',
-  )
+  const [tertiary, setTertiary] = useState(initialTertiary)
   const [isSaving, setIsSaving] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
-  const [primaryFocused, setPrimaryFocused] = useState(false)
-  const [secondaryFocused, setSecondaryFocused] = useState(false)
+  const firstFocusFiredRef = useRef(false)
+
+  const handleFirstFocus = useCallback(() => {
+    if (firstFocusFiredRef.current) return
+    firstFocusFiredRef.current = true
+    onFirstFocus?.()
+  }, [onFirstFocus])
 
   const completedProgress = useSharedValue(completed ? 1 : 0)
   const pulse = useSharedValue(1)
@@ -737,16 +977,19 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
             ;(payload as Record<string, unknown>)[columns.secondaryKey] = value
           }
         }
-        if (rpe != null && columns.secondaryKey !== 'rpe') {
-          payload.rpe = rpe
+        if (columns.tertiaryKey && tertiary.trim()) {
+          const value = parseNumber(tertiary)
+          if (value != null) {
+            ;(payload as Record<string, unknown>)[columns.tertiaryKey] = value
+          }
         }
-        if (notes.trim() && columns.primaryKey !== 'notes') {
-          payload.notes = notes.trim()
+        if (exerciseNotes && exerciseNotes.trim() && columns.primaryKey !== 'notes') {
+          payload.notes = exerciseNotes.trim()
         }
         return payload
       },
     }),
-    [columns, primary, secondary, rpe, notes],
+    [columns, primary, secondary, tertiary, exerciseNotes],
   )
 
   const handleClear = async () => {
@@ -756,8 +999,7 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
       await onClear()
       setPrimary('')
       setSecondary('')
-      setRpe(undefined)
-      setNotes('')
+      setTertiary('')
     } finally {
       setIsClearing(false)
     }
@@ -782,11 +1024,14 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
           ;(payload as Record<string, unknown>)[columns.secondaryKey] = value
         }
       }
-      if (rpe != null && columns.secondaryKey !== 'rpe') {
-        payload.rpe = rpe
+      if (columns.tertiaryKey && tertiary.trim()) {
+        const value = parseNumber(tertiary)
+        if (value != null) {
+          ;(payload as Record<string, unknown>)[columns.tertiaryKey] = value
+        }
       }
-      if (notes.trim()) {
-        payload.notes = notes.trim()
+      if (exerciseNotes && exerciseNotes.trim() && columns.primaryKey !== 'notes') {
+        payload.notes = exerciseNotes.trim()
       }
       await onSave(payload)
     } finally {
@@ -799,48 +1044,49 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
       layout={LinearTransition.duration(180)}
       style={[styles.rowBlock, rowAnimatedStyle]}
     >
-      <Pressable onPress={onToggle} style={styles.row}>
+      <View style={styles.row}>
         <Text style={[styles.cellSet, { color: palette.textPrimary }]}>
           {setNumber}
         </Text>
         <Text
-          style={[styles.cellPrev, { color: palette.textTertiary }]}
+          style={[
+            styles.cellPrev,
+            columns.tertiaryLabel ? styles.cellPrevCompact : null,
+            { color: palette.textTertiary },
+          ]}
           numberOfLines={1}
         >
           {previousLabel}
         </Text>
-        <TextInput
-          style={[styles.cellInput, { color: palette.textPrimary }]}
+        <CellInput
           value={primary}
           onChangeText={setPrimary}
-          placeholder={primaryFocused ? '' : columns.primaryPlaceholder}
-          placeholderTextColor={palette.textMuted}
+          placeholder={columns.primaryPlaceholder}
           keyboardType={
             columns.primaryKey === 'notes' ? 'default' : 'numeric'
           }
-          onFocus={() => {
-            setPrimaryFocused(true)
-            if (!isOpen) onToggle()
-          }}
-          onBlur={() => setPrimaryFocused(false)}
+          onActivate={handleFirstFocus}
         />
         {columns.secondaryLabel ? (
-          <TextInput
-            style={[styles.cellInput, { color: palette.textPrimary }]}
+          <CellInput
             value={secondary}
             onChangeText={setSecondary}
-            placeholder={secondaryFocused ? '' : columns.secondaryPlaceholder}
-            placeholderTextColor={palette.textMuted}
+            placeholder={columns.secondaryPlaceholder}
             keyboardType="numeric"
-            onFocus={() => {
-              setSecondaryFocused(true)
-              if (!isOpen) onToggle()
-            }}
-            onBlur={() => setSecondaryFocused(false)}
+            onActivate={handleFirstFocus}
           />
         ) : (
           <View style={styles.cellInput} />
         )}
+        {columns.tertiaryLabel ? (
+          <CellInput
+            value={tertiary}
+            onChangeText={setTertiary}
+            placeholder={columns.tertiaryPlaceholder}
+            keyboardType="numeric"
+            onActivate={handleFirstFocus}
+          />
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
@@ -864,92 +1110,7 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
             />
           )}
         </Pressable>
-      </Pressable>
-
-      {isOpen ? (
-        <Animated.View
-          entering={FadeIn.duration(160)}
-          exiting={FadeOut.duration(120)}
-          style={styles.rowDetail}
-        >
-          {columns.secondaryKey !== 'rpe' ? (
-            <View style={styles.rpeRow}>
-              <Text
-                style={[styles.rpeLabel, { color: palette.textTertiary }]}
-              >
-                DISCOMFORT (RPE)
-              </Text>
-              <View style={styles.rpeScale}>
-                {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
-                  const active = rpe === n
-                  return (
-                    <Pressable
-                      key={n}
-                      onPress={() => setRpe(active ? undefined : n)}
-                      style={[
-                        styles.rpeChip,
-                        {
-                          backgroundColor: active
-                            ? palette.primary
-                            : palette.bgElevated,
-                          borderColor: active
-                            ? palette.primary
-                            : palette.border,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.rpeChipText,
-                          {
-                            color: active
-                              ? palette.white
-                              : palette.textSecondary,
-                          },
-                        ]}
-                      >
-                        {n}
-                      </Text>
-                    </Pressable>
-                  )
-                })}
-              </View>
-            </View>
-          ) : null}
-          <TextInput
-            style={[
-              styles.notesInput,
-              {
-                color: palette.textPrimary,
-                backgroundColor: palette.bgElevated,
-                borderColor: palette.border,
-              },
-            ]}
-            placeholder="Notes — any pain, form cues, energy?"
-            placeholderTextColor={palette.textMuted}
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-          />
-          <Pressable
-            accessibilityRole="button"
-            onPress={handleSave}
-            disabled={isSaving}
-            style={[
-              styles.saveDetail,
-              { backgroundColor: palette.primary },
-            ]}
-          >
-            {isSaving ? (
-              <ActivityIndicator size="small" color={palette.white} />
-            ) : (
-              <Text style={[styles.saveDetailText, { color: palette.white }]}>
-                {completed ? 'Update set' : 'Log set'}
-              </Text>
-            )}
-          </Pressable>
-        </Animated.View>
-      ) : null}
+      </View>
     </Animated.View>
   )
 })
@@ -974,11 +1135,17 @@ function MetaChip({ label }: { label: string }) {
 }
 
 type ActionButtonProps = {
-  icon: 'arrow.clockwise' | 'chevron.up' | 'chevron.down' | 'trash'
+  icon:
+    | 'arrow.clockwise'
+    | 'chevron.up'
+    | 'chevron.down'
+    | 'trash'
+    | 'square.and.pencil'
   label: string
   destructive?: boolean
   danger?: boolean
   disabled?: boolean
+  active?: boolean
   onPress: () => void
 }
 
@@ -988,10 +1155,27 @@ function ActionButton({
   destructive,
   danger,
   disabled,
+  active,
   onPress,
 }: ActionButtonProps) {
   const { palette } = useTheme()
-  const tint = destructive ? palette.danger : palette.textPrimary
+  const tint = destructive
+    ? palette.danger
+    : active
+      ? palette.primary
+      : palette.textPrimary
+  const background = destructive
+    ? danger
+      ? palette.dangerMuted
+      : palette.surface
+    : active
+      ? palette.primaryMuted
+      : palette.surface
+  const border = destructive
+    ? palette.primaryBorder
+    : active
+      ? palette.primaryBorder
+      : palette.border
   return (
     <Pressable
       onPress={onPress}
@@ -1000,21 +1184,15 @@ function ActionButton({
       accessibilityLabel={label}
       style={[
         styles.actionBtn,
-        {
-          backgroundColor: destructive
-            ? danger
-              ? palette.dangerMuted
-              : palette.surface
-            : palette.surface,
-          borderColor: destructive
-            ? palette.primaryBorder
-            : palette.border,
-        },
+        { backgroundColor: background, borderColor: border },
         disabled ? styles.actionDisabled : null,
       ]}
     >
       <IconSymbol name={icon} size={14} color={tint} />
       <Text style={[styles.actionLabel, { color: tint }]}>{label}</Text>
+      {active ? (
+        <View style={[styles.notesDot, { backgroundColor: palette.primary }]} />
+      ) : null}
     </Pressable>
   )
 }
@@ -1106,11 +1284,16 @@ const styles = StyleSheet.create({
     width: 28,
     ...typography.caption,
     fontSize: 10,
+    textAlign: 'center',
   },
   headCellPrev: {
     flex: 1.4,
     ...typography.caption,
     fontSize: 10,
+    textAlign: 'center',
+  },
+  headCellPrevCompact: {
+    flex: 1.0,
   },
   headCellInput: {
     flex: 1,
@@ -1135,14 +1318,23 @@ const styles = StyleSheet.create({
     width: 28,
     ...typography.h3,
     fontSize: 18,
+    textAlign: 'center',
   },
   cellPrev: {
     flex: 1.4,
     ...typography.small,
     fontSize: 12,
+    textAlign: 'center',
+  },
+  cellPrevCompact: {
+    flex: 1.0,
   },
   cellInput: {
     flex: 1,
+    justifyContent: 'center',
+  },
+  cellInputText: {
+    width: '100%',
     paddingVertical: 8,
     paddingHorizontal: 0,
     textAlign: 'center',
@@ -1157,47 +1349,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowDetail: {
-    paddingHorizontal: spacing.sm,
-    paddingBottom: spacing.sm,
+  notesDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  notesModalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  notesModalCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  notesModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
   },
-  rpeRow: {
-    gap: spacing.xs,
-  },
-  rpeLabel: {
-    ...typography.caption,
-  },
-  rpeScale: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  rpeChip: {
+  notesModalTitle: {
     flex: 1,
-    paddingVertical: 6,
+    ...typography.bodyStrong,
+  },
+  notesModalClose: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
     alignItems: 'center',
-    borderRadius: radius.sm,
-    borderWidth: 1,
+    justifyContent: 'center',
   },
-  rpeChipText: {
-    ...typography.smallStrong,
-    fontSize: 12,
-  },
-  notesInput: {
-    minHeight: 56,
+  notesModalInput: {
+    minHeight: 140,
     borderWidth: 1,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     ...typography.body,
     textAlignVertical: 'top',
   },
-  saveDetail: {
-    paddingVertical: 10,
+  notesModalSave: {
+    paddingVertical: 12,
     borderRadius: radius.md,
     alignItems: 'center',
   },
-  saveDetailText: {
+  notesModalSaveBusy: {
+    opacity: 0.7,
+  },
+  notesModalSaveText: {
     ...typography.bodyStrong,
   },
   swipeWrap: {

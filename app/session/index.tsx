@@ -272,6 +272,32 @@ export default function SessionScreen() {
     [triggerComment],
   )
 
+  // Exercise-level notes captured via the per-exercise "Notes" button.
+  // Kept in-memory for the active session; new sets logged after notes are
+  // entered persist them via the set's notes field (see ExerciseTable).
+  // NOTE: this does not back-fill previously-logged sets. A future change
+  // can add a dedicated mutation if cross-session persistence is needed.
+  const [exerciseNotesMap, setExerciseNotesMap] = useState<
+    Record<string, string>
+  >({})
+
+  const handleSaveExerciseNotes = useCallback(
+    (exerciseId: string, notes: string) => {
+      setExerciseNotesMap(prev => ({ ...prev, [exerciseId]: notes }))
+    },
+    [],
+  )
+
+  const exerciseNotesByExerciseId = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const set of sets) {
+      if (set.notes && set.notes.trim()) {
+        map[set.exerciseId] = set.notes
+      }
+    }
+    return { ...map, ...exerciseNotesMap }
+  }, [sets, exerciseNotesMap])
+
   const handleReposition = useCallback(
     async (exerciseId: string, direction: 'up' | 'down') => {
       if (!sessionId) return
@@ -541,6 +567,10 @@ export default function SessionScreen() {
                       handleDeleteSetAt(exercise.id, setIndex)
                     }
                     onPrefetchComment={handlePrefetchComment}
+                    exerciseNotes={exerciseNotesByExerciseId[exercise.id]}
+                    onSaveExerciseNotes={notes =>
+                      handleSaveExerciseNotes(exercise.id, notes)
+                    }
                     onReplace={() => handleReplace(exercise.id)}
                     onReposition={direction =>
                       handleReposition(exercise.id, direction)

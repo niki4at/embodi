@@ -36,6 +36,7 @@ const MAPPING = {
   'minus': 'remove',
   'xmark': 'close',
   'checkmark': 'check',
+  'square.and.pencil': 'edit-note',
   'checkmark.circle.fill': 'check-circle',
   'gear': 'settings',
   'person.fill': 'person',
