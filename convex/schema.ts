@@ -19,6 +19,10 @@ const factShape = v.object({
 
 const exerciseShape = v.object({
   id: v.string(),
+  // Stable catalog/custom identifier (e.g. 'chest-barbell-bench' or
+  // 'custom-<id>') carried across sessions so per-exercise history and
+  // records can be matched even though `id` is regenerated per session.
+  catalogId: v.optional(v.string()),
   name: v.string(),
   bodyPart: v.string(),
   modality: v.string(),
@@ -425,6 +429,44 @@ export default defineSchema({
   })
     .index('by_userId', ['userId'])
     .index('by_challenge', ['challengeId']),
+
+  // Cached media + rich how-to for catalog exercises, synced once from the
+  // WorkoutX exercise API. GIFs are re-hosted in Convex file storage so the
+  // app reads stable URLs without spending the external API request budget.
+  exercise_media: defineTable({
+    catalogId: v.string(),
+    source: v.string(), // 'workoutx'
+    gifStorageId: v.optional(v.id('_storage')),
+    externalGifUrl: v.optional(v.string()),
+    target: v.optional(v.string()),
+    secondaryMuscles: v.array(v.string()),
+    instructions: v.array(v.string()),
+    difficulty: v.optional(v.string()),
+    attribution: v.string(),
+    matchedName: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index('by_catalogId', ['catalogId']),
+
+  // Per-scope coach conversation threads. Today the only scope is a single
+  // exercise (scopeType 'exercise' + catalogId), but the shape leaves room
+  // for session- or goal-scoped threads later.
+  coach_threads: defineTable({
+    userId: v.string(),
+    scopeType: v.string(), // 'exercise'
+    catalogId: v.string(),
+    // OpenAI Responses API id of the last assistant turn, used to chain
+    // multi-turn context server-side without resending the whole history.
+    lastResponseId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index('by_user_scope', ['userId', 'scopeType', 'catalogId']),
+
+  coach_messages: defineTable({
+    threadId: v.id('coach_threads'),
+    role: v.union(v.literal('user'), v.literal('assistant')),
+    content: v.string(),
+    createdAt: v.number(),
+  }).index('by_thread', ['threadId']),
 
   // User-defined custom exercises. These show up in the exercise picker
   // alongside the built-in catalog so a user can reuse their own movements.

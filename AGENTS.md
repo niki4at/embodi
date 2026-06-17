@@ -165,7 +165,7 @@ When working on this project:
 ## Learned User Preferences
 
 - Match the Figma designs exactly: typography, asset sizes, and the body figure illustration.
-- Hide the bottom tab bar (Home/Library) on onboarding and account-completion screens.
+- Hide the bottom tab bar (Home/Challenges) on onboarding and account-completion screens.
 - Ship every screen with both light and dark mode styles.
 - In dark mode, header controls (theme toggle and similar) should use the same white icon treatment as the settings icon; keep `IconSymbol` mappings complete so Android/web render the same glyphs.
 - Funnel every workout entry — including taps on recommended workouts — through the daily check-in flow so today's session is built on today's state, not stale onboarding data.
@@ -188,6 +188,8 @@ When working on this project:
 - Menstrual-cycle tracking lives in `convex/cycle.ts` and `app/cycle.tsx`; it's opt-in via a Settings toggle shown only to users who selected female or "prefer not to say", and the current phase is passed into the trainer prompt in `convex/trainer.ts`.
 - Account management lives in `convex/account.ts`: sign-out preserves data, while delete-account is confirmation-gated and scoped to only the current user's records.
 - The web app is published at https://embodi.expo.app via Expo web hosting (EAS project `b91a84ce-6d3f-46f8-9967-2ad6414cce74`). `npm run draft` runs the EAS `create-draft` workflow (an `eas update` to the `test` channel plus a web deploy) but tends to hang locally on upload, so the reliable manual path is `npx expo export --platform web` then `npx eas-cli@latest deploy --prod`.
+- The home screen's second tab is a Challenges screen (user-set goals like running a marathon, swimming regularly, or losing/gaining weight) that builds programs and tracks progress; it replaced the old Library tab. The exercise library is only surfaced when the user builds/starts their own workout or adds/replaces an exercise in the coach's session.
+- The exercise picker (`components/library/exercise-library.tsx`) lists ~110 exercises grouped by body part from `constants/exercise-catalog.ts`, supports a tap-the-body-figure selector (`components/ui/body-part-selector.tsx`, figure shapes in `constants/body-shapes.ts`) and user-saved custom exercises (`convex/exercises.ts`, `custom_exercises` table); the same picker powers both build-your-own and in-session AI-coach substitution (`components/trainer/ExerciseMenuSheet.tsx`).
 
 <!-- convex-ai-start -->
 

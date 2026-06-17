@@ -262,6 +262,7 @@ function trackingFor(modality: string): ExercisePlan['trackingMetric'] {
 // defaults. Mirrors createCustomSession on the backend so the build-your-own
 // flow and the in-session swap produce identical-feeling exercises.
 export function libraryEntryToExercisePlan(entry: {
+  id?: string
   name: string
   bodyPart: string
   modality: string
@@ -270,6 +271,7 @@ export function libraryEntryToExercisePlan(entry: {
   const isStrength = entry.modality === 'strength'
   return {
     id: makeExerciseId(),
+    catalogId: entry.id,
     name: entry.name,
     bodyPart: entry.bodyPart,
     modality: entry.modality,

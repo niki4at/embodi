@@ -133,6 +133,14 @@ function ThemedNavigation() {
             animation: 'slide_from_right',
           }}
         />
+        <Stack.Screen
+          name="exercise/[id]"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
       </Stack>
       <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} />
     </NavThemeProvider>

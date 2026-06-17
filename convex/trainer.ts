@@ -38,6 +38,7 @@ type Fact = {
 
 type ExercisePlan = {
   id: string
+  catalogId?: string
   name: string
   bodyPart: string
   modality: string
@@ -92,6 +93,7 @@ const generateCoachId = () => createId('coach')
 
 const exerciseArg = v.object({
   id: v.string(),
+  catalogId: v.optional(v.string()),
   name: v.string(),
   bodyPart: v.string(),
   modality: v.string(),
@@ -351,6 +353,11 @@ const libraryPickArg = v.object({
   bodyPart: v.string(),
   modality: v.string(),
   equipment: v.string(),
+  // Optional per-exercise targets from the builder's review step. When
+  // omitted we fall back to sensible modality-based defaults.
+  targetSets: v.optional(v.number()),
+  targetReps: v.optional(v.array(v.number())),
+  restSec: v.optional(v.number()),
 })
 
 export const createCustomSession = mutation({
@@ -381,17 +388,36 @@ export const createCustomSession = mutation({
 
     const plan: ExercisePlan[] = exercises.map((ex) => {
       const isStrength = ex.modality === 'strength'
+      const defaultReps = isStrength ? [8, 10, 12] : [10]
+      const targetSets =
+        ex.targetSets && ex.targetSets > 0 ? Math.round(ex.targetSets) : 3
+      // Respect an explicit per-set rep scheme, otherwise stretch/trim the
+      // default scheme to the chosen set count.
+      const targetReps =
+        ex.targetReps && ex.targetReps.length > 0
+          ? ex.targetReps
+          : Array.from(
+              { length: targetSets },
+              (_, i) => defaultReps[Math.min(i, defaultReps.length - 1)]
+            )
+      const restSec =
+        ex.restSec && ex.restSec > 0
+          ? Math.round(ex.restSec)
+          : isStrength
+            ? 75
+            : 45
       return {
         id: generateExerciseId(),
+        catalogId: ex.id,
         name: ex.name,
         bodyPart: ex.bodyPart,
         modality: ex.modality,
         instructions: 'Move with control and stop if anything sharp shows up.',
         equipment: ex.equipment ? [ex.equipment] : [],
-        targetSets: 3,
-        targetReps: isStrength ? [8, 10, 12] : [10],
+        targetSets,
+        targetReps,
         tempo: isStrength ? '2-0-2' : 'controlled',
-        restSec: isStrength ? 75 : 45,
+        restSec,
         durationMin: isStrength ? undefined : 5,
         cues: [],
         trackingMetric: trackingFor(ex.modality),
@@ -2236,6 +2262,7 @@ function normalizeExercise(args: Partial<ExercisePlan>): ExercisePlan {
 
   return {
     id: args.id || `ex-${Date.now()}`,
+    catalogId: args.catalogId,
     name: args.name || 'Exercise',
     bodyPart: args.bodyPart || 'full body',
     modality,
@@ -2272,6 +2299,7 @@ function normalizeExercises(
         : defaultReps
     return {
       id: exercise.id || generateExerciseId(),
+      catalogId: exercise.catalogId,
       name: exercise.name || 'Movement Prep',
       bodyPart: exercise.bodyPart || 'Full body',
       modality,

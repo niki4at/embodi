@@ -1,6 +1,8 @@
 import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
-import React, { useMemo, useState } from 'react'
+import { Image } from 'expo-image'
+import { router } from 'expo-router'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   ScrollView,
@@ -28,6 +30,7 @@ import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
+import { setSelectionHandler } from '@/utils/exerciseSelectionBus'
 
 // Re-export so existing imports from this module keep working.
 export type { ExerciseEntry, LibraryCategory } from '@/constants/exercise-catalog'
@@ -66,6 +69,11 @@ export function ExerciseLibrary({
 }: ExerciseLibraryProps) {
   const { palette } = useTheme()
   const customExercises = useQuery(api.exercises.listCustomExercises)
+  const mediaList = useQuery(api.exerciseMedia.listExerciseMedia)
+  const mediaByCatalogId = useMemo(
+    () => new Map((mediaList ?? []).map((m) => [m.catalogId, m.gifUrl])),
+    [mediaList]
+  )
   const deleteCustom = useMutation(api.exercises.deleteCustomExercise)
 
   const [viewMode, setViewMode] = useState<ViewMode>('category')
@@ -116,9 +124,51 @@ export function ExerciseLibrary({
     })).filter((s) => s.items.length > 0)
   }, [filtered])
 
-  const handlePress = (exercise: ExerciseEntry) => {
+  // The detail screen (opened as a modal) reports "Add to workout" taps back
+  // here through the selection bus. Map the pick to the matching entry and
+  // forward it to the same handler row selection uses.
+  useEffect(() => {
+    if (!onSelectExercise) return
+    setSelectionHandler((pick) => {
+      const match = allExercises.find((ex) => ex.id === pick.id)
+      onSelectExercise(
+        match ?? {
+          id: pick.id,
+          name: pick.name,
+          group: 'core' as BodyGroup,
+          bodyPart: pick.bodyPart,
+          equipment: pick.equipment || 'None',
+          modality: pick.modality as ExerciseModality,
+          iconName: ICON_BY_MODALITY[pick.modality as ExerciseModality],
+        },
+      )
+    })
+    return () => setSelectionHandler(null)
+  }, [onSelectExercise, allExercises])
+
+  const handleSelect = (exercise: ExerciseEntry) => {
     Haptics.selectionAsync()
     onSelectExercise?.(exercise)
+  }
+
+  const handleOpenDetail = (exercise: ExerciseEntry) => {
+    Haptics.selectionAsync()
+    const payload = {
+      catalogId: exercise.id,
+      name: exercise.name,
+      bodyPart: exercise.bodyPart,
+      modality: exercise.modality,
+      equipment: exercise.equipment ? [exercise.equipment] : [],
+    }
+    router.push({
+      pathname: '/exercise/[id]',
+      params: {
+        id: exercise.id,
+        mode: 'library',
+        selected: selected.has(exercise.id) ? '1' : '0',
+        payload: JSON.stringify(payload),
+      },
+    })
   }
 
   const handleDeleteCustom = (exercise: ExerciseEntry) => {
@@ -373,23 +423,37 @@ export function ExerciseLibrary({
                         },
                       ]}
                       activeOpacity={0.85}
-                      onPress={() => handlePress(ex)}
+                      onPress={() => handleOpenDetail(ex)}
                       onLongPress={
                         isCustom ? () => handleDeleteCustom(ex) : undefined
                       }
                     >
-                      <View
-                        style={[
-                          styles.exerciseIcon,
-                          { backgroundColor: palette.primaryMuted },
-                        ]}
-                      >
-                        <IconSymbol
-                          name={ex.iconName}
-                          size={22}
-                          color={palette.primary}
+                      {mediaByCatalogId.get(ex.id) ? (
+                        <Image
+                          source={{ uri: mediaByCatalogId.get(ex.id)! }}
+                          style={[
+                            styles.exerciseThumb,
+                            { backgroundColor: palette.white },
+                          ]}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                          transition={150}
+                          accessibilityLabel={`${ex.name} demonstration`}
                         />
-                      </View>
+                      ) : (
+                        <View
+                          style={[
+                            styles.exerciseIcon,
+                            { backgroundColor: palette.primaryMuted },
+                          ]}
+                        >
+                          <IconSymbol
+                            name={ex.iconName}
+                            size={22}
+                            color={palette.primary}
+                          />
+                        </View>
+                      )}
                       <View style={styles.exerciseBody}>
                         <View style={styles.nameRow}>
                           <Text
@@ -428,27 +492,25 @@ export function ExerciseLibrary({
                         </Text>
                       </View>
                       {onSelectExercise ? (
-                        <View
-                          style={[
-                            styles.selectToggle,
-                            {
-                              backgroundColor: isSelected
-                                ? palette.primary
-                                : 'transparent',
-                              borderColor: isSelected
-                                ? palette.primary
-                                : palette.borderStrong,
-                            },
-                          ]}
+                        <TouchableOpacity
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            isSelected
+                              ? `Remove ${ex.name}`
+                              : `Add ${ex.name}`
+                          }
+                          hitSlop={10}
+                          onPress={() => handleSelect(ex)}
+                          style={styles.selectToggle}
                         >
                           <IconSymbol
                             name={isSelected ? 'checkmark' : 'plus'}
-                            size={16}
+                            size={22}
                             color={
-                              isSelected ? palette.white : palette.textTertiary
+                              isSelected ? palette.primary : palette.textTertiary
                             }
                           />
-                        </View>
+                        </TouchableOpacity>
                       ) : (
                         <IconSymbol
                           name="chevron.right"
@@ -818,6 +880,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  exerciseThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+  },
   exerciseBody: {
     flex: 1,
   },
@@ -844,8 +911,6 @@ const styles = StyleSheet.create({
   selectToggle: {
     width: 30,
     height: 30,
-    borderRadius: 15,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

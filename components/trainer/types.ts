@@ -25,6 +25,7 @@ export type Fact = {
 
 export type ExercisePlan = {
   id: string
+  catalogId?: string
   name: string
   bodyPart: string
   modality: string

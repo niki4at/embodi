@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics'
+import { router } from 'expo-router'
 import React, {
   forwardRef,
   useCallback,
@@ -183,10 +184,9 @@ export default function ExerciseTable({
   onRemove,
 }: ExerciseTableProps) {
   const { palette } = useTheme()
-  // Two independent disclosures: info (instructions/cues/equipment) is
-  // opened by tapping the exercise name; actions (Notes / Replace / Move /
-  // Remove) live behind the chevron.
-  const [infoOpen, setInfoOpen] = useState(false)
+  // Tapping the exercise name opens the full detail screen (demo + how-to +
+  // stats + coach). Actions (Notes / Replace / Move / Remove) live behind the
+  // chevron.
   const [actionsOpen, setActionsOpen] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
   const [notesDraft, setNotesDraft] = useState(exerciseNotes ?? '')
@@ -266,9 +266,34 @@ export default function ExerciseTable({
   }, [maxLoggedSetIndex, slots.length, exercise.id])
 
   const rowCount = slots.length
-  const handleToggleInfo = useCallback(() => {
-    setInfoOpen(prev => !prev)
-  }, [])
+  const handleOpenDetail = useCallback(() => {
+    Haptics.selectionAsync().catch(() => {})
+    const payload = {
+      catalogId: exercise.catalogId,
+      name: exercise.name,
+      bodyPart: exercise.bodyPart,
+      modality: exercise.modality,
+      equipment: exercise.equipment,
+      instructions: exercise.instructions,
+      cues: exercise.cues,
+      tempo: exercise.tempo,
+      restSec: exercise.restSec,
+      targetSets: exercise.targetSets,
+      targetReps: exercise.targetReps,
+      durationMin: exercise.durationMin,
+      intensityCue: exercise.intensityCue,
+      contraindications: exercise.contraindications,
+      trackingMetric: exercise.trackingMetric,
+    }
+    router.push({
+      pathname: '/exercise/[id]',
+      params: {
+        id: exercise.catalogId ?? exercise.id,
+        mode: 'session',
+        payload: JSON.stringify(payload),
+      },
+    })
+  }, [exercise])
   const handleToggleActions = useCallback(() => {
     setActionsOpen(prev => !prev)
   }, [])
@@ -344,24 +369,20 @@ export default function ExerciseTable({
     >
       <View style={styles.header}>
         <Pressable
-          onPress={handleToggleInfo}
+          onPress={handleOpenDetail}
           accessibilityRole="button"
-          accessibilityLabel={
-            infoOpen ? 'Hide exercise details' : 'Show exercise details'
-          }
+          accessibilityLabel="Open exercise details"
           style={styles.headerText}
         >
           <Text style={[styles.title, { color: palette.primary }]}>
             {exercise.name}
           </Text>
-          {infoOpen ? null : (
-            <Text
-              style={[styles.subtitle, { color: palette.textTertiary }]}
-              numberOfLines={1}
-            >
-              {exercise.bodyPart}
-            </Text>
-          )}
+          <Text
+            style={[styles.subtitle, { color: palette.textTertiary }]}
+            numberOfLines={1}
+          >
+            {exercise.bodyPart}
+          </Text>
         </Pressable>
         <Pressable
           onPress={handleToggleActions}
@@ -384,51 +405,6 @@ export default function ExerciseTable({
           />
         </Pressable>
       </View>
-
-      {infoOpen ? (
-        <Animated.View
-          entering={FadeIn.duration(180)}
-          exiting={FadeOut.duration(140)}
-          style={styles.detailBlock}
-        >
-          {exercise.instructions ? (
-            <Text style={[styles.instructions, { color: palette.textSecondary }]}>
-              {exercise.instructions}
-            </Text>
-          ) : null}
-          {exercise.cues.length > 0 ? (
-            <View style={styles.cueRow}>
-              {exercise.cues.map(cue => (
-                <View
-                  key={cue}
-                  style={[
-                    styles.cuePill,
-                    {
-                      backgroundColor: palette.primaryMuted,
-                      borderColor: palette.primaryBorder,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.cueText, { color: palette.primary }]}>
-                    {cue}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-          <View style={styles.metaRow}>
-            <MetaChip
-              label={
-                exercise.equipment.length
-                  ? exercise.equipment.join(' · ')
-                  : 'Bodyweight'
-              }
-            />
-            <MetaChip label={`${exercise.tempo} tempo`} />
-            <MetaChip label={`${exercise.restSec}s rest`} />
-          </View>
-        </Animated.View>
-      ) : null}
 
       <View style={[styles.divider, { backgroundColor: palette.divider }]} />
 
@@ -1115,25 +1091,6 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
   )
 })
 
-function MetaChip({ label }: { label: string }) {
-  const { palette } = useTheme()
-  return (
-    <View
-      style={[
-        styles.metaChip,
-        {
-          backgroundColor: palette.surfaceAlt,
-          borderColor: palette.border,
-        },
-      ]}
-    >
-      <Text style={[styles.metaChipText, { color: palette.textSecondary }]}>
-        {label}
-      </Text>
-    </View>
-  )
-}
-
 type ActionButtonProps = {
   icon:
     | 'arrow.clockwise'
@@ -1230,44 +1187,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  detailBlock: {
-    paddingBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  instructions: {
-    ...typography.body,
-  },
-  cueRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  cuePill: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-  },
-  cueText: {
-    ...typography.smallStrong,
-    fontSize: 12,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  metaChip: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-  },
-  metaChipText: {
-    ...typography.caption,
-    fontSize: 10,
-    letterSpacing: 0.4,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
