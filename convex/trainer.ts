@@ -197,6 +197,57 @@ type RecommendationSeed = {
   source: 'aligned' | 'exploration'
 }
 
+type ActiveChallenge = {
+  title: string
+  category: string
+  description: string
+  metricUnit: string
+  direction: string
+  targetValue?: number
+  overview?: string
+  currentWeekFocus?: string
+  currentWeekTarget?: string
+}
+
+const CHALLENGE_MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
+
+// Fetch the active challenge and reduce it to a compact prompt context,
+// including which program week the user is currently in.
+async function buildActiveChallengeContext(
+  ctx: ActionCtx,
+  userId: string
+): Promise<ActiveChallenge | null> {
+  const challenge = await ctx.runQuery(
+    internal.challenges.getActiveChallengeByUserId,
+    { userId }
+  )
+  if (!challenge) return null
+
+  let currentWeekFocus: string | undefined
+  let currentWeekTarget: string | undefined
+  const weeks = challenge.program?.weeks
+  if (weeks && weeks.length > 0) {
+    const elapsedWeeks = Math.floor(
+      (Date.now() - challenge.createdAt) / CHALLENGE_MS_PER_WEEK
+    )
+    const idx = Math.max(0, Math.min(weeks.length - 1, elapsedWeeks))
+    currentWeekFocus = weeks[idx].focus
+    currentWeekTarget = weeks[idx].target
+  }
+
+  return {
+    title: challenge.title,
+    category: challenge.category,
+    description: challenge.description,
+    metricUnit: challenge.metric.unit,
+    direction: challenge.metric.direction,
+    targetValue: challenge.metric.targetValue,
+    overview: challenge.program?.overview,
+    currentWeekFocus,
+    currentWeekTarget,
+  }
+}
+
 export const generatePlanAndInsights = action({
   args: {},
   handler: async (ctx) => {
@@ -283,6 +334,84 @@ export const createSessionFromPlan = mutation({
       plan: args.plan,
       healthFacts: args.healthFacts,
       citations: args.citations,
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    return sessionId
+  },
+})
+
+// Build a session directly from a user's hand-picked library exercises.
+// Unlike the coach flow this skips AI generation: we map the picked entries
+// onto sensible defaults so the user can start logging immediately.
+const libraryPickArg = v.object({
+  id: v.string(),
+  name: v.string(),
+  bodyPart: v.string(),
+  modality: v.string(),
+  equipment: v.string(),
+})
+
+export const createCustomSession = mutation({
+  args: { exercises: v.array(libraryPickArg) },
+  handler: async (ctx, { exercises }): Promise<Id<'workout_sessions'>> => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+    if (exercises.length === 0) {
+      throw new Error('Pick at least one exercise')
+    }
+
+    const trackingFor = (
+      modality: string
+    ): ExercisePlan['trackingMetric'] => {
+      switch (modality) {
+        case 'cardio':
+          return 'distance'
+        case 'mobility':
+          return 'duration'
+        case 'recovery':
+          return 'breath'
+        default:
+          return 'weight_reps'
+      }
+    }
+
+    const plan: ExercisePlan[] = exercises.map((ex) => {
+      const isStrength = ex.modality === 'strength'
+      return {
+        id: generateExerciseId(),
+        name: ex.name,
+        bodyPart: ex.bodyPart,
+        modality: ex.modality,
+        instructions: 'Move with control and stop if anything sharp shows up.',
+        equipment: ex.equipment ? [ex.equipment] : [],
+        targetSets: 3,
+        targetReps: isStrength ? [8, 10, 12] : [10],
+        tempo: isStrength ? '2-0-2' : 'controlled',
+        restSec: isStrength ? 75 : 45,
+        durationMin: isStrength ? undefined : 5,
+        cues: [],
+        trackingMetric: trackingFor(ex.modality),
+      }
+    })
+
+    const modalities = new Set(exercises.map((ex) => ex.modality))
+    const modality = modalities.size === 1 ? [...modalities][0] : 'mixed'
+    const durationMin = Math.max(20, exercises.length * 6)
+
+    const now = Date.now()
+    const sessionId = await ctx.db.insert('workout_sessions', {
+      userId: identity.subject,
+      goal: 'Custom session',
+      modality,
+      durationMin,
+      status: 'generated',
+      plan,
+      healthFacts: [],
+      citations: [],
       createdAt: now,
       updatedAt: now,
     })
@@ -557,6 +686,10 @@ export const generateSessionPlan = internalAction({
         }
       }
 
+      // Pull the user's active challenge (if any) so today's session can push
+      // toward their longer-term goal.
+      const activeChallenge = await buildActiveChallengeContext(ctx, userId)
+
       // Fetch citations and health facts first (these are quick)
       const citations = await searchCitationsForProfile(profile)
       const healthFacts = await distillCitationsForProfile(profile, citations)
@@ -578,7 +711,8 @@ export const generateSessionPlan = internalAction({
         profileSummary,
         checkinData,
         recommendationSeed ?? null,
-        cycleStatus
+        cycleStatus,
+        activeChallenge
       )
 
       // Update final metadata
@@ -1789,7 +1923,8 @@ async function buildWorkoutPlanStreaming(
   profileSummary: string | null,
   checkinData: CheckinData | null = null,
   recommendationSeed: RecommendationSeed | null = null,
-  cycleStatus: CycleStatus | null = null
+  cycleStatus: CycleStatus | null = null,
+  activeChallenge: ActiveChallenge | null = null
 ): Promise<{ goalFocus: string; modality: string; durationMin: number }> {
   const client = getOpenAI()
   const model = getOpenAIModel()
@@ -1850,6 +1985,13 @@ Rules:
 5. Today's check-in (if present) still wins on intensity and pain-area exclusions.`
   }
 
+  // Nudge the session toward the user's longer-term goal when one is active.
+  if (activeChallenge) {
+    systemPromptText += `
+
+ACTIVE GOAL: The client is working toward a longer-term challenge titled "${activeChallenge.title}" (${activeChallenge.category}). Where it is safe and compatible with today's check-in, bias exercise selection, volume, and intent so this session contributes to that goal. Never compromise safety or today's pain/energy flags to chase the goal.`
+  }
+
   systemPromptText += `
 
 IMPORTANT: Use the provided tools to build the plan step by step:
@@ -1887,6 +2029,30 @@ IMPORTANT: Use the provided tools to build the plan step by step:
       '\n=== RECOMMENDATION THE USER PICKED ===',
       JSON.stringify(recommendationSeed, null, 2),
       'Build the session around this recommendation. See system rules above.'
+    )
+  }
+
+  if (activeChallenge) {
+    const lines = [
+      `Title: ${activeChallenge.title}`,
+      `Category: ${activeChallenge.category}`,
+      activeChallenge.description
+        ? `Description: ${activeChallenge.description}`
+        : '',
+      activeChallenge.targetValue != null
+        ? `Target: ${activeChallenge.direction} toward ${activeChallenge.targetValue} ${activeChallenge.metricUnit}`
+        : `Target: ${activeChallenge.direction} ${activeChallenge.metricUnit}`,
+      activeChallenge.overview ? `Program overview: ${activeChallenge.overview}` : '',
+      activeChallenge.currentWeekFocus
+        ? `This week's focus: ${activeChallenge.currentWeekFocus}`
+        : '',
+      activeChallenge.currentWeekTarget
+        ? `This week's target: ${activeChallenge.currentWeekTarget}`
+        : '',
+    ].filter(Boolean)
+    userPromptParts.push(
+      "\n=== CLIENT'S ACTIVE GOAL (bias today's session toward this) ===",
+      lines.join('\n')
     )
   }
 

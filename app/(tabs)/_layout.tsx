@@ -51,13 +51,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="challenges"
         options={{
-          title: 'Library',
+          title: 'Challenges',
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol
               size={26}
-              name="dumbbell.fill"
+              name="target"
               color={color}
               weight={focused ? 'semibold' : 'regular'}
             />

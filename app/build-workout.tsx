@@ -1,15 +1,31 @@
+import { useMutation } from 'convex/react'
+import * as Haptics from 'expo-haptics'
+import { router, type Href } from 'expo-router'
+import React, { useCallback, useState } from 'react'
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native'
+import Animated, { FadeInUp } from 'react-native-reanimated'
+import { SafeAreaView } from 'react-native-safe-area-context'
+
+import {
+  ExerciseLibrary,
+  type ExerciseEntry,
+} from '@/components/library/exercise-library'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
-import * as Haptics from 'expo-haptics'
-import { router } from 'expo-router'
-import React, { useCallback } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
+import { api } from '@/convex/_generated/api'
 
 export default function BuildWorkoutScreen() {
-  const { palette, resolved } = useTheme()
+  const { palette, resolved, shadows } = useTheme()
+  const createCustomSession = useMutation(api.trainer.createCustomSession)
+  const [selected, setSelected] = useState<ExerciseEntry[]>([])
+  const [isStarting, setIsStarting] = useState(false)
 
   const handleBack = useCallback(() => {
     Haptics.selectionAsync()
@@ -20,15 +36,51 @@ export default function BuildWorkoutScreen() {
     }
   }, [])
 
+  const handleToggle = useCallback((exercise: ExerciseEntry) => {
+    setSelected((prev) => {
+      const exists = prev.some((e) => e.id === exercise.id)
+      if (exists) return prev.filter((e) => e.id !== exercise.id)
+      return [...prev, exercise]
+    })
+  }, [])
+
   const handleAskCoach = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     router.replace('/checkin')
   }, [])
 
+  const handleStart = useCallback(async () => {
+    if (selected.length === 0 || isStarting) return
+    setIsStarting(true)
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      const sessionId = await createCustomSession({
+        exercises: selected.map((ex) => ({
+          id: ex.id,
+          name: ex.name,
+          bodyPart: ex.bodyPart,
+          modality: ex.modality,
+          equipment: ex.equipment,
+        })),
+      })
+      router.replace({
+        pathname: '/session/ready',
+        params: { sessionId: String(sessionId) },
+      } as unknown as Href)
+    } catch (error) {
+      console.error('Failed to start custom session', error)
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      setIsStarting(false)
+    }
+  }, [selected, isStarting, createCustomSession])
+
+  const selectedIds = selected.map((e) => e.id)
+  const hasSelection = selected.length > 0
+
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: palette.bg }]}
-      edges={['top', 'bottom']}
+      edges={['top']}
     >
       <View style={styles.header}>
         <Pressable
@@ -36,10 +88,7 @@ export default function BuildWorkoutScreen() {
           hitSlop={12}
           style={[
             styles.iconButton,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-            },
+            { backgroundColor: palette.surface, borderColor: palette.border },
           ]}
           accessibilityRole="button"
           accessibilityLabel="Go back"
@@ -50,66 +99,79 @@ export default function BuildWorkoutScreen() {
             color={resolved === 'dark' ? palette.white : palette.textPrimary}
           />
         </Pressable>
+        <Pressable
+          onPress={handleAskCoach}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Ask coach instead"
+        >
+          <Text style={[styles.coachLink, { color: palette.primary }]}>
+            Ask coach
+          </Text>
+        </Pressable>
       </View>
 
-      <View style={styles.body}>
-        <Animated.View
-          entering={FadeInUp.duration(motion.duration.base)}
+      <Animated.View
+        entering={FadeInUp.duration(motion.duration.base)}
+        style={styles.titleBlock}
+      >
+        <Text style={[styles.title, { color: palette.textPrimary }]}>
+          Build your own
+        </Text>
+        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
+          Pick the movements you want, then start logging.
+        </Text>
+      </Animated.View>
+
+      <ExerciseLibrary
+        onSelectExercise={handleToggle}
+        selectedIds={selectedIds}
+        listBottomPadding={hasSelection ? 140 : spacing.huge}
+      />
+
+      {hasSelection ? (
+        <View
           style={[
-            styles.iconCircle,
-            { backgroundColor: palette.primaryMuted },
+            styles.tray,
+            {
+              backgroundColor: palette.bgElevated,
+              borderTopColor: palette.divider,
+            },
           ]}
         >
-          <Text style={styles.emoji}>🏋️</Text>
-        </Animated.View>
-
-        <Animated.Text
-          entering={FadeInDown.duration(motion.duration.base).delay(60)}
-          style={[styles.title, { color: palette.textPrimary }]}
-        >
-          Build your own session
-        </Animated.Text>
-
-        <Animated.Text
-          entering={FadeInDown.duration(motion.duration.base).delay(120)}
-          style={[styles.subtitle, { color: palette.textSecondary }]}
-        >
-          A custom session builder is on the way. For now, your coach can put
-          together something tailored to today in a few taps.
-        </Animated.Text>
-
-        <Animated.View
-          entering={FadeInDown.duration(motion.duration.base).delay(180)}
-          style={styles.actions}
-        >
+          <View style={styles.trayText}>
+            <Text style={[styles.trayCount, { color: palette.textPrimary }]}>
+              {selected.length} exercise{selected.length > 1 ? 's' : ''} selected
+            </Text>
+            <Text
+              style={[styles.trayHint, { color: palette.textSecondary }]}
+              numberOfLines={1}
+            >
+              {selected.map((e) => e.name).join(' · ')}
+            </Text>
+          </View>
           <Pressable
-            onPress={handleAskCoach}
+            onPress={handleStart}
+            disabled={isStarting}
             style={({ pressed }) => [
-              styles.primaryCta,
-              {
-                backgroundColor: palette.primary,
-                opacity: pressed ? 0.9 : 1,
-              },
+              styles.startCta,
+              { backgroundColor: palette.primary, opacity: pressed ? 0.9 : 1 },
+              resolved === 'dark' ? shadows.primaryDark : shadows.primary,
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Ask coach to build today's session"
+            accessibilityLabel="Start custom session"
           >
-            <Text style={styles.primaryCtaText}>Ask coach instead</Text>
-            <IconSymbol name="arrow.right" size={16} color="#FFFFFF" />
+            {isStarting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Text style={styles.startCtaText}>Start</Text>
+                <IconSymbol name="arrow.right" size={16} color="#FFFFFF" />
+              </>
+            )}
           </Pressable>
-
-          <Pressable
-            onPress={handleBack}
-            style={styles.secondaryCta}
-            accessibilityRole="button"
-            accessibilityLabel="Go back to home"
-          >
-            <Text style={[styles.secondaryCtaText, { color: palette.textSecondary }]}>
-              Maybe later
-            </Text>
-          </Pressable>
-        </Animated.View>
-      </View>
+        </View>
+      ) : null}
     </SafeAreaView>
   )
 }
@@ -119,6 +181,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
   },
@@ -130,58 +195,58 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  body: {
-    flex: 1,
+  coachLink: {
+    ...typography.bodyStrong,
+  },
+  titleBlock: {
     paddingHorizontal: spacing.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: spacing.huge,
-  },
-  iconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
-  },
-  emoji: {
-    fontSize: 44,
-    lineHeight: 50,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
   },
   title: {
-    ...typography.h1,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
+    ...typography.display,
+    fontSize: 32,
+    lineHeight: 38,
   },
   subtitle: {
     ...typography.body,
-    textAlign: 'center',
-    maxWidth: 320,
+    marginTop: spacing.xs,
   },
-  actions: {
-    width: '100%',
-    marginTop: spacing.xxl,
+  tray: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  primaryCta: {
-    height: 54,
+  trayText: {
+    flex: 1,
+  },
+  trayCount: {
+    ...typography.bodyStrong,
+  },
+  trayHint: {
+    ...typography.small,
+    marginTop: 2,
+  },
+  startCta: {
+    height: 50,
+    paddingHorizontal: spacing.xl,
     borderRadius: radius.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
+    minWidth: 110,
   },
-  primaryCtaText: {
+  startCtaText: {
     ...typography.button,
     color: '#FFFFFF',
-  },
-  secondaryCta: {
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryCtaText: {
-    ...typography.bodyStrong,
   },
 })

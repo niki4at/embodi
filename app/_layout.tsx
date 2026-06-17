@@ -119,6 +119,20 @@ function ThemedNavigation() {
             animation: 'slide_from_right',
           }}
         />
+        <Stack.Screen
+          name="challenge/new"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="challenge/[id]"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
       </Stack>
       <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} />
     </NavThemeProvider>

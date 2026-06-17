@@ -9,6 +9,7 @@
  */
 
 import type * as account from "../account.js";
+import type * as challenges from "../challenges.js";
 import type * as checkin from "../checkin.js";
 import type * as citations from "../citations.js";
 import type * as crons from "../crons.js";
@@ -28,6 +29,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   account: typeof account;
+  challenges: typeof challenges;
   checkin: typeof checkin;
   citations: typeof citations;
   crons: typeof crons;

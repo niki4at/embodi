@@ -350,6 +350,82 @@ export default defineSchema({
     .index('by_userId', ['userId'])
     .index('by_userId_startDate', ['userId', 'startDate']),
 
+  // User-defined goals (run a marathon, lose weight, swim regularly, etc.).
+  // Each challenge gets an AI-generated multi-week program and feeds the
+  // active goal into the daily coach.
+  challenges: defineTable({
+    userId: v.string(),
+    title: v.string(),
+    category: v.union(
+      v.literal('endurance'),
+      v.literal('weight_loss'),
+      v.literal('weight_gain'),
+      v.literal('strength'),
+      v.literal('habit'),
+      v.literal('custom')
+    ),
+    description: v.string(),
+    metric: v.object({
+      kind: v.union(
+        v.literal('body_weight'),
+        v.literal('distance'),
+        v.literal('frequency'),
+        v.literal('duration'),
+        v.literal('custom')
+      ),
+      unit: v.string(),
+      startValue: v.optional(v.number()),
+      targetValue: v.optional(v.number()),
+      direction: v.union(
+        v.literal('increase'),
+        v.literal('decrease'),
+        v.literal('maintain')
+      ),
+    }),
+    targetDate: v.optional(v.number()),
+    status: v.union(
+      v.literal('generating'),
+      v.literal('active'),
+      v.literal('completed'),
+      v.literal('archived'),
+      v.literal('failed')
+    ),
+    program: v.optional(
+      v.object({
+        overview: v.string(),
+        weeklySessions: v.number(),
+        weeks: v.array(
+          v.object({
+            weekNumber: v.number(),
+            focus: v.string(),
+            summary: v.string(),
+            target: v.string(),
+          })
+        ),
+      })
+    ),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_user_status', ['userId', 'status']),
+
+  // Progress entries for a challenge. Manual entries come from the user;
+  // 'session' entries are derived from completed workouts.
+  challenge_progress: defineTable({
+    userId: v.string(),
+    challengeId: v.id('challenges'),
+    value: v.number(),
+    unit: v.string(),
+    note: v.optional(v.string()),
+    source: v.union(v.literal('manual'), v.literal('session')),
+    sessionId: v.optional(v.id('workout_sessions')),
+    recordedAt: v.number(),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_challenge', ['challengeId']),
+
   // Daily check-ins for pre-session state capture
   daily_checkins: defineTable({
     userId: v.string(),

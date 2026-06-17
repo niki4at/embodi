@@ -92,6 +92,17 @@ const MAPPING = {
   'lightbulb': 'lightbulb-outline',
   'lightbulb.fill': 'lightbulb',
   'eye': 'visibility',
+  'target': 'track-changes',
+  'trophy': 'emoji-events',
+  'trophy.fill': 'emoji-events',
+  'flag': 'flag',
+  'flag.fill': 'flag',
+  'flag.checkered': 'sports-score',
+  'figure.pool.swim': 'pool',
+  'scalemass': 'monitor-weight',
+  'scalemass.fill': 'monitor-weight',
+  'repeat': 'repeat',
+  'ruler': 'straighten',
 } as IconMapping;
 
 /**
