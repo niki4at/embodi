@@ -426,6 +426,19 @@ export default defineSchema({
     .index('by_userId', ['userId'])
     .index('by_challenge', ['challengeId']),
 
+  // User-defined custom exercises. These show up in the exercise picker
+  // alongside the built-in catalog so a user can reuse their own movements.
+  custom_exercises: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    group: v.string(),
+    bodyPart: v.string(),
+    modality: v.string(),
+    equipment: v.array(v.string()),
+    iconName: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index('by_userId', ['userId']),
+
   // Daily check-ins for pre-session state capture
   daily_checkins: defineTable({
     userId: v.string(),

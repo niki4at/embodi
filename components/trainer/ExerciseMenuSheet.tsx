@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native'
 import Animated, {
@@ -19,14 +20,18 @@ import Animated, {
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { ExerciseLibrary } from '@/components/library/exercise-library'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { PillButton } from '@/components/ui/pill-button'
+import { libraryEntryToExercisePlan } from '@/constants/exercise-catalog'
 import { radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
 import { Id } from '@/convex/_generated/dataModel'
 
 import { ExercisePlan } from './types'
+
+type ReplaceTab = 'ai' | 'library'
 
 type Mode = 'main' | 'replace' | 'reposition' | 'remove'
 
@@ -54,6 +59,7 @@ export default function ExerciseMenuSheet({
 }: ExerciseMenuSheetProps) {
   const { palette, shadows } = useTheme()
   const insets = useSafeAreaInsets()
+  const { height: windowHeight } = useWindowDimensions()
 
   const generateAlternatives = useAction(
     api.trainer.generateExerciseAlternatives,
@@ -63,6 +69,7 @@ export default function ExerciseMenuSheet({
   const reorderExercise = useMutation(api.trainer.reorderSessionExercise)
 
   const [mode, setMode] = useState<Mode>(initialMode)
+  const [replaceTab, setReplaceTab] = useState<ReplaceTab>('ai')
   const [prompt, setPrompt] = useState('')
   const [alternatives, setAlternatives] = useState<ExercisePlan[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
@@ -74,6 +81,7 @@ export default function ExerciseMenuSheet({
   useEffect(() => {
     if (!visible) {
       setMode(initialMode)
+      setReplaceTab('ai')
       setPrompt('')
       setAlternatives([])
       setIsGenerating(false)
@@ -127,6 +135,31 @@ export default function ExerciseMenuSheet({
     } catch (error) {
       console.error('replace error', error)
       setErrorMessage('Could not replace the exercise. Please try again.')
+      setApplyingId(null)
+    }
+  }
+
+  const handleLibraryPick = async (entry: {
+    name: string
+    bodyPart: string
+    modality: string
+    equipment: string
+  }) => {
+    if (!exercise || applyingId) return
+    const plan = libraryEntryToExercisePlan(entry)
+    setApplyingId(plan.id)
+    setErrorMessage(null)
+    try {
+      await replaceExercise({
+        sessionId,
+        exerciseId: exercise.id,
+        newExercise: plan,
+      })
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      onClose()
+    } catch (error) {
+      console.error('library replace error', error)
+      setErrorMessage('Could not swap in that exercise. Please try again.')
       setApplyingId(null)
     }
   }
@@ -245,6 +278,45 @@ export default function ExerciseMenuSheet({
         destructive
         onPress={() => setMode('remove')}
       />
+    </View>
+  )
+
+  const renderReplaceTabs = () => (
+    <View style={[styles.tabRow, { backgroundColor: palette.surfaceAlt }]}>
+      {(
+        [
+          { id: 'ai', label: 'Ask AI trainer' },
+          { id: 'library', label: 'Browse library' },
+        ] as const
+      ).map((tab) => {
+        const active = tab.id === replaceTab
+        return (
+          <TouchableOpacity
+            key={tab.id}
+            style={[
+              styles.tabBtn,
+              active && { backgroundColor: palette.surface },
+            ]}
+            onPress={() => {
+              Haptics.selectionAsync()
+              setReplaceTab(tab.id)
+              setErrorMessage(null)
+            }}
+            activeOpacity={0.85}
+          >
+            <Text
+              style={[
+                styles.tabLabel,
+                {
+                  color: active ? palette.textPrimary : palette.textSecondary,
+                },
+              ]}
+            >
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        )
+      })}
     </View>
   )
 
@@ -622,16 +694,36 @@ export default function ExerciseMenuSheet({
             ]}
           />
           {header}
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {mode === 'main' && renderMain()}
-            {mode === 'replace' && renderReplace()}
-            {mode === 'reposition' && renderReposition()}
-            {mode === 'remove' && renderRemove()}
-          </ScrollView>
+          {mode === 'replace' ? renderReplaceTabs() : null}
+          {mode === 'replace' && replaceTab === 'library' ? (
+            <View
+              style={[
+                styles.libraryWrap,
+                { height: Math.min(windowHeight * 0.6, 520) },
+              ]}
+            >
+              <ExerciseLibrary
+                onSelectExercise={handleLibraryPick}
+                listBottomPadding={spacing.xxl}
+              />
+              {errorMessage ? (
+                <Text style={[styles.errorText, { color: palette.danger }]}>
+                  {errorMessage}
+                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {mode === 'main' && renderMain()}
+              {mode === 'replace' && renderReplace()}
+              {mode === 'reposition' && renderReposition()}
+              {mode === 'remove' && renderRemove()}
+            </ScrollView>
+          )}
         </Animated.View>
       </KeyboardAvoidingView>
     </View>
@@ -759,6 +851,25 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: spacing.lg,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    borderRadius: radius.pill,
+    padding: 4,
+    marginBottom: spacing.lg,
+  },
+  tabBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: radius.pill,
+  },
+  tabLabel: {
+    ...typography.smallStrong,
+  },
+  libraryWrap: {
+    marginHorizontal: -spacing.xl,
   },
   optionRow: {
     flexDirection: 'row',

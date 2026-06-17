@@ -1,6 +1,8 @@
+import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import React, { useMemo, useState } from 'react'
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,95 +12,38 @@ import {
 } from 'react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 
+import { BodyPartSelector } from '@/components/ui/body-part-selector'
 import { IconSymbol } from '@/components/ui/icon-symbol'
+import {
+  BODY_GROUPS,
+  BODY_GROUP_LABELS,
+  CATALOG_EXERCISES,
+  ICON_BY_MODALITY,
+  type BodyGroup,
+  type ExerciseEntry,
+  type ExerciseModality,
+  type LibraryCategory,
+} from '@/constants/exercise-catalog'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
+import { api } from '@/convex/_generated/api'
+import type { Id } from '@/convex/_generated/dataModel'
 
-export type LibraryCategory =
-  | 'all'
-  | 'strength'
-  | 'mobility'
-  | 'cardio'
-  | 'recovery'
+// Re-export so existing imports from this module keep working.
+export type { ExerciseEntry, LibraryCategory } from '@/constants/exercise-catalog'
+export { CATALOG_EXERCISES as LIBRARY_EXERCISES } from '@/constants/exercise-catalog'
 
-export interface ExerciseEntry {
-  id: string
-  name: string
-  bodyPart: string
-  equipment: string
-  modality: Exclude<LibraryCategory, 'all'>
-  iconName: Parameters<typeof IconSymbol>[0]['name']
-}
-
-export const LIBRARY_EXERCISES: ExerciseEntry[] = [
-  {
-    id: 'goblet-squat',
-    name: 'Goblet squat',
-    bodyPart: 'Legs',
-    equipment: 'Dumbbell',
-    modality: 'strength',
-    iconName: 'dumbbell.fill',
-  },
-  {
-    id: 'romanian-deadlift',
-    name: 'Romanian deadlift',
-    bodyPart: 'Posterior chain',
-    equipment: 'Barbell',
-    modality: 'strength',
-    iconName: 'figure.strengthtraining.traditional',
-  },
-  {
-    id: 'hip-90-90',
-    name: '90/90 hip flow',
-    bodyPart: 'Hips',
-    equipment: 'Bodyweight',
-    modality: 'mobility',
-    iconName: 'leaf.fill',
-  },
-  {
-    id: 'thoracic-rotations',
-    name: 'Thoracic rotations',
-    bodyPart: 'Upper back',
-    equipment: 'Bodyweight',
-    modality: 'mobility',
-    iconName: 'leaf.fill',
-  },
-  {
-    id: 'zone-2-row',
-    name: 'Zone 2 rower',
-    bodyPart: 'Full body',
-    equipment: 'Rower',
-    modality: 'cardio',
-    iconName: 'flame.fill',
-  },
-  {
-    id: 'incline-walk',
-    name: 'Incline walk',
-    bodyPart: 'Legs',
-    equipment: 'Treadmill',
-    modality: 'cardio',
-    iconName: 'figure.run',
-  },
-  {
-    id: 'box-breathing',
-    name: 'Box breathing',
-    bodyPart: 'Nervous system',
-    equipment: 'None',
-    modality: 'recovery',
-    iconName: 'heart.fill',
-  },
-  {
-    id: 'foam-roll-quads',
-    name: 'Foam roll · quads',
-    bodyPart: 'Legs',
-    equipment: 'Foam roller',
-    modality: 'recovery',
-    iconName: 'drop.fill',
-  },
-]
+type ViewMode = 'category' | 'body'
 
 const CATEGORIES: { id: LibraryCategory; label: string }[] = [
   { id: 'all', label: 'All' },
+  { id: 'strength', label: 'Strength' },
+  { id: 'mobility', label: 'Mobility' },
+  { id: 'cardio', label: 'Cardio' },
+  { id: 'recovery', label: 'Recovery' },
+]
+
+const MODALITY_OPTIONS: { id: ExerciseModality; label: string }[] = [
   { id: 'strength', label: 'Strength' },
   { id: 'mobility', label: 'Mobility' },
   { id: 'cardio', label: 'Cardio' },
@@ -120,29 +65,83 @@ export function ExerciseLibrary({
   listBottomPadding = spacing.huge,
 }: ExerciseLibraryProps) {
   const { palette } = useTheme()
+  const customExercises = useQuery(api.exercises.listCustomExercises)
+  const deleteCustom = useMutation(api.exercises.deleteCustomExercise)
+
+  const [viewMode, setViewMode] = useState<ViewMode>('category')
   const [category, setCategory] = useState<LibraryCategory>('all')
+  const [selectedGroup, setSelectedGroup] = useState<BodyGroup | null>(null)
   const [query, setQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
+  const [showCustomForm, setShowCustomForm] = useState(false)
 
-  const selected = useMemo(
-    () => new Set(selectedIds ?? []),
-    [selectedIds],
-  )
+  const selected = useMemo(() => new Set(selectedIds ?? []), [selectedIds])
+
+  // Merge user-defined exercises into the catalog using a stable `custom-` id.
+  const allExercises = useMemo<ExerciseEntry[]>(() => {
+    const customs: ExerciseEntry[] = (customExercises ?? []).map((c) => ({
+      id: `custom-${c._id}`,
+      name: c.name,
+      group: c.group as BodyGroup,
+      bodyPart: c.bodyPart,
+      equipment: c.equipment.join(', ') || 'None',
+      modality: c.modality as ExerciseModality,
+      iconName: ICON_BY_MODALITY[c.modality as ExerciseModality],
+    }))
+    return [...customs, ...CATALOG_EXERCISES]
+  }, [customExercises])
 
   const filtered = useMemo(() => {
-    return LIBRARY_EXERCISES.filter((ex) => {
-      const matchesCategory = category === 'all' || ex.modality === category
+    const q = query.trim().toLowerCase()
+    return allExercises.filter((ex) => {
+      const matchesView =
+        viewMode === 'body'
+          ? selectedGroup === null || ex.group === selectedGroup
+          : category === 'all' || ex.modality === category
       const matchesQuery =
-        query.trim().length === 0 ||
-        ex.name.toLowerCase().includes(query.toLowerCase()) ||
-        ex.bodyPart.toLowerCase().includes(query.toLowerCase())
-      return matchesCategory && matchesQuery
+        q.length === 0 ||
+        ex.name.toLowerCase().includes(q) ||
+        ex.bodyPart.toLowerCase().includes(q) ||
+        BODY_GROUP_LABELS[ex.group].toLowerCase().includes(q)
+      return matchesView && matchesQuery
     })
-  }, [category, query])
+  }, [allExercises, viewMode, category, selectedGroup, query])
+
+  // Group the filtered results under body-group section headers.
+  const sections = useMemo(() => {
+    return BODY_GROUPS.map((g) => ({
+      group: g.id,
+      label: g.label,
+      items: filtered.filter((ex) => ex.group === g.id),
+    })).filter((s) => s.items.length > 0)
+  }, [filtered])
 
   const handlePress = (exercise: ExerciseEntry) => {
     Haptics.selectionAsync()
     onSelectExercise?.(exercise)
+  }
+
+  const handleDeleteCustom = (exercise: ExerciseEntry) => {
+    const rawId = exercise.id.replace('custom-', '')
+    Alert.alert('Delete exercise', `Remove "${exercise.name}" from your saved exercises?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteCustom({
+              exerciseId: rawId as Id<'custom_exercises'>,
+            })
+            await Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Warning,
+            )
+          } catch (error) {
+            console.error('delete custom exercise', error)
+          }
+        },
+      },
+    ])
   }
 
   return (
@@ -182,47 +181,98 @@ export function ExerciseLibrary({
         </View>
       </View>
 
-      <View style={styles.categoryRow}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryContent}
+      <View style={styles.viewToggleRow}>
+        <View
+          style={[styles.viewToggle, { backgroundColor: palette.surfaceAlt }]}
         >
-          {CATEGORIES.map((c) => {
-            const isActive = c.id === category
+          {(
+            [
+              { id: 'category', label: 'Categories', icon: 'square.grid.2x2.fill' },
+              { id: 'body', label: 'Body map', icon: 'figure.strengthtraining.traditional' },
+            ] as const
+          ).map((opt) => {
+            const active = opt.id === viewMode
             return (
               <TouchableOpacity
-                key={c.id}
+                key={opt.id}
+                style={[
+                  styles.viewToggleBtn,
+                  active && { backgroundColor: palette.surface },
+                ]}
                 onPress={() => {
                   Haptics.selectionAsync()
-                  setCategory(c.id)
+                  setViewMode(opt.id)
                 }}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: isActive
-                      ? palette.primary
-                      : palette.surface,
-                    borderColor: isActive
-                      ? palette.primary
-                      : palette.borderStrong,
-                  },
-                ]}
                 activeOpacity={0.85}
               >
+                <IconSymbol
+                  name={opt.icon}
+                  size={16}
+                  color={active ? palette.primary : palette.textSecondary}
+                />
                 <Text
                   style={[
-                    styles.chipLabel,
-                    { color: isActive ? palette.white : palette.textSecondary },
+                    styles.viewToggleLabel,
+                    {
+                      color: active
+                        ? palette.textPrimary
+                        : palette.textSecondary,
+                    },
                   ]}
                 >
-                  {c.label}
+                  {opt.label}
                 </Text>
               </TouchableOpacity>
             )
           })}
-        </ScrollView>
+        </View>
       </View>
+
+      {viewMode === 'category' ? (
+        <View style={styles.categoryRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryContent}
+          >
+            {CATEGORIES.map((c) => {
+              const isActive = c.id === category
+              return (
+                <TouchableOpacity
+                  key={c.id}
+                  onPress={() => {
+                    Haptics.selectionAsync()
+                    setCategory(c.id)
+                  }}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: isActive
+                        ? palette.primary
+                        : palette.surface,
+                      borderColor: isActive
+                        ? palette.primary
+                        : palette.borderStrong,
+                    },
+                  ]}
+                  activeOpacity={0.85}
+                >
+                  <Text
+                    style={[
+                      styles.chipLabel,
+                      {
+                        color: isActive ? palette.white : palette.textSecondary,
+                      },
+                    ]}
+                  >
+                    {c.label}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
 
       <ScrollView
         contentContainerStyle={[
@@ -231,7 +281,54 @@ export function ExerciseLibrary({
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {filtered.length === 0 ? (
+        {viewMode === 'body' ? (
+          <View style={styles.bodyBlock}>
+            <BodyPartSelector
+              selectedGroup={selectedGroup}
+              onSelectGroup={(g) =>
+                setSelectedGroup((prev) => (prev === g ? null : g))
+              }
+            />
+          </View>
+        ) : null}
+
+        <TouchableOpacity
+          style={[
+            styles.addCustomRow,
+            {
+              backgroundColor: palette.primaryMuted,
+              borderColor: palette.primaryBorder,
+            },
+          ]}
+          activeOpacity={0.85}
+          onPress={() => {
+            Haptics.selectionAsync()
+            setShowCustomForm(true)
+          }}
+        >
+          <View
+            style={[styles.addCustomIcon, { backgroundColor: palette.primary }]}
+          >
+            <IconSymbol name="plus" size={18} color={palette.white} />
+          </View>
+          <View style={styles.exerciseBody}>
+            <Text style={[styles.exerciseName, { color: palette.textPrimary }]}>
+              Add a custom exercise
+            </Text>
+            <Text
+              style={[styles.exerciseMeta, { color: palette.textSecondary }]}
+            >
+              Save your own movement to reuse later
+            </Text>
+          </View>
+          <IconSymbol
+            name="chevron.right"
+            size={18}
+            color={palette.textTertiary}
+          />
+        </TouchableOpacity>
+
+        {sections.length === 0 ? (
           <View style={styles.emptyState}>
             <IconSymbol
               name="magnifyingglass"
@@ -244,95 +341,371 @@ export function ExerciseLibrary({
             <Text
               style={[styles.emptySubtitle, { color: palette.textSecondary }]}
             >
-              Try a different search or category.
+              Try a different search, category, or body part.
             </Text>
           </View>
         ) : (
-          filtered.map((ex, index) => {
-            const isSelected = selected.has(ex.id)
-            return (
-              <Animated.View
-                key={ex.id}
-                entering={FadeInDown.duration(motion.duration.quick).delay(
-                  index * 30,
-                )}
+          sections.map((section) => (
+            <View key={section.group} style={styles.section}>
+              <Text
+                style={[styles.sectionHeader, { color: palette.textSecondary }]}
               >
+                {section.label}
+              </Text>
+              {section.items.map((ex, index) => {
+                const isSelected = selected.has(ex.id)
+                const isCustom = ex.id.startsWith('custom-')
+                return (
+                  <Animated.View
+                    key={ex.id}
+                    entering={FadeInDown.duration(motion.duration.quick).delay(
+                      Math.min(index * 20, 120),
+                    )}
+                  >
+                    <TouchableOpacity
+                      style={[
+                        styles.exerciseCard,
+                        {
+                          backgroundColor: palette.surface,
+                          borderColor: isSelected
+                            ? palette.primary
+                            : palette.border,
+                        },
+                      ]}
+                      activeOpacity={0.85}
+                      onPress={() => handlePress(ex)}
+                      onLongPress={
+                        isCustom ? () => handleDeleteCustom(ex) : undefined
+                      }
+                    >
+                      <View
+                        style={[
+                          styles.exerciseIcon,
+                          { backgroundColor: palette.primaryMuted },
+                        ]}
+                      >
+                        <IconSymbol
+                          name={ex.iconName}
+                          size={22}
+                          color={palette.primary}
+                        />
+                      </View>
+                      <View style={styles.exerciseBody}>
+                        <View style={styles.nameRow}>
+                          <Text
+                            style={[
+                              styles.exerciseName,
+                              { color: palette.textPrimary },
+                            ]}
+                          >
+                            {ex.name}
+                          </Text>
+                          {isCustom ? (
+                            <View
+                              style={[
+                                styles.customTag,
+                                { backgroundColor: palette.primaryMuted },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.customTagText,
+                                  { color: palette.primary },
+                                ]}
+                              >
+                                Custom
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        <Text
+                          style={[
+                            styles.exerciseMeta,
+                            { color: palette.textSecondary },
+                          ]}
+                        >
+                          {ex.bodyPart} · {ex.equipment}
+                        </Text>
+                      </View>
+                      {onSelectExercise ? (
+                        <View
+                          style={[
+                            styles.selectToggle,
+                            {
+                              backgroundColor: isSelected
+                                ? palette.primary
+                                : 'transparent',
+                              borderColor: isSelected
+                                ? palette.primary
+                                : palette.borderStrong,
+                            },
+                          ]}
+                        >
+                          <IconSymbol
+                            name={isSelected ? 'checkmark' : 'plus'}
+                            size={16}
+                            color={
+                              isSelected ? palette.white : palette.textTertiary
+                            }
+                          />
+                        </View>
+                      ) : (
+                        <IconSymbol
+                          name="chevron.right"
+                          size={18}
+                          color={palette.textTertiary}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  </Animated.View>
+                )
+              })}
+            </View>
+          ))
+        )}
+      </ScrollView>
+
+      <CustomExerciseForm
+        visible={showCustomForm}
+        defaultGroup={viewMode === 'body' ? selectedGroup : null}
+        onClose={() => setShowCustomForm(false)}
+        onCreated={(entry) => {
+          setShowCustomForm(false)
+          onSelectExercise?.(entry)
+        }}
+      />
+    </View>
+  )
+}
+
+interface CustomExerciseFormProps {
+  visible: boolean
+  defaultGroup: BodyGroup | null
+  onClose: () => void
+  onCreated: (entry: ExerciseEntry) => void
+}
+
+function CustomExerciseForm({
+  visible,
+  defaultGroup,
+  onClose,
+  onCreated,
+}: CustomExerciseFormProps) {
+  const { palette } = useTheme()
+  const createCustom = useMutation(api.exercises.createCustomExercise)
+
+  const [name, setName] = useState('')
+  const [group, setGroup] = useState<BodyGroup>(defaultGroup ?? 'chest')
+  const [modality, setModality] = useState<ExerciseModality>('strength')
+  const [equipment, setEquipment] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+
+  React.useEffect(() => {
+    if (visible) {
+      setName('')
+      setGroup(defaultGroup ?? 'chest')
+      setModality('strength')
+      setEquipment('')
+      setIsSaving(false)
+    }
+  }, [visible, defaultGroup])
+
+  if (!visible) return null
+
+  const canSave = name.trim().length > 0 && !isSaving
+
+  const handleSave = async () => {
+    if (!canSave) return
+    setIsSaving(true)
+    try {
+      const equipmentList = equipment.trim() ? [equipment.trim()] : []
+      const newId = await createCustom({
+        name: name.trim(),
+        group,
+        bodyPart: BODY_GROUP_LABELS[group],
+        modality,
+        equipment: equipmentList,
+      })
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      onCreated({
+        id: `custom-${newId}`,
+        name: name.trim(),
+        group,
+        bodyPart: BODY_GROUP_LABELS[group],
+        equipment: equipmentList.join(', ') || 'None',
+        modality,
+        iconName: ICON_BY_MODALITY[modality],
+      })
+    } catch (error) {
+      console.error('create custom exercise', error)
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <View style={styles.formOverlay} pointerEvents="box-none">
+      <TouchableOpacity
+        style={styles.formBackdrop}
+        activeOpacity={1}
+        onPress={onClose}
+      />
+      <View
+        style={[
+          styles.formPanel,
+          { backgroundColor: palette.bgElevated, borderColor: palette.border },
+        ]}
+      >
+        <View style={styles.formHeader}>
+          <Text style={[styles.formTitle, { color: palette.textPrimary }]}>
+            New exercise
+          </Text>
+          <TouchableOpacity onPress={onClose} hitSlop={12}>
+            <IconSymbol name="xmark" size={20} color={palette.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={[styles.formLabel, { color: palette.textSecondary }]}>
+            Name
+          </Text>
+          <TextInput
+            style={[
+              styles.formInput,
+              {
+                color: palette.textPrimary,
+                backgroundColor: palette.surface,
+                borderColor: palette.borderStrong,
+              },
+            ]}
+            value={name}
+            onChangeText={setName}
+            placeholder="e.g. Cossack squat"
+            placeholderTextColor={palette.textTertiary}
+            autoFocus
+          />
+
+          <Text style={[styles.formLabel, { color: palette.textSecondary }]}>
+            Body part
+          </Text>
+          <View style={styles.formChips}>
+            {BODY_GROUPS.map((g) => {
+              const active = g.id === group
+              return (
                 <TouchableOpacity
+                  key={g.id}
+                  onPress={() => {
+                    Haptics.selectionAsync()
+                    setGroup(g.id)
+                  }}
                   style={[
-                    styles.exerciseCard,
+                    styles.formChip,
                     {
-                      backgroundColor: palette.surface,
-                      borderColor: isSelected
+                      backgroundColor: active
                         ? palette.primary
-                        : palette.border,
+                        : palette.surface,
+                      borderColor: active
+                        ? palette.primary
+                        : palette.borderStrong,
                     },
                   ]}
                   activeOpacity={0.85}
-                  onPress={() => handlePress(ex)}
                 >
-                  <View
+                  <Text
                     style={[
-                      styles.exerciseIcon,
-                      { backgroundColor: palette.primaryMuted },
+                      styles.formChipLabel,
+                      { color: active ? palette.white : palette.textSecondary },
                     ]}
                   >
-                    <IconSymbol
-                      name={ex.iconName}
-                      size={22}
-                      color={palette.primary}
-                    />
-                  </View>
-                  <View style={styles.exerciseBody}>
-                    <Text
-                      style={[
-                        styles.exerciseName,
-                        { color: palette.textPrimary },
-                      ]}
-                    >
-                      {ex.name}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.exerciseMeta,
-                        { color: palette.textSecondary },
-                      ]}
-                    >
-                      {ex.bodyPart} · {ex.equipment}
-                    </Text>
-                  </View>
-                  {onSelectExercise ? (
-                    <View
-                      style={[
-                        styles.selectToggle,
-                        {
-                          backgroundColor: isSelected
-                            ? palette.primary
-                            : 'transparent',
-                          borderColor: isSelected
-                            ? palette.primary
-                            : palette.borderStrong,
-                        },
-                      ]}
-                    >
-                      <IconSymbol
-                        name={isSelected ? 'checkmark' : 'plus'}
-                        size={16}
-                        color={isSelected ? palette.white : palette.textTertiary}
-                      />
-                    </View>
-                  ) : (
-                    <IconSymbol
-                      name="chevron.right"
-                      size={18}
-                      color={palette.textTertiary}
-                    />
-                  )}
+                    {g.label}
+                  </Text>
                 </TouchableOpacity>
-              </Animated.View>
-            )
-          })
-        )}
-      </ScrollView>
+              )
+            })}
+          </View>
+
+          <Text style={[styles.formLabel, { color: palette.textSecondary }]}>
+            Type
+          </Text>
+          <View style={styles.formChips}>
+            {MODALITY_OPTIONS.map((m) => {
+              const active = m.id === modality
+              return (
+                <TouchableOpacity
+                  key={m.id}
+                  onPress={() => {
+                    Haptics.selectionAsync()
+                    setModality(m.id)
+                  }}
+                  style={[
+                    styles.formChip,
+                    {
+                      backgroundColor: active
+                        ? palette.primary
+                        : palette.surface,
+                      borderColor: active
+                        ? palette.primary
+                        : palette.borderStrong,
+                    },
+                  ]}
+                  activeOpacity={0.85}
+                >
+                  <Text
+                    style={[
+                      styles.formChipLabel,
+                      { color: active ? palette.white : palette.textSecondary },
+                    ]}
+                  >
+                    {m.label}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+
+          <Text style={[styles.formLabel, { color: palette.textSecondary }]}>
+            Equipment (optional)
+          </Text>
+          <TextInput
+            style={[
+              styles.formInput,
+              {
+                color: palette.textPrimary,
+                backgroundColor: palette.surface,
+                borderColor: palette.borderStrong,
+              },
+            ]}
+            value={equipment}
+            onChangeText={setEquipment}
+            placeholder="e.g. Dumbbell"
+            placeholderTextColor={palette.textTertiary}
+          />
+
+          <TouchableOpacity
+            style={[
+              styles.formSave,
+              {
+                backgroundColor: canSave ? palette.primary : palette.surfaceAlt,
+              },
+            ]}
+            onPress={handleSave}
+            disabled={!canSave}
+            activeOpacity={0.9}
+          >
+            <Text
+              style={[
+                styles.formSaveText,
+                { color: canSave ? palette.white : palette.textTertiary },
+              ]}
+            >
+              {isSaving ? 'Saving…' : 'Save & add'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
     </View>
   )
 }
@@ -359,6 +732,27 @@ const styles = StyleSheet.create({
     ...typography.body,
     padding: 0,
   },
+  viewToggleRow: {
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    borderRadius: radius.pill,
+    padding: 4,
+  },
+  viewToggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+  },
+  viewToggleLabel: {
+    ...typography.smallStrong,
+  },
   categoryRow: {
     marginBottom: spacing.md,
   },
@@ -379,6 +773,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     gap: spacing.sm,
   },
+  bodyBlock: {
+    marginBottom: spacing.lg,
+  },
+  addCustomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    marginBottom: spacing.sm,
+  },
+  addCustomIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  section: {
+    marginTop: spacing.sm,
+  },
+  sectionHeader: {
+    ...typography.smallStrong,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: spacing.sm,
+    marginTop: spacing.sm,
+  },
   exerciseCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -386,6 +809,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: spacing.lg,
     borderWidth: 1,
+    marginBottom: spacing.sm,
   },
   exerciseIcon: {
     width: 44,
@@ -396,6 +820,19 @@ const styles = StyleSheet.create({
   },
   exerciseBody: {
     flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  customTag: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  customTagText: {
+    ...typography.caption,
   },
   exerciseName: {
     ...typography.bodyStrong,
@@ -423,5 +860,67 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     ...typography.small,
+  },
+  formOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+  },
+  formBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  formPanel: {
+    maxHeight: '88%',
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
+    borderTopWidth: 1,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
+  formHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
+  formTitle: {
+    ...typography.h2,
+  },
+  formLabel: {
+    ...typography.smallStrong,
+    marginBottom: spacing.sm,
+    marginTop: spacing.md,
+  },
+  formInput: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    ...typography.body,
+  },
+  formChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  formChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  formChipLabel: {
+    ...typography.smallStrong,
+  },
+  formSave: {
+    height: 52,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xl,
+  },
+  formSaveText: {
+    ...typography.button,
   },
 })

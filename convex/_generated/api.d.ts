@@ -14,6 +14,7 @@ import type * as checkin from "../checkin.js";
 import type * as citations from "../citations.js";
 import type * as crons from "../crons.js";
 import type * as cycle from "../cycle.js";
+import type * as exercises from "../exercises.js";
 import type * as messages from "../messages.js";
 import type * as onboarding from "../onboarding.js";
 import type * as openai from "../openai.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   citations: typeof citations;
   crons: typeof crons;
   cycle: typeof cycle;
+  exercises: typeof exercises;
   messages: typeof messages;
   onboarding: typeof onboarding;
   openai: typeof openai;
