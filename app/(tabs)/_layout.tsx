@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router'
 import React from 'react'
 import { Platform, StyleSheet } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { HapticTab } from '@/components/haptic-tab'
 import { IconSymbol } from '@/components/ui/icon-symbol'
@@ -8,6 +9,12 @@ import { useTheme } from '@/constants/theme-context'
 
 export default function TabLayout() {
   const { palette } = useTheme()
+  const insets = useSafeAreaInsets()
+
+  const basePaddingBottom = Platform.select({ ios: 28, default: 8 }) ?? 8
+  const baseHeight = Platform.select({ ios: 84, default: 64 }) ?? 64
+  const paddingBottom = Math.max(basePaddingBottom, insets.bottom + 8)
+  const height = baseHeight + Math.max(0, insets.bottom - basePaddingBottom + 8)
 
   return (
     <Tabs
@@ -20,9 +27,9 @@ export default function TabLayout() {
           backgroundColor: palette.bgElevated,
           borderTopColor: palette.divider,
           borderTopWidth: StyleSheet.hairlineWidth,
-          height: Platform.select({ ios: 84, default: 64 }),
+          height,
           paddingTop: 6,
-          paddingBottom: Platform.select({ ios: 28, default: 8 }),
+          paddingBottom,
         },
         tabBarLabelStyle: styles.tabLabel,
         tabBarItemStyle: styles.tabItem,
@@ -51,6 +58,20 @@ export default function TabLayout() {
             <IconSymbol
               size={26}
               name="dumbbell.fill"
+              color={color}
+              weight={focused ? 'semibold' : 'regular'}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'History',
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol
+              size={26}
+              name="clock.arrow.circlepath"
               color={color}
               weight={focused ? 'semibold' : 'regular'}
             />

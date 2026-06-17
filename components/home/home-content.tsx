@@ -10,6 +10,7 @@ import { router, type Href } from 'expo-router'
 import React, { memo, useCallback, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -50,7 +51,13 @@ type TodaysCheckin = {
 
 type TodaysSession = {
   _id: Id<'workout_sessions'>
-  status: 'generating' | 'generated' | 'in-progress' | 'completed' | 'failed'
+  status:
+    | 'generating'
+    | 'generated'
+    | 'in-progress'
+    | 'completed'
+    | 'discarded'
+    | 'failed'
   goal: string
   modality: string
   durationMin: number
@@ -58,6 +65,16 @@ type TodaysSession = {
   setsLogged: number
   totalTargetSets: number
 } | null | undefined
+
+type CompletedTodaySession = {
+  _id: Id<'workout_sessions'>
+  goal: string
+  modality: string
+  durationMin: number
+  setsLogged: number
+  totalTargetSets: number
+  completedAt: number
+}
 
 type TodayState =
   | { kind: 'loading' }
@@ -74,8 +91,13 @@ type TodayCardState = Exclude<TodayState, { kind: 'needs-checkin' }>
 function deriveTodayState(
   checkin: TodaysCheckin,
   session: TodaysSession,
+  completedToday: CompletedTodaySession[] | undefined,
 ): TodayState {
-  if (checkin === undefined || session === undefined) {
+  if (
+    checkin === undefined ||
+    session === undefined ||
+    completedToday === undefined
+  ) {
     return { kind: 'loading' }
   }
   if (session) {
@@ -90,7 +112,10 @@ function deriveTodayState(
     }
     return { kind: 'ready', session }
   }
-  if (checkin) {
+  // No active session today. If there's a check-in but nothing has been built
+  // or finished yet, offer to start from it. Otherwise (including after a
+  // completed session) show the start-movement choice so a new one can begin.
+  if (checkin && completedToday.length === 0) {
     return { kind: 'checkin-orphan' }
   }
   return { kind: 'needs-checkin' }
@@ -101,6 +126,7 @@ export default function HomeContent() {
   const onboardingData = useQuery(api.onboarding.getOnboarding)
   const todaysCheckin = useQuery(api.checkin.getTodaysCheckin)
   const todaysSession = useQuery(api.trainer.getTodaysSession)
+  const completedToday = useQuery(api.trainer.getTodaysCompletedSessions)
   const cycleEnabled = onboardingData?.trackPeriod === true
   const cycleData = useQuery(
     api.cycle.getRecentEntries,
@@ -110,13 +136,14 @@ export default function HomeContent() {
     api.checkin.startSessionFromTodaysCheckin,
   )
   const [isRecoveringSession, setIsRecoveringSession] = useState(false)
+  const [isStartingCoachSession, setIsStartingCoachSession] = useState(false)
 
   const cycleStatus = useMemo(() => {
     if (!cycleEnabled || !cycleData) return null
     return computeCycleStatus(cycleData.entries, Date.now())
   }, [cycleEnabled, cycleData])
 
-  const state = deriveTodayState(todaysCheckin, todaysSession)
+  const state = deriveTodayState(todaysCheckin, todaysSession, completedToday)
 
   const navigateToSession = useCallback(
     (
@@ -170,13 +197,61 @@ export default function HomeContent() {
     }
   }, [state, navigateToSession, startSessionFromCheckin, isRecoveringSession])
 
+  const startReusingTodaysCheckin = useCallback(async () => {
+    if (isStartingCoachSession) return
+    setIsStartingCoachSession(true)
+    try {
+      const sessionId = await startSessionFromCheckin({ allowAdditional: true })
+      navigateToSession(sessionId, 'ready')
+    } catch (error) {
+      console.error('Failed to start session from check-in', error)
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+    } finally {
+      setIsStartingCoachSession(false)
+    }
+  }, [isStartingCoachSession, startSessionFromCheckin, navigateToSession])
+
   const handleAskCoach = useCallback(() => {
+    // If the user already checked in today, let them choose between reusing
+    // that check-in or doing a fresh one before building another session.
+    if (todaysCheckin) {
+      Alert.alert(
+        'Start another session',
+        "Use today's check-in or start a fresh one?",
+        [
+          {
+            text: 'Reuse check-in',
+            onPress: () => {
+              void startReusingTodaysCheckin()
+            },
+          },
+          {
+            text: 'New check-in',
+            onPress: () => router.push('/checkin'),
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ],
+      )
+      return
+    }
     router.push('/checkin')
-  }, [])
+  }, [todaysCheckin, startReusingTodaysCheckin])
 
   const handleStartMyOwn = useCallback(() => {
     router.push('/build-workout' as Href)
   }, [])
+
+  const handleOpenRecap = useCallback(
+    (sessionId: Id<'workout_sessions'>) => {
+      Haptics.selectionAsync()
+      const recapHref = {
+        pathname: '/session/recap',
+        params: { sessionId: String(sessionId) },
+      } as unknown as Href
+      router.push(recapHref)
+    },
+    [],
+  )
 
   const handleUpdateCheckIn = useCallback(() => {
     Haptics.selectionAsync()
@@ -279,6 +354,7 @@ export default function HomeContent() {
             <StartMovementCard
               onAskCoach={handleAskCoach}
               onStartMyOwn={handleStartMyOwn}
+              isStartingCoachSession={isStartingCoachSession}
             />
           ) : (
             <TodayCard
@@ -288,6 +364,17 @@ export default function HomeContent() {
             />
           )}
         </Animated.View>
+
+        {completedToday && completedToday.length > 0 && (
+          <Animated.View
+            entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 1.5).duration(motion.duration.base)}
+          >
+            <CompletedTodayStrip
+              sessions={completedToday}
+              onOpenRecap={handleOpenRecap}
+            />
+          </Animated.View>
+        )}
 
         {todaysCheckin && (
           <Animated.View
@@ -590,6 +677,68 @@ const TodayCard = memo(function TodayCard({
   )
 })
 
+interface CompletedTodayStripProps {
+  sessions: CompletedTodaySession[]
+  onOpenRecap: (sessionId: Id<'workout_sessions'>) => void
+}
+
+const CompletedTodayStrip = memo(function CompletedTodayStrip({
+  sessions,
+  onOpenRecap,
+}: CompletedTodayStripProps) {
+  const { palette } = useTheme()
+
+  return (
+    <View style={styles.completedStrip}>
+      <Text style={[styles.completedStripLabel, { color: palette.textTertiary }]}>
+        COMPLETED TODAY
+      </Text>
+      {sessions.map((session) => (
+        <TouchableOpacity
+          key={session._id}
+          onPress={() => onOpenRecap(session._id)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`View recap for ${session.goal}`}
+          style={[
+            styles.completedRow,
+            { backgroundColor: palette.surface, borderColor: palette.border },
+          ]}
+        >
+          <View
+            style={[
+              styles.completedRowIcon,
+              { backgroundColor: palette.successMuted ?? palette.primaryMuted },
+            ]}
+          >
+            <IconSymbol name="checkmark" size={16} color={palette.success} />
+          </View>
+          <View style={styles.completedRowText}>
+            <Text
+              style={[styles.completedRowTitle, { color: palette.textPrimary }]}
+              numberOfLines={1}
+            >
+              {session.goal}
+            </Text>
+            <Text
+              style={[styles.completedRowMeta, { color: palette.textSecondary }]}
+              numberOfLines={1}
+            >
+              {session.modality} {'\u00b7'} {session.durationMin} min {'\u00b7'}{' '}
+              {session.setsLogged} sets
+            </Text>
+          </View>
+          <IconSymbol
+            name="chevron.right"
+            size={16}
+            color={palette.textTertiary}
+          />
+        </TouchableOpacity>
+      ))}
+    </View>
+  )
+})
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -669,6 +818,39 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 3,
+  },
+  completedStrip: {
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+  },
+  completedStripLabel: {
+    ...typography.caption,
+    marginBottom: 2,
+  },
+  completedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+  },
+  completedRowIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completedRowText: {
+    flex: 1,
+  },
+  completedRowTitle: {
+    ...typography.bodyStrong,
+  },
+  completedRowMeta: {
+    ...typography.small,
+    marginTop: 2,
   },
   checkInChipRow: {
     marginTop: spacing.md,

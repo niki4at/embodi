@@ -154,8 +154,13 @@ export const createCheckin = mutation({
 // Used when a user has already checked in but no session was generated, or to
 // retry after a failed generation. Returns the session ID either way.
 export const startSessionFromTodaysCheckin = mutation({
-  args: {},
-  handler: async (ctx): Promise<Id<'workout_sessions'>> => {
+  args: {
+    // When true, always create a fresh session from today's check-in even if
+    // one was already generated/completed. Used to start another session after
+    // finishing today's.
+    allowAdditional: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { allowAdditional }): Promise<Id<'workout_sessions'>> => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) {
       throw new Error('Not authenticated')
@@ -177,7 +182,7 @@ export const startSessionFromTodaysCheckin = mutation({
       throw new Error('No check-in for today')
     }
 
-    if (todaysCheckin.sessionId) {
+    if (!allowAdditional && todaysCheckin.sessionId) {
       const existing = await ctx.db.get(todaysCheckin.sessionId)
       if (existing && existing.status !== 'failed') {
         return existing._id

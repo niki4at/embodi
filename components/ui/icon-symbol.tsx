@@ -44,6 +44,7 @@ const MAPPING = {
   'bell.fill': 'notifications',
   'calendar': 'calendar-today',
   'clock.fill': 'schedule',
+  'clock.arrow.circlepath': 'history',
   'timer': 'timer',
   'chart.bar.fill': 'bar-chart',
   'chart.line.uptrend.xyaxis': 'trending-up',

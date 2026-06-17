@@ -173,9 +173,9 @@ When working on this project:
 - Keep home-screen stat and insight cards at a uniform size and never let their text clip; pick a layout that fits the longest entry.
 - Settings must offer both a regular sign-out (data preserved) and a confirmation-gated delete-account action that wipes only the current user's records.
 - Surface the log-session-style layout at the top of the home screen; coach-assisted is the primary path into the guided session-build flow that used to sit behind "build today's session," so omit a redundant standalone "build today's session" control when that layout is present.
-- On the active session / workout builder, reveal each exercise as soon as it is ready; give each row a compact menu to remove or replace an exercise (pick from the library or tell the trainer what to substitute), reorder by drag-and-hold with a minimal style (no borders, no circle around the leading icon, no "hold to reorder" labels, text stays visible during drag), and let tapping a row open a stage-relevant exercise preview.
-- On movement-journey set rows, swipe right clones the set into a new unchecked row carrying its sec/kg/RPE and swipe left deletes that exact row; never allow deleting the last remaining set, surface green/red behind the card, allow free ticking and unticking, don't gate adding a set on completing the prior one, and keep the swipe animations snappy with only a subtle gesture hint instead of explicit add/remove buttons.
-- When the user completes a session, navigate them back to the home screen.
+- On the active session / workout builder, reveal each exercise as soon as it is ready; give each row a compact menu to remove or replace an exercise (pick from the library or tell the trainer what to substitute), reorder by drag-and-hold with a minimal style (no borders, no circle around the leading icon, no "hold to reorder" labels, text stays visible during drag), and let tapping a row open a stage-relevant exercise preview. Keep the set table flat: no visible boxes/borders around the sec/kg/reps/RPE inputs, no circle around the tick, no circles around the trash/plus icons, centered column headers (SEC/REPS/RPE/PREVIOUS/SET) directly above their values, no placeholder dash while typing, and a centered input cursor (never flush right); drop per-set expandable dropdowns in favor of a "Notes" button beside the exercise name, remove the per-exercise set counter (e.g. 0/2) while keeping the single sets counter at the top, and place RPE to the right of reps.
+- On movement-journey set rows, swipe right clones the set into a new unchecked row carrying its sec/kg/RPE and swipe left deletes that exact row; never allow deleting the last remaining set, surface green/red behind the card, allow free ticking and unticking, don't gate adding a set on completing the prior one, and keep the swipe animations snappy with only a subtle gesture hint instead of explicit add/remove buttons. Ticking a set fills the whole card green with a quick satisfying animation and hides the add/delete swipe actions while ticked; vertical swipes still scroll the page and horizontal swipes still add/remove a set even over an input, and inputs only enter edit mode on a single tap.
+- When the user completes the day's session, navigate back to the home screen and re-show the "Start your movement" screen (with a small completed-today summary) so they can start another session, choosing to reuse today's check-in or do a fresh one; also offer a way to discard an in-progress workout without completing it and a Past Workouts history page.
 
 ## Learned Workspace Facts
 
@@ -187,3 +187,18 @@ When working on this project:
 - `convex/weeklyInsights.ts` regenerates the home "This Week" stats and recommendations on the weekly cron in `convex/crons.ts` and again after each completed workout; user thumbs-up/down feedback is stored and fed back into future generations.
 - Menstrual-cycle tracking lives in `convex/cycle.ts` and `app/cycle.tsx`; it's opt-in via a Settings toggle shown only to users who selected female or "prefer not to say", and the current phase is passed into the trainer prompt in `convex/trainer.ts`.
 - Account management lives in `convex/account.ts`: sign-out preserves data, while delete-account is confirmation-gated and scoped to only the current user's records.
+- The web app is published at https://embodi.expo.app via Expo web hosting (EAS project `b91a84ce-6d3f-46f8-9967-2ad6414cce74`). `npm run draft` runs the EAS `create-draft` workflow (an `eas update` to the `test` channel plus a web deploy) but tends to hang locally on upload, so the reliable manual path is `npx expo export --platform web` then `npx eas-cli@latest deploy --prod`.
+
+<!-- convex-ai-start -->
+
+This project uses [Convex](https://convex.dev) as its backend.
+
+When working on Convex code, **always read
+`convex/_generated/ai/guidelines.md` first** for important guidelines on
+how to correctly use Convex APIs and patterns. The file contains rules that
+override what you may have learned about Convex from training data.
+
+Convex agent skills for common tasks can be installed by running
+`npx convex ai-files install`.
+
+<!-- convex-ai-end -->

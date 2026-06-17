@@ -11,6 +11,7 @@ import React, {
 import {
   ActivityIndicator,
   Alert,
+  type AlertButton,
   NativeScrollEvent,
   NativeSyntheticEvent,
   ScrollView,
@@ -73,6 +74,7 @@ export default function SessionScreen() {
   const insertSetAfter = useMutation(api.trainer.insertSetAfter)
   const deleteSetAt = useMutation(api.trainer.deleteSetAt)
   const completeSession = useMutation(api.trainer.completeSession)
+  const discardSession = useMutation(api.trainer.discardSession)
   const reorderExercise = useMutation(api.trainer.reorderSessionExercise)
   const removeExercise = useMutation(api.trainer.removeExerciseFromSession)
   const prefetchComments = useAction(api.trainer.prefetchCoachComments)
@@ -373,6 +375,50 @@ export default function SessionScreen() {
     }
   }, [sessionId, completeSession, isCompleting])
 
+  const handleDiscardSession = useCallback(() => {
+    if (!sessionId) return
+    Alert.alert(
+      'Discard workout?',
+      "This workout won't be completed. It'll be saved to your history as discarded.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await discardSession({ sessionId })
+              await Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Warning,
+              )
+              router.replace('/')
+            } catch (err) {
+              console.error('discard session error', err)
+            }
+          },
+        },
+      ],
+    )
+  }, [sessionId, discardSession])
+
+  const handleOpenMenu = useCallback(() => {
+    Haptics.selectionAsync()
+    const buttons: AlertButton[] = []
+    if (sessionData?.session && sessionData.session.healthFacts.length > 0) {
+      buttons.push({
+        text: 'Science behind your session',
+        onPress: () => setShowCitations(true),
+      })
+    }
+    buttons.push({
+      text: 'Discard workout',
+      style: 'destructive',
+      onPress: handleDiscardSession,
+    })
+    buttons.push({ text: 'Cancel', style: 'cancel' })
+    Alert.alert('Session options', undefined, buttons)
+  }, [sessionData, handleDiscardSession])
+
   if (!sessionId) {
     return (
       <SafeAreaView
@@ -481,29 +527,21 @@ export default function SessionScreen() {
         >
           {session.goal}
         </Text>
-        {session.healthFacts.length > 0 ? (
-          <TouchableOpacity
-            onPress={() => setShowCitations(true)}
-            style={[
-              styles.iconButton,
-              {
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
-              },
-            ]}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Science behind your session"
-          >
-            <IconSymbol
-              name="book.closed"
-              size={18}
-              color={palette.textPrimary}
-            />
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.iconButton} />
-        )}
+        <TouchableOpacity
+          onPress={handleOpenMenu}
+          style={[
+            styles.iconButton,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.border,
+            },
+          ]}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Session options"
+        >
+          <IconSymbol name="ellipsis" size={20} color={palette.textPrimary} />
+        </TouchableOpacity>
       </View>
 
       <MovementJourneyBar

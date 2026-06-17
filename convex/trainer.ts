@@ -1,3 +1,4 @@
+import { paginationOptsValidator } from 'convex/server'
 import { v } from 'convex/values'
 import type {
   ResponseCreateParamsNonStreaming,
@@ -1248,9 +1249,10 @@ export const getSessionWithSets = query({
   },
 })
 
-// Returns the most recent workout session created today (any status except 'failed'),
-// plus a summary of progress. Used by the home screen to render a single state-aware
-// CTA that reflects where the user is in their daily session lifecycle.
+// Returns the most recent ACTIVE workout session created today (status
+// 'generating', 'generated', or 'in-progress'), plus a summary of progress.
+// Completed/discarded/failed sessions are excluded so a finished session no
+// longer pins the home card and the user can start another one.
 export const getTodaysSession = query({
   args: {},
   handler: async (ctx) => {
@@ -1269,7 +1271,10 @@ export const getTodaysSession = query({
 
     const todays = sessions.find(
       (session) =>
-        session.createdAt >= startOfTodayMs && session.status !== 'failed'
+        session.createdAt >= startOfTodayMs &&
+        (session.status === 'generating' ||
+          session.status === 'generated' ||
+          session.status === 'in-progress')
     )
     if (!todays) return null
 
@@ -1292,6 +1297,186 @@ export const getTodaysSession = query({
       planCount: todays.plan.length,
       setsLogged: sets.length,
       totalTargetSets,
+    }
+  },
+})
+
+// Returns today's completed sessions (most recent first) as lightweight
+// summaries. Drives the "Completed today" strip under the start-movement card.
+export const getTodaysCompletedSessions = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return []
+
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const startOfTodayMs = startOfToday.getTime()
+
+    const sessions = await ctx.db
+      .query('workout_sessions')
+      .withIndex('by_userId', (q) => q.eq('userId', identity.subject))
+      .order('desc')
+      .take(20)
+
+    const completedToday = sessions.filter(
+      (session) =>
+        session.createdAt >= startOfTodayMs && session.status === 'completed'
+    )
+
+    return await Promise.all(
+      completedToday.map(async (session) => {
+        const sets = await ctx.db
+          .query('workout_sets')
+          .withIndex('by_sessionId', (q) => q.eq('sessionId', session._id))
+          .collect()
+        const totalTargetSets = session.plan.reduce(
+          (acc, exercise) => acc + exercise.targetSets,
+          0
+        )
+        return {
+          _id: session._id,
+          goal: session.goal,
+          modality: session.modality,
+          durationMin: session.durationMin,
+          setsLogged: sets.length,
+          totalTargetSets,
+          completedAt: session.updatedAt,
+        }
+      })
+    )
+  },
+})
+
+// Discard an in-progress (or any non-completed) session. Keeps the row in the
+// DB marked 'discarded' so it can still surface in history, labeled as such.
+export const discardSession = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const session = await ctx.db.get(args.sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+
+    await ctx.db.patch(args.sessionId, {
+      status: 'discarded',
+      updatedAt: Date.now(),
+    })
+  },
+})
+
+// Paginated workout history: completed and discarded sessions, newest first.
+export const getWorkoutHistory = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      return { page: [], isDone: true, continueCursor: '' }
+    }
+
+    const results = await ctx.db
+      .query('workout_sessions')
+      .withIndex('by_userId', (q) => q.eq('userId', identity.subject))
+      .order('desc')
+      .paginate(args.paginationOpts)
+
+    const finished = results.page.filter(
+      (session) =>
+        session.status === 'completed' || session.status === 'discarded'
+    )
+
+    const page = await Promise.all(
+      finished.map(async (session) => {
+        const sets = await ctx.db
+          .query('workout_sets')
+          .withIndex('by_sessionId', (q) => q.eq('sessionId', session._id))
+          .collect()
+        const totalTargetSets = session.plan.reduce(
+          (acc, exercise) => acc + exercise.targetSets,
+          0
+        )
+        return {
+          _id: session._id,
+          goal: session.goal,
+          modality: session.modality,
+          durationMin: session.durationMin,
+          status: session.status,
+          setsLogged: sets.length,
+          totalTargetSets,
+          completedAt: session.updatedAt,
+          createdAt: session.createdAt,
+        }
+      })
+    )
+
+    return {
+      ...results,
+      page,
+    }
+  },
+})
+
+// Aggregate stats for the history header: total completed workouts and the
+// current consecutive-day streak (counting completed/in-progress sessions).
+export const getWorkoutStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      return { totalWorkouts: 0, currentStreak: 0 }
+    }
+
+    const completed = await ctx.db
+      .query('workout_sessions')
+      .withIndex('by_user_status', (q) =>
+        q.eq('userId', identity.subject).eq('status', 'completed')
+      )
+      .collect()
+
+    const recentSessions = await ctx.db
+      .query('workout_sessions')
+      .withIndex('by_userId', (q) => q.eq('userId', identity.subject))
+      .order('desc')
+      .take(120)
+
+    const dayKey = (ms: number) => new Date(ms).toISOString().slice(0, 10)
+    const sessionDayKeys = new Set(
+      recentSessions
+        .filter(
+          (s) => s.status === 'completed' || s.status === 'in-progress'
+        )
+        .map((s) => dayKey(s.createdAt))
+    )
+
+    let currentStreak = 0
+    const cursor = new Date()
+    cursor.setUTCHours(0, 0, 0, 0)
+    for (let i = 0; i < 120; i++) {
+      const key = cursor.toISOString().slice(0, 10)
+      if (sessionDayKeys.has(key)) {
+        currentStreak += 1
+        cursor.setUTCDate(cursor.getUTCDate() - 1)
+      } else {
+        if (i === 0) {
+          cursor.setUTCDate(cursor.getUTCDate() - 1)
+          continue
+        }
+        break
+      }
+    }
+
+    return {
+      totalWorkouts: completed.length,
+      currentStreak,
     }
   },
 })

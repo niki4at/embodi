@@ -109,6 +109,7 @@ export default defineSchema({
       v.literal('generated'),
       v.literal('in-progress'),
       v.literal('completed'),
+      v.literal('discarded'),
       v.literal('failed')
     ),
     plan: v.array(exerciseShape),

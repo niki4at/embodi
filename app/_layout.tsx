@@ -90,6 +90,13 @@ function ThemedNavigation() {
           }}
         />
         <Stack.Screen
+          name="session/recap"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
           name="settings"
           options={{
             presentation: 'modal',
