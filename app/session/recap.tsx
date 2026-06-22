@@ -33,6 +33,7 @@ type LoggedSet = {
   durationSec?: number
   distanceM?: number
   notes?: string
+  isWarmup?: boolean
 }
 
 function formatSet(set: LoggedSet): string {
@@ -145,6 +146,7 @@ export default function RecapScreen() {
     (acc, exercise) => acc + exercise.targetSets,
     0,
   )
+  const workingSetsLogged = sets.filter(set => !set.isWarmup).length
   const dateLabel = new Date(session.updatedAt).toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'long',
@@ -188,8 +190,8 @@ export default function RecapScreen() {
           </View>
           <Text style={[styles.sessionMeta, { color: palette.textSecondary }]}>
             {dateLabel} {'\u00b7'} {session.modality} {'\u00b7'}{' '}
-            {session.durationMin} min {'\u00b7'} {sets.length}/{totalTargetSets}{' '}
-            sets
+            {session.durationMin} min {'\u00b7'} {workingSetsLogged}/
+            {totalTargetSets} sets
           </Text>
         </Animated.View>
 
@@ -206,6 +208,16 @@ export default function RecapScreen() {
               </View>
               {group.exercises.map(({ exercise }) => {
                 const loggedSets = setsByExercise.get(exercise.id) ?? []
+                let warmupCount = 0
+                let workingCount = 0
+                const labeledSets = loggedSets.map(set => {
+                  if (set.isWarmup) {
+                    warmupCount += 1
+                    return { set, label: `Warm-up ${warmupCount}`, isWarmup: true }
+                  }
+                  workingCount += 1
+                  return { set, label: `Set ${workingCount}`, isWarmup: false }
+                })
                 return (
                   <View
                     key={exercise.id}
@@ -235,7 +247,7 @@ export default function RecapScreen() {
                         Not logged
                       </Text>
                     ) : (
-                      loggedSets.map((set, index) => (
+                      labeledSets.map(({ set, label, isWarmup }) => (
                         <View
                           key={`${exercise.id}-${set.setIndex}`}
                           style={[
@@ -246,10 +258,14 @@ export default function RecapScreen() {
                           <Text
                             style={[
                               styles.setNumber,
-                              { color: palette.textTertiary },
+                              {
+                                color: isWarmup
+                                  ? palette.warning
+                                  : palette.textTertiary,
+                              },
                             ]}
                           >
-                            Set {index + 1}
+                            {label}
                           </Text>
                           <Text
                             style={[

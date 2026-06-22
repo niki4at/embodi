@@ -10,6 +10,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import * as WebBrowser from 'expo-web-browser'
 import { useEffect } from 'react'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import 'react-native-reanimated'
 
 import { ConvexClientProvider } from '@/components/ConvexClientProvider'
@@ -168,12 +169,14 @@ export default function RootLayout() {
   if (!fontsLoaded) return null
 
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <ConvexClientProvider>
-        <ThemeProvider>
-          <ThemedNavigation />
-        </ThemeProvider>
-      </ConvexClientProvider>
-    </ClerkProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+        <ConvexClientProvider>
+          <ThemeProvider>
+            <ThemedNavigation />
+          </ThemeProvider>
+        </ConvexClientProvider>
+      </ClerkProvider>
+    </GestureHandlerRootView>
   )
 }

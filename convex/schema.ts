@@ -150,6 +150,9 @@ export default defineSchema({
     durationSec: v.optional(v.number()),
     distanceM: v.optional(v.number()),
     notes: v.optional(v.string()),
+    // Warm-up sets prime the body but don't count toward working volume or
+    // personal records. Absent/false means a normal working set.
+    isWarmup: v.optional(v.boolean()),
     completedAt: v.number(),
   }).index('by_sessionId', ['sessionId']),
 

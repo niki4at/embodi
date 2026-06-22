@@ -6,6 +6,7 @@ import React, { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  type AlertButton,
   Platform,
   Pressable,
   ScrollView,
@@ -21,6 +22,51 @@ import { IconSymbol } from '@/components/ui/icon-symbol'
 import { radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
+
+interface ConfirmActionOptions {
+  title: string
+  message: string
+  confirmText: string
+  confirmStyle?: AlertButton['style']
+  onConfirm: () => void
+}
+
+function confirmAction({
+  title,
+  message,
+  confirmText,
+  confirmStyle,
+  onConfirm,
+}: ConfirmActionOptions) {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    if (window.confirm(`${title}\n\n${message}`)) {
+      onConfirm()
+    }
+    return
+  }
+
+  Alert.alert(
+    title,
+    message,
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: confirmText,
+        style: confirmStyle,
+        onPress: onConfirm,
+      },
+    ],
+    { cancelable: true },
+  )
+}
+
+async function runHaptic(effect: () => Promise<void>) {
+  try {
+    await effect()
+  } catch {
+    // Haptics are optional feedback and should never block account actions.
+  }
+}
 
 export default function SettingsScreen() {
   const { palette, resolved } = useTheme()
@@ -77,7 +123,9 @@ export default function SettingsScreen() {
     if (isWorking) return
     setIsWorking('logout')
     try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      await runHaptic(() =>
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
+      )
       await signOut()
       router.replace('/')
     } catch (err) {
@@ -91,7 +139,9 @@ export default function SettingsScreen() {
     if (isWorking) return
     setIsWorking('delete')
     try {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+      await runHaptic(() =>
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
+      )
       await deleteAccount()
       try {
         await user?.delete()
@@ -116,41 +166,30 @@ export default function SettingsScreen() {
 
   const confirmDelete = useCallback(() => {
     if (isWorking) return
-    Haptics.selectionAsync()
-    Alert.alert(
-      'Delete account?',
-      'This permanently erases your profile, check-ins, sessions, and history. Other users keep their data. You can\u2019t undo this.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete account',
-          style: 'destructive',
-          onPress: () => {
-            void performDelete()
-          },
-        },
-      ],
-      { cancelable: true },
-    )
+    void runHaptic(() => Haptics.selectionAsync())
+    confirmAction({
+      title: 'Delete account?',
+      message:
+        'This permanently erases your profile, check-ins, sessions, and history. Other users keep their data. You can\u2019t undo this.',
+      confirmText: 'Delete account',
+      confirmStyle: 'destructive',
+      onConfirm: () => {
+        void performDelete()
+      },
+    })
   }, [isWorking, performDelete])
 
   const confirmLogout = useCallback(() => {
     if (isWorking) return
-    Haptics.selectionAsync()
-    Alert.alert(
-      'Log out?',
-      'You can sign back in any time. Your data stays safe.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log out',
-          onPress: () => {
-            void performLogout()
-          },
-        },
-      ],
-      { cancelable: true },
-    )
+    void runHaptic(() => Haptics.selectionAsync())
+    confirmAction({
+      title: 'Log out?',
+      message: 'You can sign back in any time. Your data stays safe.',
+      confirmText: 'Log out',
+      onConfirm: () => {
+        void performLogout()
+      },
+    })
   }, [isWorking, performLogout])
 
   const iconTint = resolved === 'dark' ? palette.white : palette.textPrimary

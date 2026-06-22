@@ -53,6 +53,7 @@ export type WorkoutSet = {
   durationSec?: number
   distanceM?: number
   notes?: string
+  isWarmup?: boolean
   completedAt: number
   _creationTime: number
 }

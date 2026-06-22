@@ -1,4 +1,5 @@
 import { mutation } from './_generated/server'
+import { v } from 'convex/values'
 
 /**
  * Permanently deletes every row owned by the calling user.
@@ -9,6 +10,7 @@ import { mutation } from './_generated/server'
  */
 export const deleteAccount = mutation({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) {
@@ -88,5 +90,7 @@ export const deleteAccount = mutation({
 
       await ctx.db.delete(session._id)
     }
+
+    return null
   },
 })

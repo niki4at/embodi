@@ -73,6 +73,7 @@ export default function SessionScreen() {
   const removeSet = useMutation(api.trainer.removeSet)
   const insertSetAfter = useMutation(api.trainer.insertSetAfter)
   const deleteSetAt = useMutation(api.trainer.deleteSetAt)
+  const setWarmup = useMutation(api.trainer.setWarmup)
   const completeSession = useMutation(api.trainer.completeSession)
   const discardSession = useMutation(api.trainer.discardSession)
   const reorderExercise = useMutation(api.trainer.reorderSessionExercise)
@@ -111,13 +112,20 @@ export default function SessionScreen() {
   }, [planExercises])
 
   const phaseProgress = useMemo(
-    () => computePhaseProgress(planExercises, sets),
+    () => computePhaseProgress(planExercises, sets.filter(s => !s.isWarmup)),
     [planExercises, sets],
   )
 
   const totalTargetSets = useMemo(
     () => planExercises.reduce((acc, ex) => acc + ex.targetSets, 0),
     [planExercises],
+  )
+
+  // Warm-up sets prime the body but don't count toward the working-set target,
+  // so progress and completion track only working sets.
+  const workingSetsLogged = useMemo(
+    () => sets.filter(s => !s.isWarmup).length,
+    [sets],
   )
 
   const displayComment = useCallback((comment: CoachComment) => {
@@ -267,6 +275,15 @@ export default function SessionScreen() {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     },
     [deleteSetAt, sessionId],
+  )
+
+  const handleSetWarmup = useCallback(
+    async (exerciseId: string, setIndex: number, isWarmup: boolean) => {
+      if (!sessionId) return
+      await setWarmup({ sessionId, exerciseId, setIndex, isWarmup })
+      await Haptics.selectionAsync()
+    },
+    [setWarmup, sessionId],
   )
 
   const handlePrefetchComment = useCallback(
@@ -493,7 +510,7 @@ export default function SessionScreen() {
   const sessionShadow =
     resolved === 'dark' ? shadows.primaryDark : shadows.primary
   const allSetsLogged =
-    totalTargetSets > 0 && sets.length >= totalTargetSets
+    totalTargetSets > 0 && workingSetsLogged >= totalTargetSets
 
   return (
     <GestureHandlerRootView style={styles.safeArea}>
@@ -563,8 +580,8 @@ export default function SessionScreen() {
           <Text
             style={[styles.sessionMeta, { color: palette.textSecondary }]}
           >
-            {session.modality} · {session.durationMin} min · {sets.length}/
-            {totalTargetSets} sets
+            {session.modality} · {session.durationMin} min · {workingSetsLogged}
+            /{totalTargetSets} sets
           </Text>
         </Animated.View>
 
@@ -603,6 +620,9 @@ export default function SessionScreen() {
                     }
                     onDeleteSetAt={setIndex =>
                       handleDeleteSetAt(exercise.id, setIndex)
+                    }
+                    onSetWarmup={(setIndex, isWarmup) =>
+                      handleSetWarmup(exercise.id, setIndex, isWarmup)
                     }
                     onPrefetchComment={handlePrefetchComment}
                     exerciseNotes={exerciseNotesByExerciseId[exercise.id]}

@@ -41,6 +41,7 @@ export const lightPalette = {
   successSolid: '#DCF6E5',
   warning: '#F59E0B',
   warningMuted: 'rgba(245, 158, 11, 0.18)',
+  warningSolid: '#FBEED0',
   danger: '#FF6B6B',
   dangerMuted: 'rgba(255, 107, 107, 0.14)',
 
@@ -92,6 +93,7 @@ export const darkPalette = {
   successSolid: '#1B3A37',
   warning: '#FBBF24',
   warningMuted: 'rgba(251, 191, 36, 0.18)',
+  warningSolid: '#3A3320',
   danger: '#FF7A7A',
   dangerMuted: 'rgba(255, 122, 122, 0.18)',
 

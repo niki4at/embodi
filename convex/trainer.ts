@@ -1141,6 +1141,7 @@ export const logSet = mutation({
     durationSec: v.optional(v.number()),
     distanceM: v.optional(v.number()),
     notes: v.optional(v.string()),
+    isWarmup: v.optional(v.boolean()),
     completeSession: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -1171,6 +1172,7 @@ export const logSet = mutation({
       durationSec: args.durationSec,
       distanceM: args.distanceM,
       notes: args.notes,
+      isWarmup: args.isWarmup,
       completedAt: Date.now(),
     }
 
@@ -1248,6 +1250,41 @@ export const removeSet = mutation({
     if (!target) return
 
     await ctx.db.delete(target._id)
+  },
+})
+
+// Flag (or unflag) an already-logged set as a warm-up. Warm-up sets stay in
+// the session for context but are excluded from working volume and personal
+// records. Rows that haven't been logged yet carry their warm-up intent in
+// client state and persist it through `logSet` when ticked.
+export const setWarmup = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    exerciseId: v.string(),
+    setIndex: v.number(),
+    isWarmup: v.boolean(),
+  },
+  handler: async (ctx, { sessionId, exerciseId, setIndex, isWarmup }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const session = await ctx.db.get(sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+
+    const exerciseSets = await ctx.db
+      .query('workout_sets')
+      .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
+      .collect()
+      .then((rows) => rows.filter((set) => set.exerciseId === exerciseId))
+
+    const target = exerciseSets.find((set) => set.setIndex === setIndex)
+    if (!target) return
+
+    await ctx.db.patch(target._id, { isWarmup })
   },
 })
 

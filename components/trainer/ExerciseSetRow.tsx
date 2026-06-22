@@ -21,6 +21,7 @@ export type SetPayload = {
   durationSec?: number
   distanceM?: number
   notes?: string
+  isWarmup?: boolean
 }
 
 interface ExerciseSetRowProps {

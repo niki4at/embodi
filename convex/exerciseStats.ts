@@ -149,7 +149,8 @@ async function collectExerciseStats(
       .collect()
 
     const exerciseSets = sets
-      .filter((s: Doc<'workout_sets'>) => matchIds.has(s.exerciseId))
+      // Warm-up sets prime the body but never count toward records or history.
+      .filter((s: Doc<'workout_sets'>) => matchIds.has(s.exerciseId) && !s.isWarmup)
       .sort((a, b) => a.setIndex - b.setIndex)
       .map((s) => ({
         setIndex: s.setIndex,
