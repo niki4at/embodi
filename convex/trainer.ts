@@ -1082,6 +1082,7 @@ Rules:
 - Match the same training intent (modality + body part) as the exercise being replaced unless the user explicitly asks for something different.
 - Avoid duplicating any exercise already in the session.
 - Cue breath, tempo, and intent. Use proven, evidence-aware approaches.
+- Set restSec for each alternative to fit that movement's demand and the client's state today (heavier/near-failure work rests longer; light, mobility, and breathwork rest little). Don't just copy the replaced exercise's rest if a different value fits better.
 - Output JSON matching the schema. Generate UNIQUE exercise ids that do not collide with the one being replaced.`
 
     const userPromptParts: string[] = []
@@ -1165,7 +1166,11 @@ Rules:
                       maxItems: 3,
                     },
                     tempo: { type: 'string' },
-                    restSec: { type: 'integer' },
+                    restSec: {
+                      type: 'integer',
+                      description:
+                        "Rest between sets in seconds, tailored to this exercise and the client's state — not a blanket default. Heavy compound 120-180; hypertrophy/accessory 60-90; light isolation/endurance 30-45; mobility/cooldown/breathwork 0-30. Longer for low energy, poor sleep, high pain, deconditioned/older clients; shorter when time is tight or the client is fresh. 0 only when no inter-set rest applies.",
+                    },
                     durationMin: { type: 'number' },
                     intensityCue: { type: 'string' },
                     contraindications: {
@@ -1898,7 +1903,8 @@ const exerciseTools = [
         },
         restSec: {
           type: 'integer',
-          description: 'Rest between sets in seconds',
+          description:
+            "Rest between sets in seconds, chosen for THIS exercise and THIS client — never a blanket default. Guide: heavy compound strength/power 120-180; moderate hypertrophy/accessory 60-90; light isolation/endurance/metabolic 30-45; mobility/cooldown/breathwork 0-30. Lengthen rest for low energy, poor sleep, high pain, deconditioned or older clients, and heavy loads near failure; shorten it when time is tight, in circuits, or for fresh clients who want intensity. Use 0 only when no inter-set rest applies (flows, breathwork). Keep total rest consistent with the session duration.",
         },
         durationMin: {
           type: 'number',
@@ -2057,7 +2063,11 @@ Plans must account for sex, age, injuries, conditions, medications, and lifestyl
                       maxItems: 3,
                     },
                     tempo: { type: 'string' },
-                    restSec: { type: 'integer' },
+                    restSec: {
+                      type: 'integer',
+                      description:
+                        "Rest between sets in seconds, tailored to this exercise and the client's state — not a blanket default. Heavy compound 120-180; hypertrophy/accessory 60-90; light isolation/endurance 30-45; mobility/cooldown/breathwork 0-30. Longer for low energy, poor sleep, high pain, deconditioned/older clients; shorter when time is tight or the client is fresh. 0 only when no inter-set rest applies.",
+                    },
                     durationMin: { type: 'number' },
                     intensityCue: { type: 'string' },
                     contraindications: {
@@ -2206,6 +2216,8 @@ ACTIVE GOAL: The client is working toward a longer-term challenge titled "${acti
   }
 
   systemPromptText += `
+
+REST PROGRAMMING: Set restSec individually for every exercise. Base it on (a) the movement's demand plus your chosen sets/reps/intensity, and (b) the client's state today — energy, sleep, pain, age, conditions, and time available. Never reuse one blanket value across the plan. Heavier compound lifts and lower-rep/near-failure work need more rest; light isolation, mobility, and breathwork need little or none. Add rest for low energy, poor sleep, high pain, deconditioning, or older clients; trim rest when time is short, the work is in a circuit, or the client is fresh and asking for intensity. Keep the sum of rest consistent with the session's target duration.
 
 IMPORTANT: Use the provided tools to build the plan step by step:
 1. First call set_session_metadata with the goal, modality, and duration
@@ -2458,7 +2470,10 @@ function normalizeExercise(args: Partial<ExercisePlan>): ExercisePlan {
     targetSets: args.targetSets || 3,
     targetReps: args.targetReps || defaultReps,
     tempo: args.tempo || '2-0-2-0',
-    restSec: args.restSec || 60,
+    restSec:
+      typeof args.restSec === 'number' && args.restSec >= 0
+        ? Math.round(args.restSec)
+        : 60,
     durationMin: args.durationMin,
     intensityCue: args.intensityCue,
     contraindications: args.contraindications,
@@ -2500,7 +2515,10 @@ function normalizeExercises(
       targetSets: exercise.targetSets || 2,
       targetReps: repsArray,
       tempo: exercise.tempo || '2-1-2',
-      restSec: exercise.restSec || 45,
+      restSec:
+        typeof exercise.restSec === 'number' && exercise.restSec >= 0
+          ? Math.round(exercise.restSec)
+          : 45,
       durationMin: exercise.durationMin,
       intensityCue: exercise.intensityCue,
       contraindications: exercise.contraindications,
