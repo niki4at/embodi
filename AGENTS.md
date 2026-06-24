@@ -191,6 +191,36 @@ When working on this project:
 - The home screen's second tab is a Challenges screen (user-set goals like running a marathon, swimming regularly, or losing/gaining weight) that builds programs and tracks progress; it replaced the old Library tab. The exercise library is only surfaced when the user builds/starts their own workout or adds/replaces an exercise in the coach's session.
 - The exercise picker (`components/library/exercise-library.tsx`) lists ~110 exercises grouped by body part from `constants/exercise-catalog.ts`, supports a tap-the-body-figure selector (`components/ui/body-part-selector.tsx`, figure shapes in `constants/body-shapes.ts`) and user-saved custom exercises (`convex/exercises.ts`, `custom_exercises` table); the same picker powers both build-your-own and in-session AI-coach substitution (`components/trainer/ExerciseMenuSheet.tsx`).
 
+## Cursor Cloud specific instructions
+
+Dependencies are refreshed automatically on startup (`npm install`). Standard commands live in this file's "Essential Commands" and in `package.json`. Notes below are the non-obvious bits for running this stack in a cloud VM.
+
+### Two services must run for a full end-to-end test
+
+1. **Convex backend** (database + all server functions). Run it isolated so you don't touch a real dev deployment:
+   ```bash
+   CONVEX_AGENT_MODE=anonymous npx convex dev
+   ```
+   First run downloads a local backend binary and writes `CONVEX_DEPLOYMENT`, `EXPO_PUBLIC_CONVEX_URL` (`http://127.0.0.1:3210`), and `EXPO_PUBLIC_CONVEX_SITE_URL` into `.env.local`. The first push **blocks until `CLERK_FRONTEND_API_URL` is set on the deployment** (`convex/auth.config.js` reads it).
+2. **Expo web app**: `npx expo start --web` (serves `http://localhost:8081`). Native modules (camera, notifications) need a dev build, but web is enough to exercise auth → onboarding → check-in → AI session.
+
+### Required configuration (provided via Cloud Agent secrets)
+
+- **Client env** lives in `.env.local` (gitignored). The app throws on boot without `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, so put it (and `EXPO_PUBLIC_CONVEX_URL`) there.
+- **Convex-side env must be set ON the deployment**, not just in the shell — Convex reads its own deployment env. After the secrets are in the VM environment:
+  ```bash
+  CONVEX_AGENT_MODE=anonymous npx convex env set CLERK_FRONTEND_API_URL "$CLERK_FRONTEND_API_URL"
+  CONVEX_AGENT_MODE=anonymous npx convex env set OPEN_API_KEY "$OPEN_API_KEY"
+  CONVEX_AGENT_MODE=anonymous npx convex env set OPENAI_MODEL "$OPENAI_MODEL"
+  ```
+  `OPEN_API_KEY` is spelled without the second `I` (see `convex/openai.ts`). `OPENAI_MODEL` is required but absent from `env.example`. `SEMANTIC_SCHOLAR_API_KEY` and `WORKOUTX_API_KEY` are optional.
+
+### Testing notes
+
+- The app gates everything behind Clerk auth (`components/login-screen.tsx`) then onboarding before reaching home. For automated sign-up on a Clerk **development** instance, use a `+clerk_test` email and the fixed OTP `424242`.
+- AI session generation (and coach chat / weekly insights / exercise recognition) calls OpenAI through Convex actions and takes ~10-30s; wait before concluding it failed.
+- `npx expo lint` is the project lint and passes clean. `npx tsc --noEmit` and `eslint .` surface a few pre-existing issues outside the `expo lint` scope (a Node script's globals, one type error in `components/trainer/ExerciseSetRow.tsx`); they are not part of the standard workflow.
+
 <!-- convex-ai-start -->
 
 This project uses [Convex](https://convex.dev) as its backend.
