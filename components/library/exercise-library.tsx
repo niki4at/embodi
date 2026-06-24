@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 
+import { ScanEquipment } from '@/components/library/scan-equipment'
 import { BodyPartSelector } from '@/components/ui/body-part-selector'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import {
@@ -229,6 +230,11 @@ export function ExerciseLibrary({
             </TouchableOpacity>
           ) : null}
         </View>
+        <ScanEquipment
+          catalog={allExercises}
+          onSelectExercise={onSelectExercise}
+          selectedIds={selected}
+        />
       </View>
 
       <View style={styles.viewToggleRow}>
@@ -777,10 +783,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     paddingHorizontal: spacing.xl,
     marginBottom: spacing.md,
   },
   searchInputWrapper: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,

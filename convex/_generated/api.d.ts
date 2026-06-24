@@ -16,6 +16,7 @@ import type * as coachChat from "../coachChat.js";
 import type * as crons from "../crons.js";
 import type * as cycle from "../cycle.js";
 import type * as exerciseMedia from "../exerciseMedia.js";
+import type * as exerciseRecognition from "../exerciseRecognition.js";
 import type * as exerciseStats from "../exerciseStats.js";
 import type * as exercises from "../exercises.js";
 import type * as messages from "../messages.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   cycle: typeof cycle;
   exerciseMedia: typeof exerciseMedia;
+  exerciseRecognition: typeof exerciseRecognition;
   exerciseStats: typeof exerciseStats;
   exercises: typeof exercises;
   messages: typeof messages;

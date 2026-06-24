@@ -49,6 +49,13 @@
       "expo-font",
       "expo-audio",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Embodi uses your photos so you can scan gym equipment and find matching exercises.",
+          "cameraPermission": "Embodi uses your camera so you can photograph gym equipment and find matching exercises."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "sounds": ["./assets/sounds/rest-done.wav"]
