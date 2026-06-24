@@ -12,7 +12,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol'
 import { radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 
-import { TrackingMetric, WorkoutSet } from './types'
+import { SetType, TrackingMetric, WorkoutSet } from './types'
 
 export type SetPayload = {
   weightKg?: number
@@ -22,6 +22,7 @@ export type SetPayload = {
   distanceM?: number
   notes?: string
   isWarmup?: boolean
+  setType?: SetType
 }
 
 interface ExerciseSetRowProps {

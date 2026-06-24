@@ -198,7 +198,7 @@ export default function BuildWorkoutScreen() {
         }),
       })
       router.replace({
-        pathname: '/session/ready',
+        pathname: '/session',
         params: { sessionId: String(sessionId) },
       } as unknown as Href)
     } catch (error) {

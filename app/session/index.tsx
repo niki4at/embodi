@@ -27,6 +27,7 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context'
 
+import AddExerciseSheet from '@/components/trainer/AddExerciseSheet'
 import CitationsPanel from '@/components/trainer/CitationsPanel'
 import CoachBubble from '@/components/trainer/CoachBubble'
 import ExerciseMenuSheet from '@/components/trainer/ExerciseMenuSheet'
@@ -38,7 +39,7 @@ import {
   groupPlanByPhase,
   PHASE_META,
 } from '@/components/trainer/phases'
-import { CoachComment, ExercisePlan } from '@/components/trainer/types'
+import { CoachComment, ExercisePlan, SetType } from '@/components/trainer/types'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { PillButton } from '@/components/ui/pill-button'
 import { motion, radius, spacing, typography } from '@/constants/design'
@@ -73,7 +74,7 @@ export default function SessionScreen() {
   const removeSet = useMutation(api.trainer.removeSet)
   const insertSetAfter = useMutation(api.trainer.insertSetAfter)
   const deleteSetAt = useMutation(api.trainer.deleteSetAt)
-  const setWarmup = useMutation(api.trainer.setWarmup)
+  const setSetType = useMutation(api.trainer.setSetType)
   const completeSession = useMutation(api.trainer.completeSession)
   const discardSession = useMutation(api.trainer.discardSession)
   const reorderExercise = useMutation(api.trainer.reorderSessionExercise)
@@ -84,6 +85,7 @@ export default function SessionScreen() {
   const [activeComment, setActiveComment] = useState<CoachComment | null>(null)
   const [isCompleting, setIsCompleting] = useState(false)
   const [menuExerciseId, setMenuExerciseId] = useState<string | null>(null)
+  const [addSheetOpen, setAddSheetOpen] = useState(false)
   const [journeyVisible, setJourneyVisible] = useState(false)
 
   const hideTimerRef = useRef<TimerHandle | null>(null)
@@ -277,13 +279,13 @@ export default function SessionScreen() {
     [deleteSetAt, sessionId],
   )
 
-  const handleSetWarmup = useCallback(
-    async (exerciseId: string, setIndex: number, isWarmup: boolean) => {
+  const handleSetType = useCallback(
+    async (exerciseId: string, setIndex: number, setType: SetType) => {
       if (!sessionId) return
-      await setWarmup({ sessionId, exerciseId, setIndex, isWarmup })
+      await setSetType({ sessionId, exerciseId, setIndex, setType })
       await Haptics.selectionAsync()
     },
-    [setWarmup, sessionId],
+    [setSetType, sessionId],
   )
 
   const handlePrefetchComment = useCallback(
@@ -366,6 +368,13 @@ export default function SessionScreen() {
   }, [])
 
   const handleCloseMenu = useCallback(() => setMenuExerciseId(null), [])
+
+  const handleOpenAddExercise = useCallback(() => {
+    Haptics.selectionAsync()
+    setAddSheetOpen(true)
+  }, [])
+
+  const handleCloseAddExercise = useCallback(() => setAddSheetOpen(false), [])
 
   const menuExercise = useMemo(
     () => planExercises.find(ex => ex.id === menuExerciseId) ?? null,
@@ -544,21 +553,38 @@ export default function SessionScreen() {
         >
           {session.goal}
         </Text>
-        <TouchableOpacity
-          onPress={handleOpenMenu}
-          style={[
-            styles.iconButton,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-            },
-          ]}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Session options"
-        >
-          <IconSymbol name="ellipsis" size={20} color={palette.textPrimary} />
-        </TouchableOpacity>
+        <View style={styles.topBarActions}>
+          <TouchableOpacity
+            onPress={handleOpenAddExercise}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+              },
+            ]}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Add exercise"
+          >
+            <IconSymbol name="plus" size={20} color={palette.textPrimary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleOpenMenu}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+              },
+            ]}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Session options"
+          >
+            <IconSymbol name="ellipsis" size={20} color={palette.textPrimary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <MovementJourneyBar
@@ -621,8 +647,8 @@ export default function SessionScreen() {
                     onDeleteSetAt={setIndex =>
                       handleDeleteSetAt(exercise.id, setIndex)
                     }
-                    onSetWarmup={(setIndex, isWarmup) =>
-                      handleSetWarmup(exercise.id, setIndex, isWarmup)
+                    onSetType={(setIndex, setType) =>
+                      handleSetType(exercise.id, setIndex, setType)
                     }
                     onPrefetchComment={handlePrefetchComment}
                     exerciseNotes={exerciseNotesByExerciseId[exercise.id]}
@@ -699,6 +725,11 @@ export default function SessionScreen() {
         onClose={handleCloseMenu}
         initialMode="replace"
       />
+      <AddExerciseSheet
+        visible={addSheetOpen}
+        sessionId={sessionId}
+        onClose={handleCloseAddExercise}
+      />
       <CoachBubble comment={activeComment} />
     </SafeAreaView>
     </GestureHandlerRootView>
@@ -734,6 +765,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  topBarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   topBarTitle: {
     flex: 1,

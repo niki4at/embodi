@@ -360,6 +360,75 @@ const libraryPickArg = v.object({
   restSec: v.optional(v.number()),
 })
 
+type LibraryPick = {
+  id: string
+  name: string
+  bodyPart: string
+  modality: string
+  equipment: string
+  targetSets?: number
+  targetReps?: number[]
+  restSec?: number
+}
+
+const trackingMetricForModality = (
+  modality: string
+): ExercisePlan['trackingMetric'] => {
+  switch (modality) {
+    case 'cardio':
+      return 'distance'
+    case 'mobility':
+      return 'duration'
+    case 'recovery':
+      return 'breath'
+    default:
+      return 'weight_reps'
+  }
+}
+
+// Map hand-picked library entries onto full ExercisePlan rows with sensible
+// modality-based defaults. Shared by the custom builder and the in-session
+// "add exercise" flow so both produce identical, loggable plan entries.
+function buildPlanFromLibraryPicks(picks: LibraryPick[]): ExercisePlan[] {
+  return picks.map((ex) => {
+    const isStrength = ex.modality === 'strength'
+    const defaultReps = isStrength ? [8, 10, 12] : [10]
+    const targetSets =
+      ex.targetSets && ex.targetSets > 0 ? Math.round(ex.targetSets) : 3
+    // Respect an explicit per-set rep scheme, otherwise stretch/trim the
+    // default scheme to the chosen set count.
+    const targetReps =
+      ex.targetReps && ex.targetReps.length > 0
+        ? ex.targetReps
+        : Array.from(
+            { length: targetSets },
+            (_, i) => defaultReps[Math.min(i, defaultReps.length - 1)]
+          )
+    const restSec =
+      ex.restSec && ex.restSec > 0
+        ? Math.round(ex.restSec)
+        : isStrength
+          ? 75
+          : 45
+    return {
+      id: generateExerciseId(),
+      catalogId: ex.id,
+      name: ex.name,
+      bodyPart: ex.bodyPart,
+      modality: ex.modality,
+      instructions: 'Move with control and stop if anything sharp shows up.',
+      equipment: ex.equipment ? [ex.equipment] : [],
+      targetSets,
+      targetReps,
+      tempo: isStrength ? '2-0-2' : 'controlled',
+      restSec,
+      durationMin: isStrength ? undefined : 5,
+      cues: [],
+      trackingMetric: trackingMetricForModality(ex.modality),
+    }
+  })
+}
+
 export const createCustomSession = mutation({
   args: { exercises: v.array(libraryPickArg) },
   handler: async (ctx, { exercises }): Promise<Id<'workout_sessions'>> => {
@@ -371,58 +440,7 @@ export const createCustomSession = mutation({
       throw new Error('Pick at least one exercise')
     }
 
-    const trackingFor = (
-      modality: string
-    ): ExercisePlan['trackingMetric'] => {
-      switch (modality) {
-        case 'cardio':
-          return 'distance'
-        case 'mobility':
-          return 'duration'
-        case 'recovery':
-          return 'breath'
-        default:
-          return 'weight_reps'
-      }
-    }
-
-    const plan: ExercisePlan[] = exercises.map((ex) => {
-      const isStrength = ex.modality === 'strength'
-      const defaultReps = isStrength ? [8, 10, 12] : [10]
-      const targetSets =
-        ex.targetSets && ex.targetSets > 0 ? Math.round(ex.targetSets) : 3
-      // Respect an explicit per-set rep scheme, otherwise stretch/trim the
-      // default scheme to the chosen set count.
-      const targetReps =
-        ex.targetReps && ex.targetReps.length > 0
-          ? ex.targetReps
-          : Array.from(
-              { length: targetSets },
-              (_, i) => defaultReps[Math.min(i, defaultReps.length - 1)]
-            )
-      const restSec =
-        ex.restSec && ex.restSec > 0
-          ? Math.round(ex.restSec)
-          : isStrength
-            ? 75
-            : 45
-      return {
-        id: generateExerciseId(),
-        catalogId: ex.id,
-        name: ex.name,
-        bodyPart: ex.bodyPart,
-        modality: ex.modality,
-        instructions: 'Move with control and stop if anything sharp shows up.',
-        equipment: ex.equipment ? [ex.equipment] : [],
-        targetSets,
-        targetReps,
-        tempo: isStrength ? '2-0-2' : 'controlled',
-        restSec,
-        durationMin: isStrength ? undefined : 5,
-        cues: [],
-        trackingMetric: trackingFor(ex.modality),
-      }
-    })
+    const plan = buildPlanFromLibraryPicks(exercises)
 
     const modalities = new Set(exercises.map((ex) => ex.modality))
     const modality = modalities.size === 1 ? [...modalities][0] : 'mixed'
@@ -435,6 +453,7 @@ export const createCustomSession = mutation({
       modality,
       durationMin,
       status: 'generated',
+      source: 'custom',
       plan,
       healthFacts: [],
       citations: [],
@@ -443,6 +462,41 @@ export const createCustomSession = mutation({
     })
 
     return sessionId
+  },
+})
+
+// Append hand-picked library exercises to an in-progress (or just-started)
+// session so the user can grow their workout mid-flow. Mirrors the custom
+// builder's plan mapping but patches the existing session in place.
+export const addExercisesToSession = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    exercises: v.array(libraryPickArg),
+  },
+  handler: async (ctx, { sessionId, exercises }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+    if (exercises.length === 0) {
+      throw new Error('Pick at least one exercise')
+    }
+
+    const session = await ctx.db.get(sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+    if (session.status === 'completed' || session.status === 'discarded') {
+      throw new Error('Cannot add exercises to a finished session')
+    }
+
+    const additions = buildPlanFromLibraryPicks(exercises)
+    await ctx.db.patch(sessionId, {
+      plan: [...session.plan, ...additions],
+      updatedAt: Date.now(),
+    })
+
+    return additions.length
   },
 })
 
@@ -1142,6 +1196,14 @@ export const logSet = mutation({
     distanceM: v.optional(v.number()),
     notes: v.optional(v.string()),
     isWarmup: v.optional(v.boolean()),
+    setType: v.optional(
+      v.union(
+        v.literal('warmup'),
+        v.literal('normal'),
+        v.literal('failure'),
+        v.literal('drop')
+      )
+    ),
     completeSession: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -1165,6 +1227,12 @@ export const logSet = mutation({
         set.exerciseId === args.exerciseId && set.setIndex === args.setIndex
     )
 
+    // Keep isWarmup in sync with the richer setType so existing volume / PR
+    // logic that reads isWarmup keeps working. A warm-up is the only type
+    // that primes the body without counting as a working set.
+    const isWarmup =
+      args.setType != null ? args.setType === 'warmup' : args.isWarmup
+
     const payload = {
       weightKg: args.weightKg,
       reps: args.reps,
@@ -1172,7 +1240,8 @@ export const logSet = mutation({
       durationSec: args.durationSec,
       distanceM: args.distanceM,
       notes: args.notes,
-      isWarmup: args.isWarmup,
+      isWarmup,
+      setType: args.setType,
       completedAt: Date.now(),
     }
 
@@ -1285,6 +1354,47 @@ export const setWarmup = mutation({
     if (!target) return
 
     await ctx.db.patch(target._id, { isWarmup })
+  },
+})
+
+// Classify a logged set as warmup / normal / failure / drop. Keeps the
+// legacy isWarmup flag in sync so downstream volume + PR logic is unchanged.
+export const setSetType = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    exerciseId: v.string(),
+    setIndex: v.number(),
+    setType: v.union(
+      v.literal('warmup'),
+      v.literal('normal'),
+      v.literal('failure'),
+      v.literal('drop')
+    ),
+  },
+  handler: async (ctx, { sessionId, exerciseId, setIndex, setType }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const session = await ctx.db.get(sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+
+    const exerciseSets = await ctx.db
+      .query('workout_sets')
+      .withIndex('by_sessionId', (q) => q.eq('sessionId', sessionId))
+      .collect()
+      .then((rows) => rows.filter((set) => set.exerciseId === exerciseId))
+
+    const target = exerciseSets.find((set) => set.setIndex === setIndex)
+    if (!target) return
+
+    await ctx.db.patch(target._id, {
+      setType,
+      isWarmup: setType === 'warmup',
+    })
   },
 })
 
@@ -1491,6 +1601,9 @@ export const getTodaysSession = query({
       goal: todays.goal,
       modality: todays.modality,
       durationMin: todays.durationMin,
+      source:
+        todays.source ??
+        (todays.goal === 'Custom session' ? 'custom' : 'coach'),
       planCount: todays.plan.length,
       setsLogged: sets.length,
       totalTargetSets,

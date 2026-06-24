@@ -119,6 +119,9 @@ export default defineSchema({
     plan: v.array(exerciseShape),
     healthFacts: v.array(factShape),
     citations: v.array(citationRef),
+    // Where the session came from: 'custom' (hand-picked in the builder) skips
+    // the "Your session is ready" screen; 'coach' is the AI-generated flow.
+    source: v.optional(v.union(v.literal('custom'), v.literal('coach'))),
     // Link to pre-session check-in (if user checked in before starting)
     checkinId: v.optional(v.id('daily_checkins')),
     // Captured when the session was started from a weekly recommendation card
@@ -153,6 +156,17 @@ export default defineSchema({
     // Warm-up sets prime the body but don't count toward working volume or
     // personal records. Absent/false means a normal working set.
     isWarmup: v.optional(v.boolean()),
+    // Richer set classification. 'warmup' mirrors isWarmup; 'failure' and
+    // 'drop' are working sets with a distinct training intent. Absent means
+    // a normal working set.
+    setType: v.optional(
+      v.union(
+        v.literal('warmup'),
+        v.literal('normal'),
+        v.literal('failure'),
+        v.literal('drop')
+      )
+    ),
     completedAt: v.number(),
   }).index('by_sessionId', ['sessionId']),
 

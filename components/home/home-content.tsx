@@ -61,6 +61,7 @@ type TodaysSession = {
   goal: string
   modality: string
   durationMin: number
+  source?: 'custom' | 'coach'
   planCount: number
   setsLogged: number
   totalTargetSets: number
@@ -166,11 +167,16 @@ export default function HomeContent() {
       case 'loading':
       case 'needs-checkin':
         return
-      case 'generating':
+      case 'generating': {
+        navigateToSession(state.sessionId, 'ready')
+        return
+      }
       case 'ready': {
-        const sessionId =
-          state.kind === 'generating' ? state.sessionId : state.session._id
-        navigateToSession(sessionId, 'ready')
+        // Custom sessions have no check-in basis, so skip the "Your session
+        // is ready" screen and drop straight into logging.
+        const destination =
+          state.session.source === 'custom' ? 'logging' : 'ready'
+        navigateToSession(state.session._id, destination)
         return
       }
       case 'in-progress':

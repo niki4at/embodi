@@ -7,6 +7,8 @@ export type TrackingMetric =
   | 'breath'
   | 'custom'
 
+export type SetType = 'warmup' | 'normal' | 'failure' | 'drop'
+
 export type Citation = {
   id: string
   title: string
@@ -54,6 +56,7 @@ export type WorkoutSet = {
   distanceM?: number
   notes?: string
   isWarmup?: boolean
+  setType?: SetType
   completedAt: number
   _creationTime: number
 }

@@ -40,7 +40,11 @@ import { radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 
 import { SetPayload } from './ExerciseSetRow'
-import { ExercisePlan, TrackingMetric, WorkoutSet } from './types'
+import SetTypePopover, {
+  type AnchorRect,
+  useSetTypeColors,
+} from './SetTypePopover'
+import { ExercisePlan, SetType, TrackingMetric, WorkoutSet } from './types'
 
 type ExerciseTableProps = {
   exercise: ExercisePlan
@@ -54,7 +58,7 @@ type ExerciseTableProps = {
   onRemoveSet?: (setIndex: number) => Promise<void>
   onInsertSetAfter?: (afterSetIndex: number) => Promise<void>
   onDeleteSetAt?: (setIndex: number) => Promise<void>
-  onSetWarmup?: (setIndex: number, isWarmup: boolean) => Promise<void>
+  onSetType?: (setIndex: number, setType: SetType) => Promise<void>
   onPrefetchComment?: (exerciseId: string) => void
   onSaveExerciseNotes?: (notes: string) => Promise<void> | void
   onReplace?: () => void
@@ -178,7 +182,7 @@ export default function ExerciseTable({
   onRemoveSet,
   onInsertSetAfter,
   onDeleteSetAt,
-  onSetWarmup,
+  onSetType,
   onPrefetchComment,
   onSaveExerciseNotes,
   onReplace,
@@ -249,11 +253,18 @@ export default function ExerciseTable({
     }),
   )
   const [prefills, setPrefills] = useState<Record<string, SetPayload>>({})
-  // Warm-up intent keyed by stable slot key (not setIndex, which shifts when
-  // rows are added/removed). A logged set's persisted `isWarmup` is the
-  // fallback; the local override gives instant feedback before the backend
-  // round-trips and carries intent for rows that aren't logged yet.
-  const [warmupBySlot, setWarmupBySlot] = useState<Record<string, boolean>>({})
+  // Set-type intent keyed by stable slot key (not setIndex, which shifts when
+  // rows are added/removed). A logged set's persisted type is the fallback;
+  // the local override gives instant feedback before the backend round-trips
+  // and carries intent for rows that aren't logged yet.
+  const [setTypeBySlot, setSetTypeBySlot] = useState<Record<string, SetType>>(
+    {},
+  )
+  // Which row (by 1-indexed setNumber) currently has the set-type popover
+  // open, plus the screen-space rect of its chip so the popover can anchor
+  // itself right over the tapped set.
+  const [sheetForSet, setSheetForSet] = useState<number | null>(null)
+  const [anchorRect, setAnchorRect] = useState<AnchorRect | null>(null)
   const setRowRefs = useRef(new Map<string, SetRowHandle | null>())
 
   // Logged data on the backend can outpace local slot count (e.g. another
@@ -274,42 +285,60 @@ export default function ExerciseTable({
 
   const rowCount = slots.length
 
-  // Resolve each visible row to its data + warm-up state, then number warm-up
-  // and working sets on separate tracks (W1, W2… vs 1, 2, 3…) so the set
-  // column communicates the role at a glance.
+  const resolveSetType = useCallback(
+    (slotKey: string, existing: WorkoutSet | undefined): SetType =>
+      setTypeBySlot[slotKey] ??
+      existing?.setType ??
+      (existing?.isWarmup ? 'warmup' : 'normal'),
+    [setTypeBySlot],
+  )
+
+  // Resolve each visible row to its data + set type, then number warm-up and
+  // working sets on separate tracks (W1, W2… vs 1, 2, 3…). Failure/drop sets
+  // show their letter so the set column communicates the role at a glance.
   const rows = useMemo(() => {
     let warmupCount = 0
     let workingCount = 0
     return slots.map((slotKey, idx) => {
       const setNumber = idx + 1
       const existing = exerciseSets.find(s => s.setIndex === setNumber)
-      const isWarmup = warmupBySlot[slotKey] ?? existing?.isWarmup ?? false
+      const setType = resolveSetType(slotKey, existing)
       let label: string
-      if (isWarmup) {
+      if (setType === 'warmup') {
         warmupCount += 1
         label = `W${warmupCount}`
+      } else if (setType === 'failure') {
+        label = 'F'
+      } else if (setType === 'drop') {
+        label = 'D'
       } else {
         workingCount += 1
         label = String(workingCount)
       }
-      return { slotKey, setNumber, existing, isWarmup, label }
+      return { slotKey, setNumber, existing, setType, label }
     })
-  }, [slots, exerciseSets, warmupBySlot])
+  }, [slots, exerciseSets, resolveSetType])
 
-  const handleToggleWarmup = useCallback(
-    (setNumber: number) => {
+  const handleOpenSetType = useCallback(
+    (setNumber: number, rect: AnchorRect) => {
+      void Haptics.selectionAsync().catch(() => {})
+      setAnchorRect(rect)
+      setSheetForSet(setNumber)
+    },
+    [],
+  )
+
+  const handleSelectSetType = useCallback(
+    (setNumber: number, type: SetType) => {
       const slotKey = slots[setNumber - 1]
       if (!slotKey) return
+      setSetTypeBySlot(prev => ({ ...prev, [slotKey]: type }))
       const existing = exerciseSets.find(s => s.setIndex === setNumber)
-      const current = warmupBySlot[slotKey] ?? existing?.isWarmup ?? false
-      const next = !current
-      void Haptics.selectionAsync().catch(() => {})
-      setWarmupBySlot(prev => ({ ...prev, [slotKey]: next }))
-      if (existing && onSetWarmup) {
-        void onSetWarmup(setNumber, next).catch(() => {})
+      if (existing && onSetType) {
+        void onSetType(setNumber, type).catch(() => {})
       }
     },
-    [slots, exerciseSets, warmupBySlot, onSetWarmup],
+    [slots, exerciseSets, onSetType],
   )
 
   const handleOpenDetail = useCallback(() => {
@@ -364,18 +393,18 @@ export default function ExerciseTable({
       const sourceKey = slots[setNumber - 1]
       const draft =
         setRowRefs.current.get(sourceKey)?.getDraftPayload() ?? {}
-      const sourceWarmup =
-        warmupBySlot[sourceKey] ??
-        exerciseSets.find(s => s.setIndex === setNumber)?.isWarmup ??
-        false
+      const sourceType = resolveSetType(
+        sourceKey,
+        exerciseSets.find(s => s.setIndex === setNumber),
+      )
       const newKey = allocateSlotKey()
       setPrefills(prev =>
         Object.keys(draft).length > 0 ? { ...prev, [newKey]: draft } : prev,
       )
-      // A cloned row inherits the source's warm-up role so swiping under a
-      // warm-up keeps building warm-ups.
-      setWarmupBySlot(prev =>
-        sourceWarmup ? { ...prev, [newKey]: true } : prev,
+      // A cloned row inherits the source's role so swiping under a warm-up
+      // keeps building warm-ups (and likewise for failure/drop sets).
+      setSetTypeBySlot(prev =>
+        sourceType !== 'normal' ? { ...prev, [newKey]: sourceType } : prev,
       )
       // Splice after the swiped row so the new placeholder is the next
       // setIndex; rows below shift down by one.
@@ -388,7 +417,7 @@ export default function ExerciseTable({
         await onInsertSetAfter(setNumber).catch(() => {})
       }
     },
-    [slots, allocateSlotKey, onInsertSetAfter],
+    [slots, exerciseSets, resolveSetType, allocateSlotKey, onInsertSetAfter],
   )
 
   const handleSwipeDelete = useCallback(
@@ -404,7 +433,7 @@ export default function ExerciseTable({
         delete next[slotKey]
         return next
       })
-      setWarmupBySlot(prev => {
+      setSetTypeBySlot(prev => {
         if (!(slotKey in prev)) return prev
         const next = { ...prev }
         delete next[slotKey]
@@ -504,7 +533,7 @@ export default function ExerciseTable({
         <View style={styles.headCellCheck} />
       </View>
 
-      {rows.map(({ slotKey, setNumber, existing, isWarmup, label }) => (
+      {rows.map(({ slotKey, setNumber, existing, setType, label }) => (
         <SwipeableRow
           key={slotKey}
           showHint={showSwipeHint && setNumber === 1}
@@ -516,7 +545,7 @@ export default function ExerciseTable({
             ref={registerRowRef(slotKey)}
             setNumber={setNumber}
             displayLabel={label}
-            isWarmup={isWarmup}
+            setType={setType}
             previousLabel={formatPrevious(existing, exercise.trackingMetric)}
             columns={columns}
             existing={existing}
@@ -524,11 +553,32 @@ export default function ExerciseTable({
             exerciseNotes={exerciseNotes}
             onSave={payload => onSaveSet(setNumber, payload)}
             onClear={onRemoveSet ? () => onRemoveSet(setNumber) : undefined}
-            onToggleWarmup={() => handleToggleWarmup(setNumber)}
+            onOpenSetType={rect => handleOpenSetType(setNumber, rect)}
             onFirstFocus={handlePrefetchComment}
           />
         </SwipeableRow>
       ))}
+
+      <SetTypePopover
+        visible={sheetForSet != null}
+        anchor={anchorRect}
+        current={
+          sheetForSet != null
+            ? resolveSetType(
+                slots[sheetForSet - 1],
+                exerciseSets.find(s => s.setIndex === sheetForSet),
+              )
+            : 'normal'
+        }
+        canRemove={rowCount > 1}
+        onSelect={type => {
+          if (sheetForSet != null) handleSelectSetType(sheetForSet, type)
+        }}
+        onRemove={() => {
+          if (sheetForSet != null) void handleSwipeDelete(sheetForSet)
+        }}
+        onClose={() => setSheetForSet(null)}
+      />
 
       {actionsOpen ? (
         <Animated.View
@@ -813,9 +863,9 @@ function SwipeableRow({
 
 type SetRowProps = {
   setNumber: number
-  /** Role-aware label shown in the SET column ("1", "2" … or "W1", "W2"). */
+  /** Role-aware label shown in the SET column ("1", "2" …, "W1", "F", "D"). */
   displayLabel: string
-  isWarmup: boolean
+  setType: SetType
   previousLabel: string
   columns: ColumnConfig
   existing: WorkoutSet | undefined
@@ -831,7 +881,7 @@ type SetRowProps = {
   exerciseNotes?: string
   onSave: (payload: SetPayload) => Promise<void>
   onClear?: () => Promise<void>
-  onToggleWarmup?: () => void
+  onOpenSetType?: (rect: AnchorRect) => void
   onFirstFocus?: () => void
 }
 
@@ -913,7 +963,7 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
   {
     setNumber,
     displayLabel,
-    isWarmup,
+    setType,
     previousLabel,
     columns,
     existing,
@@ -921,12 +971,15 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
     exerciseNotes,
     onSave,
     onClear,
-    onToggleWarmup,
+    onOpenSetType,
     onFirstFocus,
   },
   ref,
 ) {
   const { palette } = useTheme()
+  const setTypeColors = useSetTypeColors()
+  const typeColor = setTypeColors[setType]
+  const isNormal = setType === 'normal'
   const completed = Boolean(existing)
   // Logged data wins; otherwise fall back to a swipe-to-add prefill so the
   // new row arrives populated with the same kg/reps/sec/rpe/notes the user
@@ -968,6 +1021,16 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
   const [isSaving, setIsSaving] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
   const firstFocusFiredRef = useRef(false)
+  const chipRef = useRef<View>(null)
+
+  // Measure the chip in window coordinates so the popover can anchor itself
+  // right over the tapped set instead of sliding up from the screen bottom.
+  const handleChipPress = useCallback(() => {
+    if (!onOpenSetType) return
+    chipRef.current?.measureInWindow((x, y, width, height) => {
+      onOpenSetType({ x, y, width, height })
+    })
+  }, [onOpenSetType])
 
   const handleFirstFocus = useCallback(() => {
     if (firstFocusFiredRef.current) return
@@ -990,10 +1053,11 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
     prevCompletedRef.current = completed
   }, [completed, completedProgress, pulse])
 
-  // Rows rest neutral; the amber set-chip carries the warm-up identity. On
-  // completion the fill goes amber for warm-ups and green for working sets.
+  // Rows rest neutral; the coloured set-chip carries the type identity. On
+  // completion the fill matches the type (amber warm-up, green normal, red
+  // failure, blue drop).
   const restColor = palette.bgElevated
-  const fillColor = isWarmup ? palette.warningSolid : palette.successSolid
+  const fillColor = typeColor.fill
 
   const rowAnimatedStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
@@ -1032,11 +1096,12 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
         if (exerciseNotes && exerciseNotes.trim() && columns.primaryKey !== 'notes') {
           payload.notes = exerciseNotes.trim()
         }
-        if (isWarmup) payload.isWarmup = true
+        payload.setType = setType
+        payload.isWarmup = setType === 'warmup'
         return payload
       },
     }),
-    [columns, primary, secondary, tertiary, exerciseNotes, isWarmup],
+    [columns, primary, secondary, tertiary, exerciseNotes, setType],
   )
 
   const handleClear = async () => {
@@ -1080,9 +1145,10 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
       if (exerciseNotes && exerciseNotes.trim() && columns.primaryKey !== 'notes') {
         payload.notes = exerciseNotes.trim()
       }
-      // Always carry the current role so editing/re-ticking a warm-up never
-      // silently demotes it back to a working set.
-      payload.isWarmup = isWarmup
+      // Always carry the current role so editing/re-ticking a typed set never
+      // silently demotes it back to a normal working set.
+      payload.setType = setType
+      payload.isWarmup = setType === 'warmup'
       await onSave(payload)
     } finally {
       setIsSaving(false)
@@ -1096,14 +1162,11 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
     >
       <View style={styles.row}>
         <Pressable
-          onPress={onToggleWarmup}
-          disabled={!onToggleWarmup}
+          ref={chipRef}
+          onPress={handleChipPress}
+          disabled={!onOpenSetType}
           accessibilityRole="button"
-          accessibilityLabel={
-            isWarmup
-              ? `Warm-up set ${displayLabel}. Tap to make it a working set.`
-              : `Working set ${displayLabel}. Tap to mark it as a warm-up.`
-          }
+          accessibilityLabel={`Set ${setNumber}, type ${setType}. Tap to change set type.`}
           hitSlop={6}
           style={styles.cellSet}
         >
@@ -1112,7 +1175,7 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
               style={[
                 styles.setChip,
                 {
-                  borderColor: isWarmup ? palette.warning : palette.border,
+                  borderColor: isNormal ? palette.border : typeColor.tint,
                   backgroundColor: palette.bgElevated,
                 },
                 pressed ? styles.setChipPressed : null,
@@ -1123,7 +1186,7 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
                 allowFontScaling={false}
                 style={[
                   styles.setChipText,
-                  { color: isWarmup ? palette.warning : palette.textSecondary },
+                  { color: isNormal ? palette.textSecondary : typeColor.tint },
                 ]}
               >
                 {displayLabel}
@@ -1185,9 +1248,9 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
               size="small"
               color={
                 completed
-                  ? isWarmup
-                    ? palette.warning
-                    : palette.success
+                  ? isNormal
+                    ? palette.success
+                    : typeColor.tint
                   : palette.primary
               }
             />
@@ -1197,9 +1260,9 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow(
               size={completed ? 20 : 16}
               color={
                 completed
-                  ? isWarmup
-                    ? palette.warning
-                    : palette.success
+                  ? isNormal
+                    ? palette.success
+                    : typeColor.tint
                   : palette.textMuted
               }
             />
