@@ -241,7 +241,7 @@ Prod is **only** these; nothing else touches it:
 - **Website `embodi.expo.app`**: `npx expo export -p web` then `npx eas-cli@latest deploy --prod` (drop `--prod` for a throwaway preview URL).
 - **Native apps + `production` OTA channel**: pushing to `main` triggers `.eas/workflows/deploy-to-production.yml` (builds + store submit), or run it directly with `npm run deploy`.
 
-All EAS commands need `EXPO_TOKEN` (or `eas login`) in the VM to run non-interactively. Prod builds read `EXPO_PUBLIC_CONVEX_URL` from the EAS `production` environment (the real prod Convex deployment), not from `.env.local`/tunnels. Do the merge-to-`main` + prod deploy only when the user explicitly says to ship.
+All EAS commands need `EXPO_TOKEN` (or `eas login`) to run non-interactively; it's provided as a Cloud Agent secret (robot user `cursor-cloud-agent` on the `nick4eto` account — verify with `npx eas-cli@latest whoami`). Prod builds read `EXPO_PUBLIC_CONVEX_URL` from the EAS `production` environment (the real prod Convex deployment), not from `.env.local`/tunnels. Do the merge-to-`main` + prod deploy only when the user explicitly says to ship.
 
 <!-- convex-ai-start -->
 
