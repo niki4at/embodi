@@ -221,6 +221,28 @@ Dependencies are refreshed automatically on startup (`npm install`). Standard co
 - AI session generation (and coach chat / weekly insights / exercise recognition) calls OpenAI through Convex actions and takes ~10-30s; wait before concluding it failed.
 - `npx expo lint` is the project lint and passes clean. `npx tsc --noEmit` and `eslint .` surface a few pre-existing issues outside the `expo lint` scope (a Node script's globals, one type error in `components/trainer/ExerciseSetRow.tsx`); they are not part of the standard workflow.
 
+### Live preview from a cloud agent (option 4) — let the user click through changes
+
+The VM-local Convex backend (`127.0.0.1:3210`) is **not reachable off-VM**, so a tunnel to only the Expo server gives a broken app. Tunnel **both** the app and Convex:
+
+1. Run Convex + Expo as usual (Convex in anonymous mode, Expo on 8081).
+2. Publicly expose Convex (no account needed) with a cloudflared quick tunnel:
+   ```bash
+   cloudflared tunnel --url http://localhost:3210   # → https://<x>.trycloudflare.com  (also do 3211 for HTTP-actions/storage)
+   ```
+3. Put those public URLs in `.env.local` as `EXPO_PUBLIC_CONVEX_URL` / `EXPO_PUBLIC_CONVEX_SITE_URL` (they're read at bundle time, so set them **before** starting Expo).
+4. Expose the app: `npm install --no-save @expo/ngrok` then `npx expo start --tunnel`. The public web URL is `https://<sub>-anonymous-8081.exp.direct` (find the exact subdomain via `curl -s http://localhost:4040/api/tunnels`).
+
+Hand the `*.exp.direct` URL to the user. Edits hot-reload live; `npx convex dev` keeps pushing backend edits to the tunneled deployment. Caveats: tunnels live only while this VM/session is up and the URLs change on each restart; prefer a dev build over Expo Go since Clerk SSO/secure-store/camera don't work in Go.
+
+### Promoting to prod (only on explicit request)
+
+Prod is **only** these; nothing else touches it:
+- **Website `embodi.expo.app`**: `npx expo export -p web` then `npx eas-cli@latest deploy --prod` (drop `--prod` for a throwaway preview URL).
+- **Native apps + `production` OTA channel**: pushing to `main` triggers `.eas/workflows/deploy-to-production.yml` (builds + store submit), or run it directly with `npm run deploy`.
+
+All EAS commands need `EXPO_TOKEN` (or `eas login`) in the VM to run non-interactively. Prod builds read `EXPO_PUBLIC_CONVEX_URL` from the EAS `production` environment (the real prod Convex deployment), not from `.env.local`/tunnels. Do the merge-to-`main` + prod deploy only when the user explicitly says to ship.
+
 <!-- convex-ai-start -->
 
 This project uses [Convex](https://convex.dev) as its backend.
