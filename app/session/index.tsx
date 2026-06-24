@@ -39,6 +39,12 @@ import {
   groupPlanByPhase,
   PHASE_META,
 } from '@/components/trainer/phases'
+import RestTimerOverlay from '@/components/trainer/rest-timer/RestTimerOverlay'
+import RestTimerPill from '@/components/trainer/rest-timer/RestTimerPill'
+import {
+  RestTimerProvider,
+  useRestTimer,
+} from '@/components/trainer/rest-timer/RestTimerProvider'
 import { CoachComment, ExercisePlan, SetType } from '@/components/trainer/types'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { PillButton } from '@/components/ui/pill-button'
@@ -57,6 +63,14 @@ const SCROLL_HIDE_DELAY_MS = 1200
 const SCROLL_THRESHOLD_PX = 6
 
 export default function SessionScreen() {
+  return (
+    <RestTimerProvider>
+      <SessionScreenInner />
+    </RestTimerProvider>
+  )
+}
+
+function SessionScreenInner() {
   const { palette, resolved, shadows } = useTheme()
   const insets = useSafeAreaInsets()
   const params = useLocalSearchParams<SessionParams>()
@@ -79,7 +93,10 @@ export default function SessionScreen() {
   const discardSession = useMutation(api.trainer.discardSession)
   const reorderExercise = useMutation(api.trainer.reorderSessionExercise)
   const removeExercise = useMutation(api.trainer.removeExerciseFromSession)
+  const setExerciseRest = useMutation(api.trainer.setExerciseRest)
   const prefetchComments = useAction(api.trainer.prefetchCoachComments)
+
+  const { start: startRest, cancelFor: cancelRestFor } = useRestTimer()
 
   const [showCitations, setShowCitations] = useState(false)
   const [activeComment, setActiveComment] = useState<CoachComment | null>(null)
@@ -248,17 +265,44 @@ export default function SessionScreen() {
       })
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
       triggerComment('after_set', exerciseId)
+
+      // Auto-start the rest countdown for this exercise. Skip it after the very
+      // last working set of the session so we don't rest with nothing left to do.
+      const exercise = planExercises.find(ex => ex.id === exerciseId)
+      const restSec = exercise?.restSec ?? 0
+      const isWarmup = payload.isWarmup || payload.setType === 'warmup'
+      const willFinishSession =
+        !isWarmup &&
+        totalTargetSets > 0 &&
+        workingSetsLogged + 1 >= totalTargetSets
+      if (restSec > 0 && !willFinishSession) {
+        startRest(
+          restSec,
+          exercise?.name ?? 'Next set',
+          `${exerciseId}:${setIndex}`,
+        )
+      }
     },
-    [logSet, sessionId, triggerComment],
+    [
+      logSet,
+      sessionId,
+      triggerComment,
+      planExercises,
+      totalTargetSets,
+      workingSetsLogged,
+      startRest,
+    ],
   )
 
   const handleRemoveSet = useCallback(
     async (exerciseId: string, setIndex: number) => {
       if (!sessionId) return
       await removeSet({ sessionId, exerciseId, setIndex })
+      // Untap should cancel the rest this set kicked off.
+      cancelRestFor(`${exerciseId}:${setIndex}`)
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     },
-    [removeSet, sessionId],
+    [removeSet, sessionId, cancelRestFor],
   )
 
   const handleInsertSetAfter = useCallback(
@@ -286,6 +330,15 @@ export default function SessionScreen() {
       await Haptics.selectionAsync()
     },
     [setSetType, sessionId],
+  )
+
+  const handleSetRest = useCallback(
+    async (exerciseId: string, restSec: number) => {
+      if (!sessionId) return
+      await setExerciseRest({ sessionId, exerciseId, restSec })
+      await Haptics.selectionAsync()
+    },
+    [setExerciseRest, sessionId],
   )
 
   const handlePrefetchComment = useCallback(
@@ -650,6 +703,9 @@ export default function SessionScreen() {
                     onSetType={(setIndex, setType) =>
                       handleSetType(exercise.id, setIndex, setType)
                     }
+                    onSetRest={restSec =>
+                      handleSetRest(exercise.id, restSec)
+                    }
                     onPrefetchComment={handlePrefetchComment}
                     exerciseNotes={exerciseNotesByExerciseId[exercise.id]}
                     onSaveExerciseNotes={notes =>
@@ -731,6 +787,8 @@ export default function SessionScreen() {
         onClose={handleCloseAddExercise}
       />
       <CoachBubble comment={activeComment} />
+      <RestTimerPill />
+      <RestTimerOverlay />
     </SafeAreaView>
     </GestureHandlerRootView>
   )

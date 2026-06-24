@@ -103,6 +103,10 @@ const MAPPING = {
   'scalemass.fill': 'monitor-weight',
   'repeat': 'repeat',
   'ruler': 'straighten',
+  'forward.fill': 'skip-next',
+  'forward.end.fill': 'skip-next',
+  'arrow.down.right.and.arrow.up.left': 'close-fullscreen',
+  'arrow.up.left.and.arrow.down.right': 'open-in-full',
 } as IconMapping;
 
 /**

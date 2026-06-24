@@ -46,7 +46,14 @@
       ],
       "expo-secure-store",
       "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      "expo-audio",
+      [
+        "expo-notifications",
+        {
+          "sounds": ["./assets/sounds/rest-done.wav"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

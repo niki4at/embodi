@@ -59,6 +59,7 @@ type ExerciseTableProps = {
   onInsertSetAfter?: (afterSetIndex: number) => Promise<void>
   onDeleteSetAt?: (setIndex: number) => Promise<void>
   onSetType?: (setIndex: number, setType: SetType) => Promise<void>
+  onSetRest?: (restSec: number) => Promise<void>
   onPrefetchComment?: (exerciseId: string) => void
   onSaveExerciseNotes?: (notes: string) => Promise<void> | void
   onReplace?: () => void
@@ -140,6 +141,14 @@ const COLUMN_CONFIG: Record<TrackingMetric, ColumnConfig> = {
   },
 }
 
+function formatRest(seconds: number): string {
+  if (seconds <= 0) return 'Off'
+  if (seconds < 60) return `${seconds}s`
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return s === 0 ? `${m}m` : `${m}:${s.toString().padStart(2, '0')}`
+}
+
 function parseNumber(value: string): number | undefined {
   if (!value.trim()) return undefined
   const num = Number(value)
@@ -183,6 +192,7 @@ export default function ExerciseTable({
   onInsertSetAfter,
   onDeleteSetAt,
   onSetType,
+  onSetRest,
   onPrefetchComment,
   onSaveExerciseNotes,
   onReplace,
@@ -197,6 +207,25 @@ export default function ExerciseTable({
   const [notesOpen, setNotesOpen] = useState(false)
   const [notesDraft, setNotesDraft] = useState(exerciseNotes ?? '')
   const [savingNotes, setSavingNotes] = useState(false)
+  const [restDraft, setRestDraft] = useState(exercise.restSec)
+
+  useEffect(() => {
+    setRestDraft(exercise.restSec)
+  }, [exercise.restSec])
+
+  const adjustRest = useCallback(
+    (delta: number) => {
+      setRestDraft(prev => {
+        const next = Math.max(0, Math.min(600, prev + delta))
+        if (next !== prev && onSetRest) {
+          void onSetRest(next).catch(() => {})
+        }
+        return next
+      })
+      void Haptics.selectionAsync().catch(() => {})
+    },
+    [onSetRest],
+  )
 
   const hasNotes = (exerciseNotes ?? '').trim().length > 0
 
@@ -589,6 +618,40 @@ export default function ExerciseTable({
             { borderTopColor: palette.divider },
           ]}
         >
+          {onSetRest ? (
+            <View
+              style={[
+                styles.restStepper,
+                {
+                  backgroundColor: palette.surface,
+                  borderColor: palette.border,
+                },
+              ]}
+            >
+              <IconSymbol name="timer" size={14} color={palette.textTertiary} />
+              <Pressable
+                onPress={() => adjustRest(-15)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Decrease rest by 15 seconds"
+                style={styles.restStepBtn}
+              >
+                <IconSymbol name="minus" size={14} color={palette.textPrimary} />
+              </Pressable>
+              <Text style={[styles.restValue, { color: palette.textPrimary }]}>
+                {formatRest(restDraft)}
+              </Text>
+              <Pressable
+                onPress={() => adjustRest(15)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Increase rest by 15 seconds"
+                style={styles.restStepBtn}
+              >
+                <IconSymbol name="plus" size={14} color={palette.textPrimary} />
+              </Pressable>
+            </View>
+          ) : null}
           <ActionButton
             icon="square.and.pencil"
             label="Notes"
@@ -1574,5 +1637,27 @@ const styles = StyleSheet.create({
   actionLabel: {
     ...typography.smallStrong,
     fontSize: 12,
+  },
+  restStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  restStepBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  restValue: {
+    ...typography.smallStrong,
+    fontSize: 12,
+    minWidth: 34,
+    textAlign: 'center',
   },
 })

@@ -894,6 +894,43 @@ export const reorderSessionExercise = mutation({
   },
 })
 
+// Update the rest-between-sets duration (seconds) for a single exercise in the
+// plan. Persisted so the rest timer's default sticks across reloads for both
+// coach and custom sessions. Clamped to a sane 0-600s window.
+export const setExerciseRest = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    exerciseId: v.string(),
+    restSec: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, { sessionId, exerciseId, restSec }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const session = await ctx.db.get(sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+
+    const index = session.plan.findIndex((ex) => ex.id === exerciseId)
+    if (index === -1) return null
+
+    const clamped = Math.max(0, Math.min(600, Math.round(restSec)))
+    const newPlan = session.plan.map((ex, i) =>
+      i === index ? { ...ex, restSec: clamped } : ex
+    )
+
+    await ctx.db.patch(sessionId, {
+      plan: newPlan,
+      updatedAt: Date.now(),
+    })
+    return null
+  },
+})
+
 // Reorder the plan to match a caller-supplied ordering of exercise ids.
 // Drag-to-reorder UIs commit the entire phase's new order in one call so
 // neighbour items animate to their final spots without intermediate flicker.
