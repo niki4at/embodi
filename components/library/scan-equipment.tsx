@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -165,11 +164,22 @@ export function ScanEquipment({
     if (!permission.granted) {
       Alert.alert(
         'Camera access needed',
-        'Allow camera access in Settings to scan your equipment.',
+        'Allow camera access to scan the machine in front of you, or pick a photo from your library instead.',
+        [
+          {
+            text: 'Choose from library',
+            onPress: () => void pickFromLibrary(),
+          },
+          { text: 'OK', style: 'cancel' },
+        ],
       )
       return
     }
+    // Open the rear camera straight away so the user can shoot the machine
+    // in front of them. On web this maps to capture="environment".
     const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      cameraType: ImagePicker.CameraType.back,
       quality: 0.6,
       allowsEditing: false,
     })
@@ -180,17 +190,10 @@ export function ScanEquipment({
 
   const handleScanPress = async () => {
     await Haptics.selectionAsync()
-    // Web has no camera capture flow in expo-image-picker; go straight to the
-    // file picker. Native gets the take-photo / choose-from-library choice.
-    if (Platform.OS === 'web') {
-      await pickFromLibrary()
-      return
-    }
-    Alert.alert('Scan equipment', 'Find exercises from a photo', [
-      { text: 'Take photo', onPress: () => void takePhoto() },
-      { text: 'Choose from library', onPress: () => void pickFromLibrary() },
-      { text: 'Cancel', style: 'cancel' },
-    ])
+    // Camera-first: jump straight into the camera. Gallery stays available as
+    // a fallback (camera unavailable / permission denied, and from the results
+    // empty state).
+    await takePhoto()
   }
 
   const handlePickMatch = async (entry: ExerciseEntry) => {
@@ -241,9 +244,10 @@ export function ScanEquipment({
     <>
       <TouchableOpacity
         onPress={handleScanPress}
+        onLongPress={() => void pickFromLibrary()}
         activeOpacity={0.85}
         accessibilityRole="button"
-        accessibilityLabel="Scan equipment with your camera"
+        accessibilityLabel="Scan equipment with your camera. Long press to pick from your library."
         style={[
           styles.scanButton,
           { backgroundColor: palette.primary },
