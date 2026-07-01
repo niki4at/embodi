@@ -43,6 +43,9 @@ const exerciseShape = v.object({
     v.literal('breath'),
     v.literal('custom')
   ),
+  // Soft-skip: keeps the exercise in the plan but excludes it from the
+  // sets-completed math and collapses its card. Restorable by the user.
+  skipped: v.optional(v.boolean()),
 })
 
 // Profile question shape for AI-generated personalized questions

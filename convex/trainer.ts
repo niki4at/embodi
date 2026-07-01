@@ -855,6 +855,41 @@ export const removeExerciseFromSession = mutation({
   },
 })
 
+// Soft-skip (or restore) an exercise. Marks the plan entry `skipped` without
+// deleting it or its logged sets, so a restore brings everything back.
+export const setExerciseSkipped = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+    exerciseId: v.string(),
+    skipped: v.boolean(),
+  },
+  handler: async (ctx, { sessionId, exerciseId, skipped }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const session = await ctx.db.get(sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+
+    let changed = false
+    const updatedPlan = session.plan.map((ex) => {
+      if (ex.id !== exerciseId) return ex
+      if ((ex.skipped ?? false) === skipped) return ex
+      changed = true
+      return { ...ex, skipped }
+    })
+    if (!changed) return
+
+    await ctx.db.patch(sessionId, {
+      plan: updatedPlan,
+      updatedAt: Date.now(),
+    })
+  },
+})
+
 // Move an exercise to a new position in the plan. `newIndex` is the
 // target zero-based position after the move (clamped to plan bounds).
 export const reorderSessionExercise = mutation({

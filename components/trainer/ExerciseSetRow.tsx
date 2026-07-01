@@ -96,7 +96,10 @@ export default function ExerciseSetRow({
       if (metricMeta.key === 'notes') {
         payload.notes = metricValue || undefined
       } else {
-        payload[metricMeta.key] = parseNumber(metricValue)
+        const value = parseNumber(metricValue)
+        if (value != null) {
+          ;(payload as Record<string, unknown>)[metricMeta.key] = value
+        }
       }
       if (showReps) {
         payload.reps = parseNumber(secondaryValue)

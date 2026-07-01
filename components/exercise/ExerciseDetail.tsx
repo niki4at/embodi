@@ -47,6 +47,15 @@ type ExerciseDetailProps = {
   exercise: DetailExercise
   mode: 'library' | 'session'
   initialSelected?: boolean
+  /**
+   * Focus-mode extras. `headerAccessory` renders under the top bar (session
+   * progress dots), `logSlot` renders right below the name/chips (the live
+   * set-logging table), and `extraBottomPadding` reserves room for a sticky
+   * footer owned by the parent screen.
+   */
+  headerAccessory?: React.ReactNode
+  logSlot?: React.ReactNode
+  extraBottomPadding?: number
 }
 
 function formatRelative(ms: number): string {
@@ -66,6 +75,9 @@ export function ExerciseDetail({
   exercise,
   mode,
   initialSelected = false,
+  headerAccessory,
+  logSlot,
+  extraBottomPadding = 0,
 }: ExerciseDetailProps) {
   const { palette, resolved, shadows } = useTheme()
   const insets = useSafeAreaInsets()
@@ -160,12 +172,15 @@ export function ExerciseDetail({
         <View style={styles.iconButton} />
       </View>
 
+      {headerAccessory}
+
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingBottom: insets.bottom + spacing.huge },
+          { paddingBottom: insets.bottom + spacing.huge + extraBottomPadding },
         ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Hero: animated demo or icon fallback */}
         <View
@@ -240,6 +255,24 @@ export function ExerciseDetail({
             </View>
           ) : null}
         </View>
+
+        {/* Live set logging (focus mode only) */}
+        {logSlot ? (
+          <>
+            <SectionLabel text="Log your sets" />
+            <View
+              style={[
+                styles.logCard,
+                {
+                  backgroundColor: palette.bgElevated,
+                  borderColor: palette.border,
+                },
+              ]}
+            >
+              {logSlot}
+            </View>
+          </>
+        ) : null}
 
         {/* How to */}
         <SectionLabel text="How to" />
@@ -644,6 +677,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: spacing.lg,
     gap: spacing.md,
+  },
+  logCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   stepRow: {
     flexDirection: 'row',

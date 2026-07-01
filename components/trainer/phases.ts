@@ -169,7 +169,9 @@ export function computePhaseProgress(
   const order: ExercisePhase[] = ['warmup', 'main', 'cooldown']
 
   return order.map(phase => {
-    const exercisesInPhase = plan.filter((_, idx) => phases[idx] === phase)
+    const exercisesInPhase = plan.filter(
+      (ex, idx) => phases[idx] === phase && !ex.skipped,
+    )
     const total = exercisesInPhase.reduce((acc, ex) => acc + ex.targetSets, 0)
     const completed = loggedSets.filter(set =>
       exercisesInPhase.some(ex => ex.id === set.exerciseId),

@@ -54,6 +54,16 @@ type ExerciseTableProps = {
   hasLoggedSets: boolean
   showSwipeHint?: boolean
   exerciseNotes?: string
+  /**
+   * 'card' renders the full session-list card (header, chevron actions,
+   * skip-swipe). 'embedded' strips the card chrome so the table can live
+   * inside another screen (the exercise-detail focus mode): no header, no
+   * skip-swipe, no open-detail tap, and the rest stepper + Notes are always
+   * visible below the rows.
+   */
+  variant?: 'card' | 'embedded'
+  /** Session context threaded into the detail route so it opens live. */
+  sessionId?: string
   onSaveSet: (setIndex: number, payload: SetPayload) => Promise<void>
   onRemoveSet?: (setIndex: number) => Promise<void>
   onInsertSetAfter?: (afterSetIndex: number) => Promise<void>
@@ -65,6 +75,8 @@ type ExerciseTableProps = {
   onReplace?: () => void
   onReposition?: (direction: 'up' | 'down') => void
   onRemove?: () => void
+  skipped?: boolean
+  onToggleSkip?: (next: boolean) => void
 }
 
 // Module-level flag so the discoverability wiggle plays at most once per
@@ -187,6 +199,8 @@ export default function ExerciseTable({
   hasLoggedSets,
   showSwipeHint,
   exerciseNotes,
+  variant = 'card',
+  sessionId,
   onSaveSet,
   onRemoveSet,
   onInsertSetAfter,
@@ -198,6 +212,8 @@ export default function ExerciseTable({
   onReplace,
   onReposition,
   onRemove,
+  skipped,
+  onToggleSkip,
 }: ExerciseTableProps) {
   const { palette } = useTheme()
   // Tapping the exercise name opens the full detail screen (demo + how-to +
@@ -395,9 +411,14 @@ export default function ExerciseTable({
         id: exercise.catalogId ?? exercise.id,
         mode: 'session',
         payload: JSON.stringify(payload),
+        // With a session attached, the detail screen runs live: the user
+        // can log sets there and step through the whole workout.
+        ...(sessionId
+          ? { sessionId, exerciseId: exercise.id }
+          : {}),
       },
     })
-  }, [exercise])
+  }, [exercise, sessionId])
   const handleToggleActions = useCallback(() => {
     setActionsOpen(prev => !prev)
   }, [])
@@ -475,57 +496,77 @@ export default function ExerciseTable({
     [slots, onDeleteSetAt],
   )
 
-  return (
-    <Animated.View
-      layout={LinearTransition.duration(220)}
-      style={[
-        styles.card,
-        {
-          backgroundColor: palette.bgElevated,
-          borderColor: palette.border,
-        },
-      ]}
-    >
-      <View style={styles.header}>
-        <Pressable
-          onPress={handleOpenDetail}
-          accessibilityRole="button"
-          accessibilityLabel="Open exercise details"
-          style={styles.headerText}
-        >
-          <Text style={[styles.title, { color: palette.primary }]}>
-            {exercise.name}
-          </Text>
-          <Text
-            style={[styles.subtitle, { color: palette.textTertiary }]}
-            numberOfLines={1}
-          >
-            {exercise.bodyPart}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={handleToggleActions}
-          accessibilityRole="button"
-          accessibilityLabel={
-            actionsOpen ? 'Hide exercise actions' : 'Show exercise actions'
-          }
-          style={[
-            styles.chevWrap,
-            {
-              backgroundColor: palette.surfaceAlt,
-              borderColor: palette.border,
-            },
-          ]}
-        >
-          <IconSymbol
-            name={actionsOpen ? 'chevron.up' : 'chevron.down'}
-            size={18}
-            color={palette.textPrimary}
-          />
-        </Pressable>
-      </View>
+  const embedded = variant === 'embedded'
 
-      <View style={[styles.divider, { backgroundColor: palette.divider }]} />
+  if (skipped && !embedded) {
+    return (
+      <SkippedCard
+        name={exercise.name}
+        onRestore={() => onToggleSkip?.(false)}
+      />
+    )
+  }
+
+  const tableContent = (
+      <Animated.View
+        style={
+          embedded
+            ? styles.embeddedWrap
+            : [
+                styles.card,
+                {
+                  backgroundColor: palette.bgElevated,
+                  borderColor: palette.border,
+                },
+              ]
+        }
+      >
+      {!embedded ? (
+        <>
+          <View style={styles.header}>
+            <Pressable
+              onPress={handleOpenDetail}
+              accessibilityRole="button"
+              accessibilityLabel="Open exercise details"
+              style={styles.headerText}
+            >
+              <Text style={[styles.title, { color: palette.primary }]}>
+                {exercise.name}
+              </Text>
+              <Text
+                style={[styles.subtitle, { color: palette.textTertiary }]}
+                numberOfLines={1}
+              >
+                {exercise.bodyPart}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={handleToggleActions}
+              accessibilityRole="button"
+              accessibilityLabel={
+                actionsOpen ? 'Hide exercise actions' : 'Show exercise actions'
+              }
+              style={[
+                styles.chevWrap,
+                {
+                  backgroundColor: palette.surfaceAlt,
+                  borderColor: palette.border,
+                },
+              ]}
+            >
+              <IconSymbol
+                name={actionsOpen ? 'chevron.up' : 'chevron.down'}
+                size={18}
+                color={palette.textPrimary}
+              />
+            </Pressable>
+          </View>
+
+          <View
+            style={[styles.divider, { backgroundColor: palette.divider }]}
+          />
+        </>
+      ) : null}
 
       <View style={styles.headRow}>
         <Text style={[styles.headCellSet, { color: palette.textTertiary }]}>
@@ -609,7 +650,7 @@ export default function ExerciseTable({
         onClose={() => setSheetForSet(null)}
       />
 
-      {actionsOpen ? (
+      {actionsOpen || embedded ? (
         <Animated.View
           entering={FadeIn.duration(180)}
           exiting={FadeOut.duration(140)}
@@ -680,6 +721,13 @@ export default function ExerciseTable({
                 onPress={() => onReposition('down')}
               />
             </>
+          ) : null}
+          {onToggleSkip ? (
+            <ActionButton
+              icon="forward.end.fill"
+              label="Skip"
+              onPress={() => onToggleSkip(true)}
+            />
           ) : null}
           {onRemove ? (
             <ActionButton
@@ -782,7 +830,15 @@ export default function ExerciseTable({
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </Animated.View>
+      </Animated.View>
+  )
+
+  if (embedded) return tableContent
+
+  return (
+    <CardSkipSwipe enabled={!!onToggleSkip} onSkip={() => onToggleSkip?.(true)}>
+      {tableContent}
+    </CardSkipSwipe>
   )
 }
 
@@ -920,6 +976,140 @@ function SwipeableRow({
       >
         {children}
       </ReanimatedSwipeable>
+    </Animated.View>
+  )
+}
+
+type CardSkipSwipeProps = {
+  children: React.ReactNode
+  enabled: boolean
+  onSkip: () => void
+}
+
+/**
+ * Wraps a whole exercise card so swiping it left reveals a muted "Skip"
+ * strip and, once past the threshold, soft-skips the exercise. Set-row
+ * swipes live inside this and win when the touch starts on a row (their
+ * activation threshold is smaller), so this only fires on the header and
+ * empty areas of the card.
+ */
+function CardSkipSwipe({ children, enabled, onSkip }: CardSkipSwipeProps) {
+  const { palette } = useTheme()
+  const ref = useRef<SwipeableMethods>(null)
+
+  const handleOpen = useCallback(
+    (direction: 'left' | 'right') => {
+      // Left swipe (finger travels leftward) reveals the trailing strip.
+      if (direction === 'left') {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+        onSkip()
+      }
+      setTimeout(() => ref.current?.close(), 80)
+    },
+    [onSkip],
+  )
+
+  if (!enabled) {
+    return (
+      <Animated.View
+        layout={LinearTransition.duration(220)}
+        style={styles.cardSwipeWrap}
+      >
+        {children}
+      </Animated.View>
+    )
+  }
+
+  return (
+    <Animated.View
+      layout={LinearTransition.duration(220)}
+      style={styles.cardSwipeWrap}
+    >
+      <View style={styles.cardSkipBackdrop} pointerEvents="none">
+        <View
+          style={[
+            styles.cardSkipBackdropInner,
+            { backgroundColor: palette.surfaceAlt },
+          ]}
+        >
+          <Text style={[styles.cardSkipLabel, { color: palette.textSecondary }]}>
+            Skip
+          </Text>
+          <IconSymbol
+            name="forward.end.fill"
+            size={18}
+            color={palette.textSecondary}
+          />
+        </View>
+      </View>
+      <ReanimatedSwipeable
+        ref={ref}
+        friction={1}
+        rightThreshold={SWIPE_TRIGGER}
+        overshootRight={false}
+        dragOffsetFromRightEdge={20}
+        renderRightActions={() => <View style={styles.cardSkipSpacer} />}
+        onSwipeableOpen={handleOpen}
+      >
+        {children}
+      </ReanimatedSwipeable>
+    </Animated.View>
+  )
+}
+
+type SkippedCardProps = {
+  name: string
+  onRestore: () => void
+}
+
+/**
+ * Collapsed stand-in for a skipped exercise. Tapping it restores the
+ * exercise back into the working session.
+ */
+function SkippedCard({ name, onRestore }: SkippedCardProps) {
+  const { palette } = useTheme()
+  return (
+    <Animated.View
+      layout={LinearTransition.duration(220)}
+      entering={FadeIn.duration(160)}
+      style={styles.cardSwipeWrap}
+    >
+      <Pressable
+        onPress={onRestore}
+        accessibilityRole="button"
+        accessibilityLabel={`Restore ${name}`}
+        style={[
+          styles.skippedCard,
+          { backgroundColor: palette.surface, borderColor: palette.border },
+        ]}
+      >
+        <View style={styles.headerText}>
+          <Text
+            style={[styles.skippedTitle, { color: palette.textTertiary }]}
+            numberOfLines={1}
+          >
+            {name}
+          </Text>
+          <Text
+            style={[styles.subtitle, { color: palette.textTertiary }]}
+            numberOfLines={1}
+          >
+            Tap to restore
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.skippedPill,
+            { backgroundColor: palette.surfaceAlt, borderColor: palette.border },
+          ]}
+        >
+          <Text
+            style={[styles.skippedPillText, { color: palette.textSecondary }]}
+          >
+            Skipped
+          </Text>
+        </View>
+      </Pressable>
     </Animated.View>
   )
 }
@@ -1343,6 +1533,7 @@ type ActionButtonProps = {
     | 'chevron.down'
     | 'trash'
     | 'square.and.pencil'
+    | 'forward.end.fill'
   label: string
   destructive?: boolean
   danger?: boolean
@@ -1406,7 +1597,63 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: spacing.xs,
+  },
+  // Embedded (focus-mode) tables inherit the host screen's surface; the
+  // host provides the card chrome so the rows read as part of the page.
+  embeddedWrap: {
+    paddingBottom: spacing.xs,
+  },
+  cardSwipeWrap: {
+    borderRadius: radius.lg,
     marginBottom: spacing.lg,
+  },
+  cardSkipBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  cardSkipBackdropInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    flex: 1,
+  },
+  cardSkipLabel: {
+    ...typography.smallStrong,
+    fontSize: 12,
+    letterSpacing: 0.2,
+  },
+  cardSkipSpacer: {
+    width: SWIPE_SPACER_WIDTH,
+  },
+  skippedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    opacity: 0.75,
+  },
+  skippedTitle: {
+    ...typography.h2,
+    fontSize: 18,
+    textDecorationLine: 'line-through',
+  },
+  skippedPill: {
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  skippedPillText: {
+    ...typography.smallStrong,
+    fontSize: 11,
+    letterSpacing: 0.3,
   },
   header: {
     flexDirection: 'row',

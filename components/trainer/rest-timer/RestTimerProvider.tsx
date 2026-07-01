@@ -1,6 +1,5 @@
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio'
 import * as Haptics from 'expo-haptics'
-import * as Notifications from 'expo-notifications'
 import React, {
   createContext,
   useCallback,
@@ -11,27 +10,18 @@ import React, {
   useState,
 } from 'react'
 import { AppState, Platform } from 'react-native'
+import {
+  cancelRestNotification,
+  configureRestNotifications,
+  scheduleRestEndNotification,
+  setupRestNotifications,
+} from './rest-notifications'
 
 const CHIME = require('../../../assets/sounds/rest-done.wav')
-const ANDROID_CHANNEL_ID = 'rest-timer'
 const FINISHED_AUTODISMISS_MS = 5000
 const CHECK_INTERVAL_MS = 500
 
-// Foreground cue is handled in-app (haptic + chime), so suppress the OS banner
-// and sound while the app is active and let it fire only on the lock screen.
-if (Platform.OS !== 'web') {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => {
-      const backgrounded = AppState.currentState !== 'active'
-      return {
-        shouldPlaySound: backgrounded,
-        shouldSetBadge: false,
-        shouldShowBanner: backgrounded,
-        shouldShowList: backgrounded,
-      }
-    },
-  })
-}
+configureRestNotifications(() => AppState.currentState !== 'active')
 
 export type RestTimerStatus = 'idle' | 'running' | 'finished'
 export type RestTimerMode = 'full' | 'mini'
@@ -111,30 +101,16 @@ export function RestTimerProvider({ children }: { children: React.ReactNode }) {
   const cancelNotification = useCallback(() => {
     const id = notificationIdRef.current
     notificationIdRef.current = null
-    if (id && Platform.OS !== 'web') {
-      void Notifications.cancelScheduledNotificationAsync(id).catch(() => {})
+    if (id) {
+      void cancelRestNotification(id)
     }
   }, [])
 
   const scheduleEndNotification = useCallback(
     (seconds: number, name: string | null) => {
-      if (Platform.OS === 'web') return
-      void Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Rest complete',
-          body: name ? `Time for your next set of ${name}.` : 'Time for your next set.',
-          sound: 'rest-done.wav',
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-          seconds: Math.max(1, Math.round(seconds)),
-          channelId: ANDROID_CHANNEL_ID,
-        },
+      void scheduleRestEndNotification(seconds, name).then((id) => {
+        notificationIdRef.current = id
       })
-        .then((id) => {
-          notificationIdRef.current = id
-        })
-        .catch(() => {})
     },
     [],
   )
@@ -280,15 +256,7 @@ export function RestTimerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (Platform.OS === 'web') return
     void setAudioModeAsync({ playsInSilentMode: true }).catch(() => {})
-    void Notifications.requestPermissionsAsync().catch(() => {})
-    if (Platform.OS === 'android') {
-      void Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
-        name: 'Rest timer',
-        importance: Notifications.AndroidImportance.HIGH,
-        sound: 'rest-done.wav',
-        vibrationPattern: [0, 220, 120, 220],
-      }).catch(() => {})
-    }
+    void setupRestNotifications()
   }, [])
 
   // Re-sync when returning to the foreground: the background timer may have

@@ -42,6 +42,7 @@ export type ExercisePlan = {
   contraindications?: string[]
   cues: string[]
   trackingMetric: TrackingMetric
+  skipped?: boolean
 }
 
 export type WorkoutSet = {

@@ -31,7 +31,6 @@ import AddExerciseSheet from '@/components/trainer/AddExerciseSheet'
 import CitationsPanel from '@/components/trainer/CitationsPanel'
 import CoachBubble from '@/components/trainer/CoachBubble'
 import ExerciseMenuSheet from '@/components/trainer/ExerciseMenuSheet'
-import type { SetPayload } from '@/components/trainer/ExerciseSetRow'
 import ExerciseTable from '@/components/trainer/ExerciseTable'
 import { MovementJourneyBar } from '@/components/trainer/MovementJourneyBar'
 import {
@@ -39,19 +38,14 @@ import {
   groupPlanByPhase,
   PHASE_META,
 } from '@/components/trainer/phases'
-import RestTimerOverlay from '@/components/trainer/rest-timer/RestTimerOverlay'
-import RestTimerPill from '@/components/trainer/rest-timer/RestTimerPill'
-import {
-  RestTimerProvider,
-  useRestTimer,
-} from '@/components/trainer/rest-timer/RestTimerProvider'
-import { CoachComment, ExercisePlan, SetType } from '@/components/trainer/types'
+import { CoachComment, ExercisePlan } from '@/components/trainer/types'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { PillButton } from '@/components/ui/pill-button'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
 import { Id } from '@/convex/_generated/dataModel'
+import { useSessionLogging } from '@/hooks/use-session-logging'
 
 type SessionParams = {
   sessionId?: string
@@ -63,14 +57,6 @@ const SCROLL_HIDE_DELAY_MS = 1200
 const SCROLL_THRESHOLD_PX = 6
 
 export default function SessionScreen() {
-  return (
-    <RestTimerProvider>
-      <SessionScreenInner />
-    </RestTimerProvider>
-  )
-}
-
-function SessionScreenInner() {
   const { palette, resolved, shadows } = useTheme()
   const insets = useSafeAreaInsets()
   const params = useLocalSearchParams<SessionParams>()
@@ -84,19 +70,11 @@ function SessionScreenInner() {
     sessionId ? { sessionId } : 'skip',
   )
   const onboarding = useQuery(api.onboarding.getOnboarding)
-  const logSet = useMutation(api.trainer.logSet)
-  const removeSet = useMutation(api.trainer.removeSet)
-  const insertSetAfter = useMutation(api.trainer.insertSetAfter)
-  const deleteSetAt = useMutation(api.trainer.deleteSetAt)
-  const setSetType = useMutation(api.trainer.setSetType)
   const completeSession = useMutation(api.trainer.completeSession)
   const discardSession = useMutation(api.trainer.discardSession)
   const reorderExercise = useMutation(api.trainer.reorderSessionExercise)
   const removeExercise = useMutation(api.trainer.removeExerciseFromSession)
-  const setExerciseRest = useMutation(api.trainer.setExerciseRest)
   const prefetchComments = useAction(api.trainer.prefetchCoachComments)
-
-  const { start: startRest, cancelFor: cancelRestFor } = useRestTimer()
 
   const [showCitations, setShowCitations] = useState(false)
   const [activeComment, setActiveComment] = useState<CoachComment | null>(null)
@@ -133,18 +111,6 @@ function SessionScreenInner() {
   const phaseProgress = useMemo(
     () => computePhaseProgress(planExercises, sets.filter(s => !s.isWarmup)),
     [planExercises, sets],
-  )
-
-  const totalTargetSets = useMemo(
-    () => planExercises.reduce((acc, ex) => acc + ex.targetSets, 0),
-    [planExercises],
-  )
-
-  // Warm-up sets prime the body but don't count toward the working-set target,
-  // so progress and completion track only working sets.
-  const workingSetsLogged = useMemo(
-    () => sets.filter(s => !s.isWarmup).length,
-    [sets],
   )
 
   const displayComment = useCallback((comment: CoachComment) => {
@@ -204,9 +170,13 @@ function SessionScreenInner() {
       alcohol: onboarding.alcohol,
     }
 
+    const coachCommentPlan = planExercises.map(
+      ({ skipped: _skipped, ...exercise }) => exercise,
+    )
+
     prefetchComments({
       profile: profilePayload,
-      plan: planExercises,
+      plan: coachCommentPlan,
       durationMin: session.durationMin,
       goal: session.goal,
     })
@@ -254,92 +224,27 @@ function SessionScreenInner() {
     [journeyVisible],
   )
 
-  const handleLogSet = useCallback(
-    async (exerciseId: string, setIndex: number, payload: SetPayload) => {
-      if (!sessionId) return
-      await logSet({
-        sessionId,
-        exerciseId,
-        setIndex,
-        ...payload,
-      })
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-      triggerComment('after_set', exerciseId)
-
-      // Auto-start the rest countdown for this exercise. Skip it after the very
-      // last working set of the session so we don't rest with nothing left to do.
-      const exercise = planExercises.find(ex => ex.id === exerciseId)
-      const restSec = exercise?.restSec ?? 0
-      const isWarmup = payload.isWarmup || payload.setType === 'warmup'
-      const willFinishSession =
-        !isWarmup &&
-        totalTargetSets > 0 &&
-        workingSetsLogged + 1 >= totalTargetSets
-      if (restSec > 0 && !willFinishSession) {
-        startRest(
-          restSec,
-          exercise?.name ?? 'Next set',
-          `${exerciseId}:${setIndex}`,
-        )
-      }
-    },
-    [
-      logSet,
-      sessionId,
-      triggerComment,
-      planExercises,
-      totalTargetSets,
-      workingSetsLogged,
-      startRest,
-    ],
+  const handleAfterSetLogged = useCallback(
+    (exerciseId: string) => triggerComment('after_set', exerciseId),
+    [triggerComment],
   )
 
-  const handleRemoveSet = useCallback(
-    async (exerciseId: string, setIndex: number) => {
-      if (!sessionId) return
-      await removeSet({ sessionId, exerciseId, setIndex })
-      // Untap should cancel the rest this set kicked off.
-      cancelRestFor(`${exerciseId}:${setIndex}`)
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    },
-    [removeSet, sessionId, cancelRestFor],
-  )
-
-  const handleInsertSetAfter = useCallback(
-    async (exerciseId: string, afterSetIndex: number) => {
-      if (!sessionId) return
-      await insertSetAfter({ sessionId, exerciseId, afterSetIndex })
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    },
-    [insertSetAfter, sessionId],
-  )
-
-  const handleDeleteSetAt = useCallback(
-    async (exerciseId: string, setIndex: number) => {
-      if (!sessionId) return
-      await deleteSetAt({ sessionId, exerciseId, setIndex })
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    },
-    [deleteSetAt, sessionId],
-  )
-
-  const handleSetType = useCallback(
-    async (exerciseId: string, setIndex: number, setType: SetType) => {
-      if (!sessionId) return
-      await setSetType({ sessionId, exerciseId, setIndex, setType })
-      await Haptics.selectionAsync()
-    },
-    [setSetType, sessionId],
-  )
-
-  const handleSetRest = useCallback(
-    async (exerciseId: string, restSec: number) => {
-      if (!sessionId) return
-      await setExerciseRest({ sessionId, exerciseId, restSec })
-      await Haptics.selectionAsync()
-    },
-    [setExerciseRest, sessionId],
-  )
+  const {
+    totalTargetSets,
+    workingSetsLogged,
+    handleLogSet,
+    handleRemoveSet,
+    handleInsertSetAfter,
+    handleDeleteSetAt,
+    handleSetType,
+    handleSetRest,
+    handleToggleSkip,
+  } = useSessionLogging({
+    sessionId,
+    planExercises,
+    sets,
+    onAfterSetLogged: handleAfterSetLogged,
+  })
 
   const handlePrefetchComment = useCallback(
     (exerciseId: string) => triggerComment('before_set', exerciseId),
@@ -684,6 +589,7 @@ function SessionScreenInner() {
                     key={exercise.id}
                     exercise={exercise}
                     sets={sets}
+                    sessionId={sessionId}
                     planIndex={planIndex}
                     planLength={planExercises.length}
                     hasLoggedSets={hasSets}
@@ -716,6 +622,8 @@ function SessionScreenInner() {
                       handleReposition(exercise.id, direction)
                     }
                     onRemove={() => handleRemove(exercise.id, hasSets)}
+                    skipped={exercise.skipped}
+                    onToggleSkip={next => handleToggleSkip(exercise.id, next)}
                   />
                 )
               })}
@@ -787,8 +695,6 @@ function SessionScreenInner() {
         onClose={handleCloseAddExercise}
       />
       <CoachBubble comment={activeComment} />
-      <RestTimerPill />
-      <RestTimerOverlay />
     </SafeAreaView>
     </GestureHandlerRootView>
   )

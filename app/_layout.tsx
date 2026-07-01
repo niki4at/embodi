@@ -14,6 +14,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import 'react-native-reanimated'
 
 import { ConvexClientProvider } from '@/components/ConvexClientProvider'
+import RestTimerOverlay from '@/components/trainer/rest-timer/RestTimerOverlay'
+import RestTimerPill from '@/components/trainer/rest-timer/RestTimerPill'
+import { RestTimerProvider } from '@/components/trainer/rest-timer/RestTimerProvider'
 import { ThemeProvider, useTheme } from '@/constants/theme-context'
 import { tokenCache } from '@/utils/clerkTokenCache'
 
@@ -137,12 +140,15 @@ function ThemedNavigation() {
         <Stack.Screen
           name="exercise/[id]"
           options={{
-            presentation: 'modal',
+            // Rendered as a card (not a native modal) so the global rest
+            // timer pill stays visible while working out in focus mode.
             headerShown: false,
             animation: 'slide_from_bottom',
           }}
         />
       </Stack>
+      <RestTimerPill />
+      <RestTimerOverlay />
       <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} />
     </NavThemeProvider>
   )
@@ -173,7 +179,9 @@ export default function RootLayout() {
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
         <ConvexClientProvider>
           <ThemeProvider>
-            <ThemedNavigation />
+            <RestTimerProvider>
+              <ThemedNavigation />
+            </RestTimerProvider>
           </ThemeProvider>
         </ConvexClientProvider>
       </ClerkProvider>

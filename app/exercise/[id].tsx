@@ -5,12 +5,16 @@ import {
   ExerciseDetail,
   type DetailExercise,
 } from '@/components/exercise/ExerciseDetail'
+import { SessionFocusMode } from '@/components/exercise/SessionFocusMode'
+import { Id } from '@/convex/_generated/dataModel'
 
 export default function ExerciseDetailScreen() {
   const params = useLocalSearchParams<{
     payload?: string
     mode?: string
     selected?: string
+    sessionId?: string
+    exerciseId?: string
   }>()
 
   const exercise = useMemo<DetailExercise | null>(() => {
@@ -26,6 +30,20 @@ export default function ExerciseDetailScreen() {
       }
     }
   }, [params.payload])
+
+  // With a live session attached, run focus mode: log sets, rest, and step
+  // through the whole workout from this screen.
+  if (
+    typeof params.sessionId === 'string' &&
+    typeof params.exerciseId === 'string'
+  ) {
+    return (
+      <SessionFocusMode
+        sessionId={params.sessionId as Id<'workout_sessions'>}
+        initialExerciseId={params.exerciseId}
+      />
+    )
+  }
 
   if (!exercise) return null
 
