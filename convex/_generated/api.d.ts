@@ -23,6 +23,8 @@ import type * as messages from "../messages.js";
 import type * as onboarding from "../onboarding.js";
 import type * as openai from "../openai.js";
 import type * as profileQuestions from "../profileQuestions.js";
+import type * as routines from "../routines.js";
+import type * as sessionInsights from "../sessionInsights.js";
 import type * as trainer from "../trainer.js";
 import type * as weeklyInsights from "../weeklyInsights.js";
 
@@ -48,6 +50,8 @@ declare const fullApi: ApiFromModules<{
   onboarding: typeof onboarding;
   openai: typeof openai;
   profileQuestions: typeof profileQuestions;
+  routines: typeof routines;
+  sessionInsights: typeof sessionInsights;
   trainer: typeof trainer;
   weeklyInsights: typeof weeklyInsights;
 }>;

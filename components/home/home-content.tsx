@@ -72,6 +72,7 @@ type CompletedTodaySession = {
   goal: string
   modality: string
   durationMin: number
+  actualDurationMin?: number | null
   setsLogged: number
   totalTargetSets: number
   completedAt: number
@@ -133,11 +134,18 @@ export default function HomeContent() {
     api.cycle.getRecentEntries,
     cycleEnabled ? { limit: 6 } : 'skip',
   )
+  const routines = useQuery(api.routines.listRoutines)
   const startSessionFromCheckin = useMutation(
     api.checkin.startSessionFromTodaysCheckin,
   )
+  const startSessionFromRoutine = useMutation(
+    api.routines.startSessionFromRoutine,
+  )
   const [isRecoveringSession, setIsRecoveringSession] = useState(false)
   const [isStartingCoachSession, setIsStartingCoachSession] = useState(false)
+  const [startingRoutineId, setStartingRoutineId] = useState<string | null>(
+    null,
+  )
 
   const cycleStatus = useMemo(() => {
     if (!cycleEnabled || !cycleData) return null
@@ -246,6 +254,29 @@ export default function HomeContent() {
   const handleStartMyOwn = useCallback(() => {
     router.push('/build-workout' as Href)
   }, [])
+
+  const handleOpenRoutines = useCallback(() => {
+    Haptics.selectionAsync()
+    router.push('/routines' as Href)
+  }, [])
+
+  const handleStartRoutine = useCallback(
+    async (routineId: Id<'workout_routines'>) => {
+      if (startingRoutineId) return
+      setStartingRoutineId(routineId)
+      try {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+        const sessionId = await startSessionFromRoutine({ routineId })
+        navigateToSession(sessionId, 'logging')
+      } catch (error) {
+        console.error('Failed to start routine', error)
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      } finally {
+        setStartingRoutineId(null)
+      }
+    },
+    [startingRoutineId, startSessionFromRoutine, navigateToSession],
+  )
 
   const handleOpenRecap = useCallback(
     (sessionId: Id<'workout_sessions'>) => {
@@ -370,6 +401,19 @@ export default function HomeContent() {
             />
           )}
         </Animated.View>
+
+        {routines && routines.length > 0 && (
+          <Animated.View
+            entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 1.25).duration(motion.duration.base)}
+          >
+            <RoutinesStrip
+              routines={routines}
+              startingRoutineId={startingRoutineId}
+              onStartRoutine={handleStartRoutine}
+              onSeeAll={handleOpenRoutines}
+            />
+          </Animated.View>
+        )}
 
         {completedToday && completedToday.length > 0 && (
           <Animated.View
@@ -730,7 +774,8 @@ const CompletedTodayStrip = memo(function CompletedTodayStrip({
               style={[styles.completedRowMeta, { color: palette.textSecondary }]}
               numberOfLines={1}
             >
-              {session.modality} {'\u00b7'} {session.durationMin} min {'\u00b7'}{' '}
+              {session.modality} {'\u00b7'}{' '}
+              {session.actualDurationMin ?? session.durationMin} min {'\u00b7'}{' '}
               {session.setsLogged} sets
             </Text>
           </View>
@@ -741,6 +786,100 @@ const CompletedTodayStrip = memo(function CompletedTodayStrip({
           />
         </TouchableOpacity>
       ))}
+    </View>
+  )
+})
+
+type RoutineSummary = {
+  _id: Id<'workout_routines'>
+  name: string
+  goal: string
+  modality: string
+  durationMin: number
+  exerciseCount: number
+  createdAt: number
+  updatedAt: number
+}
+
+interface RoutinesStripProps {
+  routines: RoutineSummary[]
+  startingRoutineId: string | null
+  onStartRoutine: (routineId: Id<'workout_routines'>) => void
+  onSeeAll: () => void
+}
+
+const RoutinesStrip = memo(function RoutinesStrip({
+  routines,
+  startingRoutineId,
+  onStartRoutine,
+  onSeeAll,
+}: RoutinesStripProps) {
+  const { palette } = useTheme()
+
+  return (
+    <View style={styles.routinesStrip}>
+      <View style={styles.routinesHeader}>
+        <Text style={[styles.completedStripLabel, { color: palette.textTertiary }]}>
+          YOUR ROUTINES
+        </Text>
+        <TouchableOpacity
+          onPress={onSeeAll}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="See all routines"
+        >
+          <Text style={[styles.routinesSeeAll, { color: palette.primary }]}>
+            See all
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.routinesRow}
+      >
+        {routines.map((routine) => (
+          <TouchableOpacity
+            key={routine._id}
+            onPress={() => onStartRoutine(routine._id)}
+            disabled={startingRoutineId !== null}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`Start ${routine.name}`}
+            style={[
+              styles.routineChip,
+              { backgroundColor: palette.surface, borderColor: palette.border },
+            ]}
+          >
+            <View
+              style={[
+                styles.routineChipIcon,
+                { backgroundColor: palette.primaryMuted },
+              ]}
+            >
+              {startingRoutineId === routine._id ? (
+                <ActivityIndicator size="small" color={palette.primary} />
+              ) : (
+                <IconSymbol name="repeat" size={18} color={palette.primary} />
+              )}
+            </View>
+            <Text
+              style={[styles.routineChipTitle, { color: palette.textPrimary }]}
+              numberOfLines={1}
+            >
+              {routine.name}
+            </Text>
+            <Text
+              style={[styles.routineChipMeta, { color: palette.textSecondary }]}
+              numberOfLines={1}
+            >
+              {routine.exerciseCount}{' '}
+              {routine.exerciseCount === 1 ? 'move' : 'moves'} {'\u00b7'}{' '}
+              {routine.durationMin} min
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
     </View>
   )
 })
@@ -832,6 +971,44 @@ const styles = StyleSheet.create({
   completedStripLabel: {
     ...typography.caption,
     marginBottom: 2,
+  },
+  routinesStrip: {
+    marginTop: spacing.lg,
+  },
+  routinesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  routinesSeeAll: {
+    ...typography.smallStrong,
+  },
+  routinesRow: {
+    gap: spacing.md,
+    paddingRight: spacing.xs,
+  },
+  routineChip: {
+    width: 160,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  routineChipIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  routineChipTitle: {
+    ...typography.bodyStrong,
+    fontSize: 15,
+  },
+  routineChipMeta: {
+    ...typography.small,
   },
   completedRow: {
     flexDirection: 'row',

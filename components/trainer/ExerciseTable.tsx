@@ -1163,10 +1163,9 @@ type CellInputProps = {
 }
 
 /**
- * Cell input that stays inert (editable={false}) until the user taps it.
- * The wrapping Pressable handles the "is this a tap" decision; horizontal
- * swipes and vertical scrolls travel through to the parent gesture
- * handlers because a non-editable TextInput never claims the touch.
+ * Cell input that stays inert on native until the user taps it. Web keeps the
+ * input focusable from the first tap because iOS Safari only raises the
+ * keyboard when focus happens inside the trusted tap event.
  */
 function CellInput({
   value,
@@ -1178,17 +1177,27 @@ function CellInput({
   const { palette } = useTheme()
   const inputRef = useRef<TextInput>(null)
   const [editing, setEditing] = useState(false)
+  const focusableOnFirstTap = Platform.OS === 'web'
 
   // Focus only after the editable=true prop has rendered, otherwise the
-  // native side ignores the focus call.
+  // native side ignores the focus call. On web, iOS Safari requires the input
+  // to be focusable during the user's tap or it won't raise the keyboard.
   useEffect(() => {
-    if (editing) inputRef.current?.focus()
-  }, [editing])
+    if (editing && !focusableOnFirstTap) inputRef.current?.focus()
+  }, [editing, focusableOnFirstTap])
 
   const handlePress = useCallback(() => {
     if (editing) return
     setEditing(true)
+    if (focusableOnFirstTap) inputRef.current?.focus()
     onActivate?.()
+  }, [editing, focusableOnFirstTap, onActivate])
+
+  const handleFocus = useCallback(() => {
+    if (!editing) {
+      setEditing(true)
+      onActivate?.()
+    }
   }, [editing, onActivate])
 
   return (
@@ -1199,12 +1208,13 @@ function CellInput({
     >
       <TextInput
         ref={inputRef}
-        editable={editing}
+        editable={focusableOnFirstTap || editing}
         value={value}
         onChangeText={onChangeText}
         placeholder={editing ? '' : placeholder}
         placeholderTextColor={palette.textMuted}
         keyboardType={keyboardType}
+        onFocus={handleFocus}
         onBlur={() => setEditing(false)}
         style={[styles.cellInputText, { color: palette.textPrimary }]}
       />

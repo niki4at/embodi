@@ -21,7 +21,7 @@ const CHIME = require('../../../assets/sounds/rest-done.wav')
 const FINISHED_AUTODISMISS_MS = 5000
 const CHECK_INTERVAL_MS = 500
 
-configureRestNotifications(() => AppState.currentState !== 'active')
+void configureRestNotifications(() => AppState.currentState !== 'active')
 
 export type RestTimerStatus = 'idle' | 'running' | 'finished'
 export type RestTimerMode = 'full' | 'mini'

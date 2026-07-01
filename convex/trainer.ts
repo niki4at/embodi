@@ -1344,6 +1344,7 @@ export const logSet = mutation({
       const wasNotCompleted = session.status !== 'completed'
       await ctx.db.patch(args.sessionId, {
         status: 'completed',
+        completedAt: session.completedAt ?? Date.now(),
         updatedAt: Date.now(),
       })
       if (wasNotCompleted) {
@@ -1596,6 +1597,7 @@ export const completeSession = mutation({
     const wasNotCompleted = session.status !== 'completed'
     await ctx.db.patch(args.sessionId, {
       status: 'completed',
+      completedAt: session.completedAt ?? Date.now(),
       updatedAt: Date.now(),
     })
 
@@ -1606,6 +1608,35 @@ export const completeSession = mutation({
         { userId: identity.subject }
       )
     }
+  },
+})
+
+// Stamp the moment the user actually starts working out (first time the live
+// session screen opens). Idempotent: only sets startedAt if it's missing, so
+// re-entering the screen never resets the overall workout timer.
+export const markSessionStarted = mutation({
+  args: {
+    sessionId: v.id('workout_sessions'),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+
+    const session = await ctx.db.get(args.sessionId)
+    if (!session || session.userId !== identity.subject) {
+      throw new Error('Session not found')
+    }
+
+    if (
+      session.startedAt == null &&
+      (session.status === 'generated' || session.status === 'in-progress')
+    ) {
+      await ctx.db.patch(args.sessionId, { startedAt: Date.now() })
+    }
+    return null
   },
 })
 
@@ -1688,6 +1719,18 @@ export const getTodaysSession = query({
   },
 })
 
+// Actual wall-clock workout length in whole minutes, or null for sessions
+// that predate the overall workout timer (no startedAt/completedAt anchors).
+function actualDurationMin(session: {
+  startedAt?: number
+  completedAt?: number
+}): number | null {
+  if (session.startedAt == null || session.completedAt == null) return null
+  const elapsedMs = session.completedAt - session.startedAt
+  if (elapsedMs <= 0) return null
+  return Math.max(1, Math.round(elapsedMs / 60000))
+}
+
 // Returns today's completed sessions (most recent first) as lightweight
 // summaries. Drives the "Completed today" strip under the start-movement card.
 export const getTodaysCompletedSessions = query({
@@ -1726,9 +1769,10 @@ export const getTodaysCompletedSessions = query({
           goal: session.goal,
           modality: session.modality,
           durationMin: session.durationMin,
+          actualDurationMin: actualDurationMin(session),
           setsLogged: sets.length,
           totalTargetSets,
-          completedAt: session.updatedAt,
+          completedAt: session.completedAt ?? session.updatedAt,
         }
       })
     )
@@ -1796,10 +1840,11 @@ export const getWorkoutHistory = query({
           goal: session.goal,
           modality: session.modality,
           durationMin: session.durationMin,
+          actualDurationMin: actualDurationMin(session),
           status: session.status,
           setsLogged: sets.length,
           totalTargetSets,
-          completedAt: session.updatedAt,
+          completedAt: session.completedAt ?? session.updatedAt,
           createdAt: session.createdAt,
         }
       })

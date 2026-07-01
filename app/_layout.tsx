@@ -124,6 +124,13 @@ function ThemedNavigation() {
           }}
         />
         <Stack.Screen
+          name="routines"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
           name="challenge/new"
           options={{
             headerShown: false,

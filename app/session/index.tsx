@@ -39,6 +39,7 @@ import {
   PHASE_META,
 } from '@/components/trainer/phases'
 import { CoachComment, ExercisePlan } from '@/components/trainer/types'
+import WorkoutTimer from '@/components/trainer/WorkoutTimer'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { PillButton } from '@/components/ui/pill-button'
 import { motion, radius, spacing, typography } from '@/constants/design'
@@ -72,6 +73,7 @@ export default function SessionScreen() {
   const onboarding = useQuery(api.onboarding.getOnboarding)
   const completeSession = useMutation(api.trainer.completeSession)
   const discardSession = useMutation(api.trainer.discardSession)
+  const markSessionStarted = useMutation(api.trainer.markSessionStarted)
   const reorderExercise = useMutation(api.trainer.reorderSessionExercise)
   const removeExercise = useMutation(api.trainer.removeExerciseFromSession)
   const prefetchComments = useAction(api.trainer.prefetchCoachComments)
@@ -91,6 +93,7 @@ export default function SessionScreen() {
   const lastScrollY = useRef(0)
 
   const session = sessionData?.session
+  const isCustomSession = session?.source === 'custom'
   const sets = useMemo(() => sessionData?.sets ?? [], [sessionData?.sets])
 
   const planExercises = useMemo<ExercisePlan[]>(() => {
@@ -104,9 +107,9 @@ export default function SessionScreen() {
   }, [session])
 
   const groups = useMemo(() => {
-    if (!planExercises.length) return []
+    if (!planExercises.length || isCustomSession) return []
     return groupPlanByPhase(planExercises)
-  }, [planExercises])
+  }, [isCustomSession, planExercises])
 
   const phaseProgress = useMemo(
     () => computePhaseProgress(planExercises, sets.filter(s => !s.isWarmup)),
@@ -203,6 +206,23 @@ export default function SessionScreen() {
       })
       .catch(err => console.error('coach comments error', err))
   }, [session, onboarding, prefetchComments, displayComment, planExercises])
+
+  // Stamp startedAt the first time the live screen opens for this session so
+  // the overall workout timer survives backgrounding and app restarts.
+  const startMarkedRef = useRef(false)
+  useEffect(() => {
+    if (!sessionId || !session || startMarkedRef.current) return
+    if (session.startedAt != null) {
+      startMarkedRef.current = true
+      return
+    }
+    if (session.status === 'generated' || session.status === 'in-progress') {
+      startMarkedRef.current = true
+      markSessionStarted({ sessionId }).catch(err =>
+        console.error('mark session started error', err),
+      )
+    }
+  }, [session, sessionId, markSessionStarted])
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -352,7 +372,10 @@ export default function SessionScreen() {
       await Haptics.notificationAsync(
         Haptics.NotificationFeedbackType.Success,
       )
-      router.replace('/')
+      router.replace({
+        pathname: '/session/recap',
+        params: { sessionId: String(sessionId), from: 'completion' },
+      })
     } catch (err) {
       console.error('complete session error', err)
       setIsCompleting(false)
@@ -479,6 +502,42 @@ export default function SessionScreen() {
   const allSetsLogged =
     totalTargetSets > 0 && workingSetsLogged >= totalTargetSets
 
+  const renderExerciseTable = (exercise: ExercisePlan, planIndex: number) => {
+    const hasSets = sets.some(s => s.exerciseId === exercise.id)
+    return (
+      <ExerciseTable
+        key={exercise.id}
+        exercise={exercise}
+        sets={sets}
+        sessionId={sessionId}
+        planIndex={planIndex}
+        planLength={planExercises.length}
+        hasLoggedSets={hasSets}
+        showSwipeHint={planIndex === 0}
+        onSaveSet={(setIndex, payload) =>
+          handleLogSet(exercise.id, setIndex, payload)
+        }
+        onRemoveSet={setIndex => handleRemoveSet(exercise.id, setIndex)}
+        onInsertSetAfter={afterSetIndex =>
+          handleInsertSetAfter(exercise.id, afterSetIndex)
+        }
+        onDeleteSetAt={setIndex => handleDeleteSetAt(exercise.id, setIndex)}
+        onSetType={(setIndex, setType) =>
+          handleSetType(exercise.id, setIndex, setType)
+        }
+        onSetRest={restSec => handleSetRest(exercise.id, restSec)}
+        onPrefetchComment={handlePrefetchComment}
+        exerciseNotes={exerciseNotesByExerciseId[exercise.id]}
+        onSaveExerciseNotes={notes => handleSaveExerciseNotes(exercise.id, notes)}
+        onReplace={() => handleReplace(exercise.id)}
+        onReposition={direction => handleReposition(exercise.id, direction)}
+        onRemove={() => handleRemove(exercise.id, hasSets)}
+        skipped={exercise.skipped}
+        onToggleSkip={next => handleToggleSkip(exercise.id, next)}
+      />
+    )
+  }
+
   return (
     <GestureHandlerRootView style={styles.safeArea}>
     <SafeAreaView
@@ -505,12 +564,21 @@ export default function SessionScreen() {
             color={palette.textPrimary}
           />
         </TouchableOpacity>
-        <Text
-          style={[styles.topBarTitle, { color: palette.textPrimary }]}
-          numberOfLines={1}
-        >
-          {session.goal}
-        </Text>
+        <View style={styles.topBarCenter}>
+          <Text
+            style={[styles.topBarTitle, { color: palette.textPrimary }]}
+            numberOfLines={1}
+          >
+            {session.goal}
+          </Text>
+          {session.status === 'generated' ||
+          session.status === 'in-progress' ? (
+            <WorkoutTimer
+              startedAt={session.startedAt}
+              plannedDurationMin={session.durationMin}
+            />
+          ) : null}
+        </View>
         <View style={styles.topBarActions}>
           <TouchableOpacity
             onPress={handleOpenAddExercise}
@@ -545,11 +613,13 @@ export default function SessionScreen() {
         </View>
       </View>
 
-      <MovementJourneyBar
-        progress={phaseProgress}
-        visible={journeyVisible}
-        topInset={insets.top + 44}
-      />
+      {isCustomSession ? null : (
+        <MovementJourneyBar
+          progress={phaseProgress}
+          visible={journeyVisible}
+          topInset={insets.top + 44}
+        />
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -569,67 +639,29 @@ export default function SessionScreen() {
           </Text>
         </Animated.View>
 
-        {groups.map(group =>
-          group.exercises.length === 0 ? null : (
-            <View key={group.phase} style={styles.phaseBlock}>
-              <View style={styles.phaseHeader}>
-                <Text style={styles.phaseEmoji}>
-                  {PHASE_META[group.phase].emoji}
-                </Text>
-                <Text
-                  style={[styles.phaseLabel, { color: palette.primary }]}
-                >
-                  {PHASE_META[group.phase].label}
-                </Text>
-              </View>
-              {group.exercises.map(({ exercise, planIndex }) => {
-                const hasSets = sets.some(s => s.exerciseId === exercise.id)
-                return (
-                  <ExerciseTable
-                    key={exercise.id}
-                    exercise={exercise}
-                    sets={sets}
-                    sessionId={sessionId}
-                    planIndex={planIndex}
-                    planLength={planExercises.length}
-                    hasLoggedSets={hasSets}
-                    showSwipeHint={planIndex === 0}
-                    onSaveSet={(setIndex, payload) =>
-                      handleLogSet(exercise.id, setIndex, payload)
-                    }
-                    onRemoveSet={setIndex =>
-                      handleRemoveSet(exercise.id, setIndex)
-                    }
-                    onInsertSetAfter={afterSetIndex =>
-                      handleInsertSetAfter(exercise.id, afterSetIndex)
-                    }
-                    onDeleteSetAt={setIndex =>
-                      handleDeleteSetAt(exercise.id, setIndex)
-                    }
-                    onSetType={(setIndex, setType) =>
-                      handleSetType(exercise.id, setIndex, setType)
-                    }
-                    onSetRest={restSec =>
-                      handleSetRest(exercise.id, restSec)
-                    }
-                    onPrefetchComment={handlePrefetchComment}
-                    exerciseNotes={exerciseNotesByExerciseId[exercise.id]}
-                    onSaveExerciseNotes={notes =>
-                      handleSaveExerciseNotes(exercise.id, notes)
-                    }
-                    onReplace={() => handleReplace(exercise.id)}
-                    onReposition={direction =>
-                      handleReposition(exercise.id, direction)
-                    }
-                    onRemove={() => handleRemove(exercise.id, hasSets)}
-                    skipped={exercise.skipped}
-                    onToggleSkip={next => handleToggleSkip(exercise.id, next)}
-                  />
-                )
-              })}
-            </View>
-          ),
-        )}
+        {isCustomSession
+          ? planExercises.map((exercise, planIndex) =>
+              renderExerciseTable(exercise, planIndex),
+            )
+          : groups.map(group =>
+              group.exercises.length === 0 ? null : (
+                <View key={group.phase} style={styles.phaseBlock}>
+                  <View style={styles.phaseHeader}>
+                    <Text style={styles.phaseEmoji}>
+                      {PHASE_META[group.phase].emoji}
+                    </Text>
+                    <Text
+                      style={[styles.phaseLabel, { color: palette.primary }]}
+                    >
+                      {PHASE_META[group.phase].label}
+                    </Text>
+                  </View>
+                  {group.exercises.map(({ exercise, planIndex }) =>
+                    renderExerciseTable(exercise, planIndex),
+                  )}
+                </View>
+              ),
+            )}
 
         {session.status === 'generating' ? (
           <View
@@ -659,6 +691,7 @@ export default function SessionScreen() {
           { backgroundColor: palette.bg, borderTopColor: palette.divider },
         ]}
       >
+        <CoachBubble comment={activeComment} />
         <View style={sessionShadow}>
           <PillButton
             label={
@@ -694,7 +727,6 @@ export default function SessionScreen() {
         sessionId={sessionId}
         onClose={handleCloseAddExercise}
       />
-      <CoachBubble comment={activeComment} />
     </SafeAreaView>
     </GestureHandlerRootView>
   )
@@ -735,8 +767,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  topBarTitle: {
+  topBarCenter: {
     flex: 1,
+    alignItems: 'center',
+    gap: 1,
+  },
+  topBarTitle: {
     ...typography.bodyStrong,
     textAlign: 'center',
   },

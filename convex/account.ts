@@ -91,6 +91,14 @@ export const deleteAccount = mutation({
       await ctx.db.delete(session._id)
     }
 
+    const routines = await ctx.db
+      .query('workout_routines')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .collect()
+    for (const routine of routines) {
+      await ctx.db.delete(routine._id)
+    }
+
     return null
   },
 })

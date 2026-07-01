@@ -121,6 +121,11 @@ export default function BuildWorkoutScreen() {
     router.replace('/checkin')
   }, [])
 
+  const handleOpenRoutines = useCallback(() => {
+    Haptics.selectionAsync()
+    router.push('/routines' as Href)
+  }, [])
+
   const handleReorder = useCallback((orderedIds: string[]) => {
     setSelected((prev) => {
       const byId = new Map(prev.map((ex) => [ex.id, ex]))
@@ -233,16 +238,28 @@ export default function BuildWorkoutScreen() {
             color={resolved === 'dark' ? palette.white : palette.textPrimary}
           />
         </Pressable>
-        <Pressable
-          onPress={handleAskCoach}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Ask coach instead"
-        >
-          <Text style={[styles.coachLink, { color: palette.primary }]}>
-            Ask coach
-          </Text>
-        </Pressable>
+        <View style={styles.headerLinks}>
+          <Pressable
+            onPress={handleOpenRoutines}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Open your saved routines"
+          >
+            <Text style={[styles.coachLink, { color: palette.primary }]}>
+              Routines
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={handleAskCoach}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Ask coach instead"
+          >
+            <Text style={[styles.coachLink, { color: palette.primary }]}>
+              Ask coach
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <Animated.View
@@ -512,6 +529,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+  },
+  headerLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
   },
   coachLink: {
     ...typography.bodyStrong,

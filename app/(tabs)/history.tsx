@@ -24,6 +24,7 @@ type HistoryEntry = {
   goal: string
   modality: string
   durationMin: number
+  actualDurationMin?: number | null
   status: 'completed' | 'discarded'
   setsLogged: number
   totalTargetSets: number
@@ -245,7 +246,8 @@ export default function HistoryScreen() {
                       ]}
                       numberOfLines={1}
                     >
-                      {entry.modality} {'\u00b7'} {entry.durationMin} min{' '}
+                      {entry.modality} {'\u00b7'}{' '}
+                      {entry.actualDurationMin ?? entry.durationMin} min{' '}
                       {'\u00b7'} {entry.setsLogged} sets
                     </Text>
                   </View>

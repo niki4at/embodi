@@ -140,6 +140,11 @@ export default defineSchema({
         source: v.union(v.literal('aligned'), v.literal('exploration')),
       })
     ),
+    // Wall-clock anchors for the overall workout timer. startedAt is stamped
+    // once when the user first opens the live session screen; completedAt when
+    // the session is completed. Actual duration = completedAt - startedAt.
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -179,6 +184,22 @@ export default defineSchema({
     text: v.string(),
     createdAt: v.number(),
   }).index('by_sessionId', ['sessionId']),
+
+  // Saved workouts the user can run again. The plan is a snapshot of a
+  // session's exercises; each exercise `id` is regenerated when a routine is
+  // started so live sets stay unique per session.
+  workout_routines: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    goal: v.string(),
+    modality: v.string(),
+    durationMin: v.number(),
+    plan: v.array(exerciseShape),
+    // Which session this routine was saved from (for provenance).
+    sourceSessionId: v.optional(v.id('workout_sessions')),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index('by_userId', ['userId']),
 
   // AI-generated personalized profile questions
   profile_questions: defineTable({

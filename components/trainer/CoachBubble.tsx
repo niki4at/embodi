@@ -43,10 +43,7 @@ export default function CoachBubble({ comment }: CoachBubbleProps) {
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    bottom: spacing.xl,
-    left: spacing.lg,
-    right: spacing.lg,
+    marginBottom: spacing.md,
     borderRadius: radius.xl,
     padding: spacing.lg,
     flexDirection: 'row',
