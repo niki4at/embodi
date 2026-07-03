@@ -34,6 +34,7 @@ const checkinDataArg = v.object({
     v.literal('recovery'),
     v.literal('mixed')
   ),
+  focusAreas: v.optional(v.array(v.string())),
   intensityPreference: v.union(
     v.literal('easy'),
     v.literal('moderate'),
@@ -55,6 +56,7 @@ export type CheckinData = {
   painAreas?: string[]
   stressLevel: number
   workoutType: 'strength' | 'mobility' | 'cardio' | 'recovery' | 'mixed'
+  focusAreas?: string[]
   intensityPreference: 'easy' | 'moderate' | 'challenging'
   timeAvailable: '15' | '30' | '45' | '60'
   notes?: string
@@ -98,6 +100,7 @@ export const createCheckin = mutation({
       painAreas: data.painAreas,
       stressLevel: data.stressLevel,
       workoutType: data.workoutType,
+      focusAreas: data.focusAreas,
       intensityPreference: data.intensityPreference,
       timeAvailable: data.timeAvailable,
       notes: data.notes,
@@ -306,6 +309,7 @@ export const updateCheckin = mutation({
           v.literal('mixed')
         )
       ),
+      focusAreas: v.optional(v.array(v.string())),
       intensityPreference: v.optional(
         v.union(
           v.literal('easy'),
@@ -343,6 +347,7 @@ export const updateCheckin = mutation({
     if (data.painAreas !== undefined) updates.painAreas = data.painAreas
     if (data.stressLevel !== undefined) updates.stressLevel = data.stressLevel
     if (data.workoutType !== undefined) updates.workoutType = data.workoutType
+    if (data.focusAreas !== undefined) updates.focusAreas = data.focusAreas
     if (data.intensityPreference !== undefined)
       updates.intensityPreference = data.intensityPreference
     if (data.timeAvailable !== undefined)
@@ -363,6 +368,7 @@ export function formatCheckinForPrompt(checkin: {
   painAreas?: string[]
   stressLevel: number
   workoutType: string
+  focusAreas?: string[]
   intensityPreference: string
   timeAvailable: string
   notes?: string
@@ -388,7 +394,22 @@ export function formatCheckinForPrompt(checkin: {
     challenging: 'Push me - want a challenge',
   }
 
+  const focusLabels: Record<string, string> = {
+    'full-body': 'Full body',
+    'upper-body': 'Upper body',
+    'lower-body': 'Lower body',
+    chest: 'Chest',
+    back: 'Back',
+    shoulders: 'Shoulders',
+    arms: 'Arms',
+    core: 'Core',
+    legs: 'Legs',
+    glutes: 'Glutes',
+  }
+
   const painAreas = checkin.painAreas || []
+  const focusAreas = checkin.focusAreas || []
+  const focusAreaLabels = focusAreas.map(area => focusLabels[area] || area)
 
   const lines = [
     `TODAY'S CHECK-IN:`,
@@ -400,6 +421,10 @@ export function formatCheckinForPrompt(checkin: {
     `- Intensity: ${intensityLabels[checkin.intensityPreference] || checkin.intensityPreference}`,
     `- Time Available: ${checkin.timeAvailable} minutes`,
   ]
+
+  if (focusAreaLabels.length) {
+    lines.push(`- Focus Areas: ${focusAreaLabels.join(', ')}`)
+  }
 
   if (checkin.notes) {
     lines.push(`- Additional Notes: "${checkin.notes}"`)
@@ -419,6 +444,11 @@ export function formatCheckinForPrompt(checkin: {
   }
   if (checkin.painLevel > 3 && painAreas.length) {
     lines.push(`- Pain areas to work around: ${painAreas.join(', ')}`)
+  }
+  if (focusAreaLabels.length) {
+    lines.push(
+      `- Bias exercise selection toward these areas: ${focusAreaLabels.join(', ')} (while still respecting any pain areas to avoid)`
+    )
   }
   if (checkin.stressLevel > 3) {
     lines.push('- High stress: Include breathwork, keep complexity low')

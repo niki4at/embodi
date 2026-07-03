@@ -54,7 +54,7 @@ export async function setupRestNotifications(): Promise<void> {
     await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
       name: 'Rest timer',
       importance: Notifications.AndroidImportance.HIGH,
-      sound: 'rest-done.wav',
+      sound: 'rest_done.wav',
       vibrationPattern: [0, 220, 120, 220],
     }).catch(() => {})
   }
@@ -73,7 +73,7 @@ export async function scheduleRestEndNotification(
         body: exerciseName
           ? `Time for your next set of ${exerciseName}.`
           : 'Time for your next set.',
-        sound: 'rest-done.wav',
+        sound: 'rest_done.wav',
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,

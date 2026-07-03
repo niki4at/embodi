@@ -25,6 +25,7 @@ import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 
 import CheckInChoice, { type ChoiceOption } from './CheckInChoice'
+import CheckInMultiChoice, { type MultiChoiceOption } from './CheckInMultiChoice'
 import CheckInSlider from './CheckInSlider'
 import { PainBodyMap, type BodyPart, type PainRatings } from './PainBodyMap'
 
@@ -111,6 +112,7 @@ interface CheckInFormData {
   painRatings: PainRatings
   stressLevel: number
   workoutType: WorkoutType | null
+  focusAreas: string[]
   intensityPreference: IntensityPreference | null
   timeAvailable: TimeAvailable | null
   notes: string
@@ -129,6 +131,19 @@ const WORKOUT_OPTIONS: ChoiceOption<WorkoutType>[] = [
   { value: 'cardio', label: 'Cardio', emoji: '🏃', description: 'Get moving' },
   { value: 'recovery', label: 'Recovery', emoji: '🌿', description: 'Gentle day' },
   { value: 'mixed', label: 'Mixed', emoji: '⚡', description: 'A bit of everything' },
+]
+
+const FOCUS_OPTIONS: MultiChoiceOption[] = [
+  { value: 'full-body', label: 'Full body', emoji: '🧍' },
+  { value: 'upper-body', label: 'Upper body', emoji: '💪' },
+  { value: 'lower-body', label: 'Lower body', emoji: '🦵' },
+  { value: 'chest', label: 'Chest', emoji: '🫀' },
+  { value: 'back', label: 'Back', emoji: '🔙' },
+  { value: 'shoulders', label: 'Shoulders', emoji: '🤸' },
+  { value: 'arms', label: 'Arms', emoji: '💪' },
+  { value: 'core', label: 'Core', emoji: '🎯' },
+  { value: 'legs', label: 'Legs', emoji: '🦵' },
+  { value: 'glutes', label: 'Glutes', emoji: '🍑' },
 ]
 
 const INTENSITY_OPTIONS: ChoiceOption<IntensityPreference>[] = [
@@ -170,6 +185,7 @@ export default function CheckInScreen() {
       painRatings: {},
       stressLevel: 2,
       workoutType: seededWorkoutType,
+      focusAreas: [],
       intensityPreference: null,
       timeAvailable: seededTime,
       notes: '',
@@ -264,6 +280,8 @@ export default function CheckInScreen() {
           painAreas: painAreas.length > 0 ? painAreas : undefined,
           stressLevel: formData.stressLevel,
           workoutType: formData.workoutType,
+          focusAreas:
+            formData.focusAreas.length > 0 ? formData.focusAreas : undefined,
           intensityPreference: formData.intensityPreference,
           timeAvailable: formData.timeAvailable,
           notes: formData.notes.trim() || undefined,
@@ -395,6 +413,15 @@ export default function CheckInScreen() {
               onChange={v => updateFormData('workoutType', v)}
               columns={2}
               delay={80}
+            />
+
+            <CheckInMultiChoice
+              title="Focus areas"
+              subtitle="Which areas do you want to work? (optional)"
+              options={FOCUS_OPTIONS}
+              selected={formData.focusAreas}
+              onChange={v => updateFormData('focusAreas', v)}
+              delay={120}
             />
 
             <CheckInChoice

@@ -58,7 +58,7 @@
       [
         "expo-notifications",
         {
-          "sounds": ["./assets/sounds/rest-done.wav"]
+          "sounds": ["./assets/sounds/rest_done.wav"]
         }
       ]
     ],

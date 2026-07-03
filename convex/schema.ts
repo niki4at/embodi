@@ -544,6 +544,8 @@ export default defineSchema({
       v.literal('recovery'),
       v.literal('mixed')
     ),
+    // Body areas the user wants to focus on (e.g. legs, arms, back)
+    focusAreas: v.optional(v.array(v.string())),
     intensityPreference: v.union(
       v.literal('easy'),
       v.literal('moderate'),

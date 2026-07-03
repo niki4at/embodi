@@ -17,7 +17,7 @@ import {
   setupRestNotifications,
 } from './rest-notifications'
 
-const CHIME = require('../../../assets/sounds/rest-done.wav')
+const CHIME = require('../../../assets/sounds/rest_done.wav')
 const FINISHED_AUTODISMISS_MS = 5000
 const CHECK_INTERVAL_MS = 500
 
