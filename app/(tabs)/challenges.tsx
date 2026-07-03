@@ -14,6 +14,7 @@ import {
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { useFloatingTabBarInset } from '@/components/navigation/floating-tab-bar'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { CATEGORY_META, CATEGORY_ORDER } from '@/constants/challenge-meta'
 import { motion, radius, spacing, typography } from '@/constants/design'
@@ -36,6 +37,7 @@ type ChallengeListItem = {
 
 export default function ChallengesScreen() {
   const { palette } = useTheme()
+  const tabBarInset = useFloatingTabBarInset()
   const challenges = useQuery(api.challenges.listChallenges) as
     | ChallengeListItem[]
     | undefined
@@ -62,7 +64,10 @@ export default function ChallengesScreen() {
       edges={['top']}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: tabBarInset },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View

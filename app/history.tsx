@@ -1,9 +1,10 @@
 import { usePaginatedQuery, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import { router, type Href } from 'expo-router'
-import React, { useMemo } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -83,6 +84,14 @@ export default function HistoryScreen() {
     [results],
   )
 
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back()
+    } else {
+      router.replace('/')
+    }
+  }, [])
+
   const handleOpenRecap = (sessionId: Id<'workout_sessions'>) => {
     Haptics.selectionAsync()
     const recapHref = {
@@ -92,6 +101,7 @@ export default function HistoryScreen() {
     router.push(recapHref)
   }
 
+  const iconTint = resolved === 'dark' ? palette.white : palette.textPrimary
   const isLoadingInitial = status === 'LoadingFirstPage'
   const isEmpty = !isLoadingInitial && results.length === 0
 
@@ -100,6 +110,25 @@ export default function HistoryScreen() {
       style={[styles.safeArea, { backgroundColor: palette.bg }]}
       edges={['top']}
     >
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          onPress={handleBack}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={[
+            styles.iconButton,
+            { backgroundColor: palette.surface, borderColor: palette.border },
+          ]}
+        >
+          <IconSymbol
+            name={Platform.OS === 'ios' ? 'chevron.down' : 'chevron.left'}
+            size={20}
+            color={iconTint}
+          />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -194,9 +223,7 @@ export default function HistoryScreen() {
             )}
             style={styles.group}
           >
-            <Text
-              style={[styles.groupLabel, { color: palette.textTertiary }]}
-            >
+            <Text style={[styles.groupLabel, { color: palette.textTertiary }]}>
               {group.label.toUpperCase()}
             </Text>
             {group.items.map((entry) => {
@@ -240,10 +267,7 @@ export default function HistoryScreen() {
                       {entry.goal}
                     </Text>
                     <Text
-                      style={[
-                        styles.rowMeta,
-                        { color: palette.textSecondary },
-                      ]}
+                      style={[styles.rowMeta, { color: palette.textSecondary }]}
                       numberOfLines={1}
                     >
                       {entry.modality} {'\u00b7'}{' '}
@@ -312,9 +336,23 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
   scrollContent: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.xxxl,
   },
   header: {

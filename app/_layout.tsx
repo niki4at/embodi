@@ -109,6 +109,13 @@ function ThemedNavigation() {
           }}
         />
         <Stack.Screen
+          name="history"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
           name="cycle"
           options={{
             presentation: 'modal',

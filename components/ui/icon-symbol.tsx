@@ -41,6 +41,8 @@ const MAPPING = {
   'gear': 'settings',
   'person.fill': 'person',
   'person.crop.circle': 'account-circle',
+  'person.2.fill': 'group',
+  'person.2': 'group',
   'bell.fill': 'notifications',
   'calendar': 'calendar-today',
   'clock.fill': 'schedule',

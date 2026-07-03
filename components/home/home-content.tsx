@@ -1,3 +1,4 @@
+import { useFloatingTabBarInset } from '@/components/navigation/floating-tab-bar'
 import { ProfileCompletionBanner } from '@/components/profile-completion'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { motion, radius, spacing, typography } from '@/constants/design'
@@ -126,6 +127,7 @@ function deriveTodayState(
 
 export default function HomeContent() {
   const { palette, resolved, toggle } = useTheme()
+  const tabBarInset = useFloatingTabBarInset()
   const onboardingData = useQuery(api.onboarding.getOnboarding)
   const todaysCheckin = useQuery(api.checkin.getTodaysCheckin)
   const todaysSession = useQuery(api.trainer.getTodaysSession)
@@ -325,7 +327,10 @@ export default function HomeContent() {
     >
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: tabBarInset },
+        ]}
       >
         <Animated.View
           entering={FadeInUp.duration(motion.duration.base)}
