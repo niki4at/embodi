@@ -4,20 +4,12 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 
 import { motion, radius, spacing, typography } from '@/constants/design'
+import { FLARE_REGIONS } from '@/constants/flare-regions'
 import { useTheme } from '@/constants/theme-context'
 
-const BODY_AREAS = [
-  { id: 'neck', label: 'Neck' },
-  { id: 'shoulders', label: 'Shoulders' },
-  { id: 'upper-back', label: 'Upper back' },
-  { id: 'lower-back', label: 'Lower back' },
-  { id: 'hips', label: 'Hips' },
-  { id: 'knees', label: 'Knees' },
-  { id: 'ankles', label: 'Ankles' },
-  { id: 'wrists', label: 'Wrists' },
-] as const
+const BODY_AREAS = FLARE_REGIONS
 
-type BodyAreaId = (typeof BODY_AREAS)[number]['id']
+type BodyAreaId = string
 
 interface BodyAreaSelectorProps {
   title: string

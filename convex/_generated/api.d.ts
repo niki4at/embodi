@@ -19,6 +19,7 @@ import type * as exerciseMedia from "../exerciseMedia.js";
 import type * as exerciseRecognition from "../exerciseRecognition.js";
 import type * as exerciseStats from "../exerciseStats.js";
 import type * as exercises from "../exercises.js";
+import type * as flareUp from "../flareUp.js";
 import type * as messages from "../messages.js";
 import type * as onboarding from "../onboarding.js";
 import type * as openai from "../openai.js";
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   exerciseRecognition: typeof exerciseRecognition;
   exerciseStats: typeof exerciseStats;
   exercises: typeof exercises;
+  flareUp: typeof flareUp;
   messages: typeof messages;
   onboarding: typeof onboarding;
   openai: typeof openai;

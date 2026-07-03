@@ -27,6 +27,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated'
 import { computeCycleStatus, type CyclePhase } from '@/convex/cycle'
+import { FlareUpModeCard } from './flare-up-mode-card'
 import { StartMovementCard } from './start-movement-card'
 import { WeeklyInsightsSection } from './weekly-insights'
 
@@ -380,6 +381,12 @@ export default function HomeContent() {
               />
             </TouchableOpacity>
           </View>
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 0.5).duration(motion.duration.base)}
+        >
+          <FlareUpModeCard />
         </Animated.View>
 
         <ProfileCompletionBanner onStartQuestions={handleStartProfileQuestions} />

@@ -23,6 +23,7 @@ import {
 } from './citations'
 import { getOpenAI, getOpenAIModel, openAIResponsesLowLatency } from './openai'
 import { formatCheckinForPrompt, type CheckinData } from './checkin'
+import { formatFlareForPrompt } from './flareUp'
 import {
   computeCycleStatus,
   formatCycleForPrompt,
@@ -752,6 +753,12 @@ export const generateSessionPlan = internalAction({
         })
       }
 
+      // Flare-up mode is a persistent per-user signal, so load it regardless of
+      // whether this session went through a check-in.
+      const flareUp = await ctx.runQuery(internal.flareUp.getFlareUpByUserId, {
+        userId,
+      })
+
       // Fetch cycle status whenever the user opted in. The opt-in toggle is
       // only exposed to users whose gender is 'female' or 'prefer-not-to-say',
       // so consent alone is enough to drive the feature.
@@ -792,7 +799,8 @@ export const generateSessionPlan = internalAction({
         checkinData,
         recommendationSeed ?? null,
         cycleStatus,
-        activeChallenge
+        activeChallenge,
+        flareUp
       )
 
       // Update final metadata
@@ -2227,7 +2235,8 @@ async function buildWorkoutPlanStreaming(
   checkinData: CheckinData | null = null,
   recommendationSeed: RecommendationSeed | null = null,
   cycleStatus: CycleStatus | null = null,
-  activeChallenge: ActiveChallenge | null = null
+  activeChallenge: ActiveChallenge | null = null,
+  flareUp: { active: boolean; regions: string[] } | null = null
 ): Promise<{ goalFocus: string; modality: string; durationMin: number }> {
   const client = getOpenAI()
   const model = getOpenAIModel()
@@ -2255,6 +2264,15 @@ CRITICAL: The client has completed a pre-session check-in reporting their state 
 - Modify exercise selection based on current pain levels and areas
 - Match the workout type and intensity to what they've requested
 - Respect the time available they've specified for today`
+  }
+
+  const flareActive = Boolean(flareUp?.active && flareUp.regions.length > 0)
+
+  // Flare-up mode is a hard safety constraint that outranks focus-area bias.
+  if (flareActive) {
+    systemPromptText += `
+
+FLARE-UP MODE IS ON: The client has flagged an ongoing flare-up (regions listed in the user message). Treat these regions as off-limits: exclude or regress any movement that loads or aggravates them, keep affected joints in pain-free ranges, and lean on gentle mobility there. This is a safety constraint that overrides focus-area or recommendation bias when they conflict.`
   }
 
   // Add cycle-phase awareness when the user opted in and we have data.
@@ -2320,6 +2338,11 @@ IMPORTANT: Use the provided tools to build the plan step by step:
   // Add check-in data if available (this is TODAY's state)
   if (checkinData) {
     userPromptParts.push('\n' + formatCheckinForPrompt(checkinData))
+  }
+
+  // Flare-up regions to steer around (persistent, independent of check-in).
+  if (flareActive && flareUp) {
+    userPromptParts.push('\n' + formatFlareForPrompt(flareUp.regions))
   }
 
   if (cycleStatus && cycleStatus.hasData) {

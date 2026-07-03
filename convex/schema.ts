@@ -565,4 +565,13 @@ export default defineSchema({
   })
     .index('by_userId', ['userId'])
     .index('by_userId_date', ['userId', 'createdAt']),
+
+  // Persistent flare-up mode: one row per user. When active, the trainer eases
+  // sessions off the flagged regions until the user turns it off.
+  flare_ups: defineTable({
+    userId: v.string(),
+    active: v.boolean(),
+    regions: v.array(v.string()), // region ids, e.g. 'lower-back', 'hips'
+    updatedAt: v.number(),
+  }).index('by_userId', ['userId']),
 })
