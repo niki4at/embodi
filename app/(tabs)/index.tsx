@@ -20,6 +20,7 @@ export default function HomeScreen() {
     isSignedIn ? {} : 'skip',
   )
   const saveOnboarding = useMutation(api.onboarding.saveOnboarding)
+  const claimUsername = useMutation(api.profiles.claimUsername)
 
   const showHome =
     isLoaded && isSignedIn && hasCompletedOnboarding === true
@@ -31,10 +32,22 @@ export default function HomeScreen() {
   }, [navigation, showHome])
 
   const handleOnboardingComplete = async (data: OnboardingData) => {
+    const { username, ...onboardingFields } = data
     try {
-      await saveOnboarding(data)
+      await saveOnboarding(onboardingFields)
     } catch (error) {
       console.error('Error saving onboarding data:', error)
+    }
+    if (username.trim()) {
+      try {
+        await claimUsername({
+          username: username.trim(),
+          displayName: data.name.trim() || username.trim(),
+        })
+      } catch (error) {
+        // A race on the handle is recoverable: SocialBootstrap generates one.
+        console.warn('Could not claim username:', error)
+      }
     }
   }
 

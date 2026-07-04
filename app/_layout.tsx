@@ -14,6 +14,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import 'react-native-reanimated'
 
 import { ConvexClientProvider } from '@/components/ConvexClientProvider'
+import { SocialBootstrap } from '@/components/social/social-bootstrap'
 import RestTimerOverlay from '@/components/trainer/rest-timer/RestTimerOverlay'
 import RestTimerPill from '@/components/trainer/rest-timer/RestTimerPill'
 import { RestTimerProvider } from '@/components/trainer/rest-timer/RestTimerProvider'
@@ -160,7 +161,80 @@ function ThemedNavigation() {
             animation: 'slide_from_bottom',
           }}
         />
+        <Stack.Screen
+          name="post/[id]"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="u/[username]"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="social/search"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="social/notifications"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="social/share"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="social/edit-profile"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="social/blocked"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="community/new"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="community/[id]"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="join/[code]"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
       </Stack>
+      <SocialBootstrap />
       <RestTimerPill />
       <RestTimerOverlay />
       <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} />

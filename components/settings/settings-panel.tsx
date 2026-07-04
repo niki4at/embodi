@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native'
 
+import { Avatar } from '@/components/social/avatar'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
@@ -82,6 +83,7 @@ export function SettingsPanel({
   const { user } = useUser()
   const deleteAccount = useMutation(api.account.deleteAccount)
   const onboarding = useQuery(api.onboarding.getOnboarding)
+  const socialProfile = useQuery(api.profiles.getMyProfile)
   const setTrackPeriod = useMutation(api.onboarding.setTrackPeriod)
   const [isWorking, setIsWorking] = useState<null | 'logout' | 'delete'>(null)
   const [isTogglingCycle, setIsTogglingCycle] = useState(false)
@@ -204,32 +206,81 @@ export function SettingsPanel({
       contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset }]}
       showsVerticalScrollIndicator={false}
     >
-      <View
-        style={[
+      <Pressable
+        onPress={() => {
+          Haptics.selectionAsync()
+          router.push('/social/edit-profile')
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Edit profile"
+        style={({ pressed }) => [
           styles.profileCard,
-          { backgroundColor: palette.surface, borderColor: palette.border },
+          {
+            backgroundColor: palette.surface,
+            borderColor: palette.border,
+            opacity: pressed ? 0.85 : 1,
+          },
         ]}
       >
-        <View style={[styles.avatar, { backgroundColor: palette.primaryMuted }]}>
-          <IconSymbol name="person.fill" size={26} color={palette.primary} />
-        </View>
+        {socialProfile ? (
+          <Avatar
+            url={socialProfile.avatarUrl}
+            name={socialProfile.displayName}
+            size={52}
+          />
+        ) : (
+          <View
+            style={[styles.avatar, { backgroundColor: palette.primaryMuted }]}
+          >
+            <IconSymbol name="person.fill" size={26} color={palette.primary} />
+          </View>
+        )}
         <View style={styles.profileText}>
           <Text
             style={[styles.profileName, { color: palette.textPrimary }]}
             numberOfLines={1}
           >
-            {displayName}
+            {socialProfile?.displayName || displayName}
           </Text>
-          {email ? (
-            <Text
-              style={[styles.profileEmail, { color: palette.textSecondary }]}
-              numberOfLines={1}
-            >
-              {email}
-            </Text>
-          ) : null}
+          <Text
+            style={[styles.profileEmail, { color: palette.textSecondary }]}
+            numberOfLines={1}
+          >
+            {socialProfile ? `@${socialProfile.username}` : (email ?? '')}
+          </Text>
         </View>
-      </View>
+        <IconSymbol name="chevron.right" size={18} color={palette.textTertiary} />
+      </Pressable>
+
+      <Text style={[styles.sectionLabel, { color: palette.textTertiary }]}>
+        Social
+      </Text>
+      <SettingsRow
+        icon="person.crop.circle"
+        iconTint={palette.primary}
+        iconBg={palette.primaryMuted}
+        title="Edit profile"
+        subtitle="Photo, handle, bio, and privacy"
+        onPress={() => {
+          Haptics.selectionAsync()
+          router.push('/social/edit-profile')
+        }}
+        disabled={isWorking !== null}
+      />
+      <View style={styles.divider} />
+      <SettingsRow
+        icon="person.crop.circle.badge.xmark"
+        iconTint={palette.textPrimary}
+        iconBg={palette.surfaceAlt}
+        title="Blocked people"
+        subtitle="Manage who can't see or reach you"
+        onPress={() => {
+          Haptics.selectionAsync()
+          router.push('/social/blocked')
+        }}
+        disabled={isWorking !== null}
+      />
+      <View style={styles.divider} />
 
       {showHistoryRow ? (
         <>

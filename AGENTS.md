@@ -51,7 +51,8 @@ These documentation files are specifically formatted for AI agents and should be
 ### Development
 
 ```bash
-npx expo start                  # Start dev server
+npm start                       # Start dev server with localhost networking for Android emulator
+npm run start:lan               # Start dev server on LAN for physical-device testing
 npx expo start --clear          # Clear cache and start dev server
 npx expo install <package>      # Install packages with compatible versions
 npx expo install --check        # Check which installed packages need to be updated

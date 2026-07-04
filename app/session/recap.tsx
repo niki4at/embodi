@@ -115,6 +115,10 @@ export default function RecapScreen() {
     api.routines.saveRoutineFromSession,
   )
   const generateNote = useAction(api.sessionInsights.generateSessionNote)
+  const sharedPostId = useQuery(
+    api.social.getPostForSession,
+    sessionId ? { sessionId } : 'skip',
+  )
 
   const [isSaveModalVisible, setSaveModalVisible] = useState(false)
   const [routineName, setRoutineName] = useState('')
@@ -516,6 +520,84 @@ export default function RecapScreen() {
           </View>
         )}
 
+        {!isDiscarded && session.status === 'completed' && (
+          <TouchableOpacity
+            onPress={() => {
+              void Haptics.selectionAsync()
+              if (sharedPostId) {
+                router.push({
+                  pathname: '/post/[id]',
+                  params: { id: String(sharedPostId) },
+                })
+              } else {
+                router.push({
+                  pathname: '/social/share',
+                  params: { sessionId: String(sessionId) },
+                })
+              }
+            }}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={
+              sharedPostId ? 'View your shared post' : 'Share your workout'
+            }
+            style={[
+              styles.shareCard,
+              {
+                backgroundColor: sharedPostId
+                  ? palette.successMuted
+                  : palette.primary,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.shareIcon,
+                {
+                  backgroundColor: sharedPostId
+                    ? 'transparent'
+                    : 'rgba(255,255,255,0.22)',
+                },
+              ]}
+            >
+              <IconSymbol
+                name={sharedPostId ? 'checkmark.circle.fill' : 'megaphone.fill'}
+                size={22}
+                color={sharedPostId ? palette.success : '#FFFFFF'}
+              />
+            </View>
+            <View style={styles.shareText}>
+              <Text
+                style={[
+                  styles.shareTitle,
+                  { color: sharedPostId ? palette.textPrimary : '#FFFFFF' },
+                ]}
+              >
+                {sharedPostId ? 'Shared with your backers' : 'Share your workout'}
+              </Text>
+              <Text
+                style={[
+                  styles.shareSubtitle,
+                  {
+                    color: sharedPostId
+                      ? palette.textSecondary
+                      : 'rgba(255,255,255,0.9)',
+                  },
+                ]}
+              >
+                {sharedPostId
+                  ? 'Tap to see cheers and comments'
+                  : 'Post your stats, photos, and PRs to the feed'}
+              </Text>
+            </View>
+            <IconSymbol
+              name="arrow.right"
+              size={18}
+              color={sharedPostId ? palette.textTertiary : '#FFFFFF'}
+            />
+          </TouchableOpacity>
+        )}
+
         {!isDiscarded && (
           <TouchableOpacity
             onPress={openSaveModal}
@@ -763,6 +845,31 @@ export default function RecapScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+  },
+  shareCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    marginTop: spacing.xl,
+  },
+  shareIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareText: {
+    flex: 1,
+  },
+  shareTitle: {
+    ...typography.bodyStrong,
+  },
+  shareSubtitle: {
+    ...typography.small,
+    marginTop: 2,
   },
   centered: {
     flex: 1,

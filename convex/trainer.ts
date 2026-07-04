@@ -1361,6 +1361,11 @@ export const logSet = mutation({
           internal.weeklyInsights.regenerateAfterCompletion,
           { userId: identity.subject }
         )
+        await ctx.scheduler.runAfter(
+          0,
+          internal.communities.recordWorkoutForUser,
+          { userId: identity.subject, sessionId: args.sessionId }
+        )
       }
     }
   },
@@ -1614,6 +1619,11 @@ export const completeSession = mutation({
         0,
         internal.weeklyInsights.regenerateAfterCompletion,
         { userId: identity.subject }
+      )
+      await ctx.scheduler.runAfter(
+        0,
+        internal.communities.recordWorkoutForUser,
+        { userId: identity.subject, sessionId: args.sessionId }
       )
     }
   },

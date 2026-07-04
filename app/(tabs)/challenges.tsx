@@ -15,6 +15,7 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { useFloatingTabBarInset } from '@/components/navigation/floating-tab-bar'
+import { TogetherSection } from '@/components/social/together-section'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { CATEGORY_META, CATEGORY_ORDER } from '@/constants/challenge-meta'
 import { motion, radius, spacing, typography } from '@/constants/design'
@@ -80,6 +81,10 @@ export default function ChallengesScreen() {
           <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
             Set a goal and your coach builds the program around it.
           </Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.duration(motion.duration.base)}>
+          <TogetherSection />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(motion.duration.base)}>

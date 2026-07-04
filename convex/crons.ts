@@ -20,4 +20,12 @@ crons.interval(
   internal.weeklyInsights.pollPendingBatches
 )
 
+// Recompute the Social tab's Discover strip (suggested people + trending
+// open communities) once a day into a single snapshot document.
+crons.cron(
+  'discover snapshot',
+  '0 4 * * *',
+  internal.discover.computeDiscoverSnapshot
+)
+
 export default crons

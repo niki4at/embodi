@@ -1,8 +1,11 @@
-import React, { useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { useQuery } from 'convex/react'
+import React, { useEffect, useRef, useState } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 
-import { motion, spacing } from '@/constants/design'
+import { motion, spacing, typography } from '@/constants/design'
+import { useTheme } from '@/constants/theme-context'
+import { api } from '@/convex/_generated/api'
 import {
   FieldLabel,
   Input,
@@ -19,16 +22,50 @@ interface StepOneProps {
   onSkip: () => void
 }
 
+function suggestHandle(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 16)
+}
+
 export default function StepOne({
   data,
   updateData,
   onNext,
 }: StepOneProps) {
+  const { palette } = useTheme()
   const [nameFocused, setNameFocused] = useState(false)
+  const [usernameFocused, setUsernameFocused] = useState(false)
   const [ageFocused, setAgeFocused] = useState(false)
+  const usernameTouched = useRef(false)
+  const [debouncedUsername, setDebouncedUsername] = useState('')
+
+  // Keep suggesting a handle from the name until the user edits it directly.
+  useEffect(() => {
+    if (!usernameTouched.current) {
+      updateData({ username: suggestHandle(data.name) })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.name])
+
+  useEffect(() => {
+    const timeout = setTimeout(
+      () => setDebouncedUsername(data.username.trim().toLowerCase()),
+      350
+    )
+    return () => clearTimeout(timeout)
+  }, [data.username])
+
+  const availability = useQuery(
+    api.profiles.checkUsernameAvailable,
+    debouncedUsername.length >= 3 ? { username: debouncedUsername } : 'skip'
+  )
+  const usernameOk =
+    debouncedUsername.length >= 3 && availability?.available === true
 
   const canProceed =
-    data.name.trim().length > 0 && data.age.trim().length > 0
+    data.name.trim().length > 0 && data.age.trim().length > 0 && usernameOk
 
   return (
     <View style={styles.container}>
@@ -53,6 +90,49 @@ export default function StepOne({
           autoCapitalize="words"
           autoComplete="name"
         />
+      </Animated.View>
+
+      <Animated.View
+        entering={FadeInDown.delay(90).duration(motion.duration.base)}
+        style={styles.field}
+      >
+        <FieldLabel
+          label="Handle"
+          hint="How friends find you on Embodi"
+        />
+        <Input
+          focused={usernameFocused}
+          onFocusChange={setUsernameFocused}
+          placeholder="yourhandle"
+          value={data.username}
+          onChangeText={(text) => {
+            usernameTouched.current = true
+            updateData({
+              username: text.toLowerCase().replace(/[^a-z0-9_]/g, ''),
+            })
+          }}
+          autoCapitalize="none"
+          autoCorrect={false}
+          maxLength={20}
+        />
+        {data.username.length >= 3 &&
+        debouncedUsername === data.username.trim().toLowerCase() &&
+        availability ? (
+          <Text
+            style={[
+              styles.availability,
+              {
+                color: availability.available
+                  ? palette.success
+                  : palette.danger,
+              },
+            ]}
+          >
+            {availability.available
+              ? `@${data.username} is yours`
+              : (availability.reason ?? 'That handle is taken')}
+          </Text>
+        ) : null}
       </Animated.View>
 
       <Animated.View
@@ -117,6 +197,10 @@ const styles = StyleSheet.create({
   },
   options: {
     gap: spacing.md,
+  },
+  availability: {
+    ...typography.small,
+    marginTop: spacing.xs,
   },
   spacer: {
     flex: 1,

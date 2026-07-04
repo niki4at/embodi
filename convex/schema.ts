@@ -48,6 +48,31 @@ const exerciseShape = v.object({
   skipped: v.optional(v.boolean()),
 })
 
+// Snapshot of a completed workout copied onto a post at share time so feed
+// reads never join back to sessions/sets.
+const postWorkoutShape = v.object({
+  title: v.string(),
+  modality: v.string(),
+  durationMin: v.union(v.number(), v.null()),
+  totalVolumeKg: v.number(),
+  totalReps: v.number(),
+  totalDistanceM: v.number(),
+  exercisesCompleted: v.number(),
+  workingSets: v.number(),
+  avgRpe: v.union(v.number(), v.null()),
+  bodyParts: v.array(v.string()),
+  highlights: v.array(
+    v.object({
+      exerciseName: v.string(),
+      kind: v.string(),
+      value: v.number(),
+      unit: v.string(),
+      isFirstTime: v.boolean(),
+    })
+  ),
+  dateMs: v.number(),
+})
+
 // Profile question shape for AI-generated personalized questions
 const profileQuestionShape = v.object({
   id: v.string(),
@@ -574,4 +599,243 @@ export default defineSchema({
     regions: v.array(v.string()), // region ids, e.g. 'lower-back', 'hips'
     updatedAt: v.number(),
   }).index('by_userId', ['userId']),
+
+  /* ==========================================================================
+   * SOCIAL — public identity, follows ("backing"), workout posts, communities.
+   * Counts are denormalized onto parent docs and patched in the same mutation
+   * as the child write so feed/profile reads never count rows.
+   * ==========================================================================
+   */
+
+  // Public-facing identity. Username is stored lowercase and unique;
+  // searchText mirrors "username displayName" for the people search index.
+  profiles: defineTable({
+    userId: v.string(),
+    username: v.string(),
+    displayName: v.string(),
+    bio: v.optional(v.string()),
+    avatarStorageId: v.optional(v.id('_storage')),
+    isPrivate: v.boolean(),
+    backerCount: v.number(),
+    backingCount: v.number(),
+    postCount: v.number(),
+    searchText: v.string(),
+    usernameUpdatedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_username', ['username'])
+    .searchIndex('search_people', { searchField: 'searchText' }),
+
+  // One-way social graph. 'pending' rows are requests to private accounts.
+  follows: defineTable({
+    followerId: v.string(),
+    followeeId: v.string(),
+    status: v.union(v.literal('active'), v.literal('pending')),
+    createdAt: v.number(),
+  })
+    .index('by_follower_and_followee', ['followerId', 'followeeId'])
+    .index('by_follower_and_status', ['followerId', 'status'])
+    .index('by_followee_and_status', ['followeeId', 'status']),
+
+  // Blocks hide content in both directions and sever any follow edges.
+  blocks: defineTable({
+    blockerId: v.string(),
+    blockedId: v.string(),
+    createdAt: v.number(),
+  })
+    .index('by_blocker_and_blocked', ['blockerId', 'blockedId'])
+    .index('by_blocked', ['blockedId']),
+
+  // User-generated-content reports (App Store requirement).
+  reports: defineTable({
+    reporterId: v.string(),
+    targetType: v.union(
+      v.literal('post'),
+      v.literal('comment'),
+      v.literal('profile'),
+      v.literal('community')
+    ),
+    targetId: v.string(),
+    reason: v.string(),
+    details: v.optional(v.string()),
+    status: v.union(v.literal('open'), v.literal('resolved')),
+    createdAt: v.number(),
+  }).index('by_status', ['status']),
+
+  // Feed posts. Workout posts snapshot recap stats; reposts point at the
+  // original with an optional quote. Cheer counts are denormalized per kind.
+  posts: defineTable({
+    authorId: v.string(),
+    type: v.union(v.literal('workout'), v.literal('repost')),
+    sessionId: v.optional(v.id('workout_sessions')),
+    workout: v.optional(postWorkoutShape),
+    caption: v.optional(v.string()),
+    photoStorageIds: v.array(v.id('_storage')),
+    visibility: v.union(v.literal('public'), v.literal('backers')),
+    // Spotify placeholder — populated once the integration ships.
+    tracks: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          artist: v.string(),
+          uri: v.optional(v.string()),
+        })
+      )
+    ),
+    originalPostId: v.optional(v.id('posts')),
+    communityId: v.optional(v.id('communities')),
+    cheerCounts: v.record(v.string(), v.number()),
+    commentCount: v.number(),
+    repostCount: v.number(),
+    createdAt: v.number(),
+  })
+    .index('by_author_and_createdAt', ['authorId', 'createdAt'])
+    .index('by_community_and_createdAt', ['communityId', 'createdAt'])
+    .index('by_session', ['sessionId']),
+
+  // One reaction per user per post; switching kind replaces the row.
+  reactions: defineTable({
+    postId: v.id('posts'),
+    userId: v.string(),
+    kind: v.union(
+      v.literal('cheer'),
+      v.literal('fire'),
+      v.literal('strong'),
+      v.literal('clap')
+    ),
+    createdAt: v.number(),
+  })
+    .index('by_post_and_user', ['postId', 'userId'])
+    .index('by_user', ['userId']),
+
+  comments: defineTable({
+    postId: v.id('posts'),
+    authorId: v.string(),
+    text: v.string(),
+    createdAt: v.number(),
+  })
+    .index('by_post', ['postId'])
+    .index('by_author', ['authorId']),
+
+  // Group goals ("challenge communities"). Progress lives on membership rows
+  // and is bumped at workout-completion time, never recomputed on read.
+  communities: defineTable({
+    name: v.string(),
+    creatorId: v.string(),
+    goalCategory: v.union(
+      v.literal('marathon'),
+      v.literal('half_marathon'),
+      v.literal('ironman'),
+      v.literal('consistency'),
+      v.literal('custom')
+    ),
+    goalLabel: v.string(),
+    description: v.optional(v.string()),
+    eventDate: v.optional(v.number()),
+    metric: v.object({
+      kind: v.union(
+        v.literal('distance_km'),
+        v.literal('sessions'),
+        v.literal('custom')
+      ),
+      target: v.optional(v.number()),
+      unit: v.string(),
+    }),
+    inviteCode: v.string(),
+    visibility: v.union(v.literal('invite'), v.literal('open')),
+    memberCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_inviteCode', ['inviteCode'])
+    .index('by_creator', ['creatorId'])
+    .index('by_visibility', ['visibility']),
+
+  community_members: defineTable({
+    communityId: v.id('communities'),
+    userId: v.string(),
+    role: v.union(v.literal('owner'), v.literal('member')),
+    personalTarget: v.optional(v.number()),
+    progressValue: v.number(),
+    sessionsCount: v.number(),
+    // Last milestone quarter celebrated (0, 25, 50, 75, 100) so each fires once.
+    lastMilestone: v.number(),
+    lastActiveAt: v.number(),
+    joinedAt: v.number(),
+  })
+    .index('by_community', ['communityId'])
+    .index('by_user', ['userId'])
+    .index('by_community_and_user', ['communityId', 'userId']),
+
+  // Lightweight activity strip inside a community (joins, workouts, milestones).
+  community_events: defineTable({
+    communityId: v.id('communities'),
+    userId: v.optional(v.string()),
+    kind: v.union(
+      v.literal('joined'),
+      v.literal('workout_done'),
+      v.literal('milestone'),
+      v.literal('created')
+    ),
+    message: v.string(),
+    createdAt: v.number(),
+  }).index('by_community_and_createdAt', ['communityId', 'createdAt']),
+
+  notifications: defineTable({
+    userId: v.string(),
+    type: v.union(
+      v.literal('new_backer'),
+      v.literal('back_request'),
+      v.literal('back_accepted'),
+      v.literal('cheer'),
+      v.literal('comment'),
+      v.literal('repost'),
+      v.literal('community_invite'),
+      v.literal('community_milestone')
+    ),
+    actorId: v.string(),
+    postId: v.optional(v.id('posts')),
+    communityId: v.optional(v.id('communities')),
+    // Short pre-rendered body so the inbox never joins other tables.
+    message: v.string(),
+    read: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index('by_user_and_createdAt', ['userId', 'createdAt'])
+    .index('by_user_and_read', ['userId', 'read']),
+
+  push_tokens: defineTable({
+    userId: v.string(),
+    token: v.string(),
+    platform: v.union(v.literal('ios'), v.literal('android'), v.literal('web')),
+    updatedAt: v.number(),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_token', ['token']),
+
+  // Daily-cron snapshot powering the Discover strip: one active row replaced
+  // each run, so every client reads the same tiny document.
+  discover_snapshots: defineTable({
+    computedAt: v.number(),
+    suggestedProfiles: v.array(
+      v.object({
+        userId: v.string(),
+        username: v.string(),
+        displayName: v.string(),
+        backerCount: v.number(),
+        postCount: v.number(),
+      })
+    ),
+    trendingCommunities: v.array(
+      v.object({
+        communityId: v.id('communities'),
+        name: v.string(),
+        goalLabel: v.string(),
+        memberCount: v.number(),
+        eventDate: v.union(v.number(), v.null()),
+      })
+    ),
+  }),
 })

@@ -21,6 +21,7 @@ import { useTheme } from '@/constants/theme-context'
 
 export interface OnboardingData {
   name: string
+  username: string
   age: string
   gender: 'male' | 'female' | 'prefer-not-to-say' | null
   goal: string
@@ -51,6 +52,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   const [currentStep, setCurrentStep] = useState(1)
   const [data, setData] = useState<OnboardingData>({
     name: '',
+    username: '',
     age: '',
     gender: null,
     goal: '',
