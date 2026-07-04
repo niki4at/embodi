@@ -88,6 +88,14 @@ export function FloatingTabBar({
     setCardWidth(event.nativeEvent.layout.width)
   }
 
+  const focusedRoute = state.routes[state.index]
+  const focusedOptions = descriptors[focusedRoute.key]?.options
+  const focusedTabBarStyle = StyleSheet.flatten(focusedOptions?.tabBarStyle)
+
+  if (focusedTabBarStyle?.display === 'none') {
+    return null
+  }
+
   return (
     <View
       pointerEvents="box-none"
