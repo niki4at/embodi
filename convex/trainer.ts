@@ -29,6 +29,7 @@ import {
   formatCycleForPrompt,
   type CycleStatus,
 } from './cycle'
+import { applyWorkoutCompletion } from './streaks'
 
 type Citation = CitationSource
 
@@ -1366,6 +1367,7 @@ export const logSet = mutation({
           internal.communities.recordWorkoutForUser,
           { userId: identity.subject, sessionId: args.sessionId }
         )
+        await applyWorkoutCompletion(ctx, identity.subject, Date.now())
       }
     }
   },
@@ -1596,6 +1598,17 @@ export const completeSession = mutation({
   args: {
     sessionId: v.id('workout_sessions'),
   },
+  returns: v.union(
+    v.null(),
+    v.object({
+      weeklyGoal: v.number(),
+      currentStreakWeeks: v.number(),
+      longestStreakWeeks: v.number(),
+      workoutsThisWeek: v.number(),
+      goalMetThisWeek: v.boolean(),
+      streakIncremented: v.boolean(),
+    })
+  ),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) {
@@ -1625,7 +1638,10 @@ export const completeSession = mutation({
         internal.communities.recordWorkoutForUser,
         { userId: identity.subject, sessionId: args.sessionId }
       )
+      // Inline (not scheduled) so the streak update reaches the recap screen.
+      return await applyWorkoutCompletion(ctx, identity.subject, Date.now())
     }
+    return null
   },
 })
 

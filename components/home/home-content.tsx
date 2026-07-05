@@ -28,6 +28,9 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated'
 import { computeCycleStatus, type CyclePhase } from '@/convex/cycle'
+import { FLAME_LIT } from '@/components/streak/streak-flame'
+import { StreakSheet } from '@/components/streak/streak-sheet'
+import { fonts } from '@/constants/fonts'
 import { FlareUpModeCard } from './flare-up-mode-card'
 import { StartMovementCard } from './start-movement-card'
 import { WeeklyInsightsSection } from './weekly-insights'
@@ -149,6 +152,10 @@ export default function HomeContent() {
   const [startingRoutineId, setStartingRoutineId] = useState<string | null>(
     null,
   )
+  const [streakSheetOpen, setStreakSheetOpen] = useState(false)
+  // Stable per-mount so the streak query stays cacheable.
+  const [streakNow] = useState(() => Date.now())
+  const myStreak = useQuery(api.streaks.getMyStreak, { now: streakNow })
 
   const cycleStatus = useMemo(() => {
     if (!cycleEnabled || !cycleData) return null
@@ -345,6 +352,46 @@ export default function HomeContent() {
             </Text>
           </View>
           <View style={styles.headerActions}>
+            {myStreak ? (
+              <TouchableOpacity
+                style={[
+                  styles.streakButton,
+                  {
+                    backgroundColor: palette.surface,
+                    borderColor: palette.border,
+                  },
+                ]}
+                onPress={() => {
+                  Haptics.selectionAsync()
+                  setStreakSheetOpen(true)
+                }}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`${myStreak.currentStreakWeeks}-week streak`}
+              >
+                <IconSymbol
+                  name="flame.fill"
+                  size={17}
+                  color={
+                    myStreak.goalMetThisWeek
+                      ? FLAME_LIT
+                      : palette.textTertiary
+                  }
+                />
+                <Text
+                  style={[
+                    styles.streakCount,
+                    {
+                      color: myStreak.goalMetThisWeek
+                        ? FLAME_LIT
+                        : palette.textTertiary,
+                    },
+                  ]}
+                >
+                  {myStreak.currentStreakWeeks}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               style={[
                 styles.iconButton,
@@ -526,6 +573,11 @@ export default function HomeContent() {
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
+
+      <StreakSheet
+        visible={streakSheetOpen}
+        onClose={() => setStreakSheetOpen(false)}
+      />
     </SafeAreaView>
   )
 }
@@ -932,6 +984,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+  },
+  streakButton: {
+    height: 40,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+  },
+  streakCount: {
+    fontFamily: fonts.uiBold,
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
   },
   primaryAction: {
     borderRadius: radius.xl,

@@ -32,7 +32,9 @@ import type * as routines from "../routines.js";
 import type * as sessionInsights from "../sessionInsights.js";
 import type * as social from "../social.js";
 import type * as socialHelpers from "../socialHelpers.js";
+import type * as streaks from "../streaks.js";
 import type * as trainer from "../trainer.js";
+import type * as trending from "../trending.js";
 import type * as weeklyInsights from "../weeklyInsights.js";
 
 import type {
@@ -66,7 +68,9 @@ declare const fullApi: ApiFromModules<{
   sessionInsights: typeof sessionInsights;
   social: typeof social;
   socialHelpers: typeof socialHelpers;
+  streaks: typeof streaks;
   trainer: typeof trainer;
+  trending: typeof trending;
   weeklyInsights: typeof weeklyInsights;
 }>;
 

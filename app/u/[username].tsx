@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Avatar } from '@/components/social/avatar'
 import { PostCard } from '@/components/social/post-card'
 import type { FeedPost, ProfileCard } from '@/components/social/types'
+import { StreakFlame } from '@/components/streak/streak-flame'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
@@ -237,9 +238,14 @@ export default function ProfileScreen() {
                 name={profile.displayName}
                 size={84}
               />
-              <Text style={[typography.h2, { color: palette.textPrimary }]}>
-                {profile.displayName}
-              </Text>
+              <View style={styles.nameRow}>
+                <Text style={[typography.h2, { color: palette.textPrimary }]}>
+                  {profile.displayName}
+                </Text>
+                {profile.streakWeeks > 0 ? (
+                  <StreakFlame weeks={profile.streakWeeks} size="md" />
+                ) : null}
+              </View>
               {profile.backsMe ? (
                 <View
                   style={[
@@ -459,6 +465,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     marginBottom: spacing.md,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   backsYou: {
     borderRadius: radius.pill,

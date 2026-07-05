@@ -28,4 +28,21 @@ crons.cron(
   internal.discover.computeDiscoverSnapshot
 )
 
+// Roll every streak row into the new ISO week just after Monday midnight UTC
+// so lapsed streaks read as 0 everywhere without per-read normalization.
+crons.cron(
+  'finalize lapsed streaks',
+  '5 0 * * 1',
+  internal.streaks.finalizeLapsedStreaks,
+  {}
+)
+
+// Rebuild the Social tab's "Trending this week" top-10 most-tried workouts.
+crons.interval(
+  'trending workouts snapshot',
+  { hours: 4 },
+  internal.trending.refreshTrending,
+  {}
+)
+
 export default crons

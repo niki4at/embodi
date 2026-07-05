@@ -368,13 +368,19 @@ export default function SessionScreen() {
     if (!sessionId || isCompleting) return
     setIsCompleting(true)
     try {
-      await completeSession({ sessionId })
+      const streak = await completeSession({ sessionId })
       await Haptics.notificationAsync(
         Haptics.NotificationFeedbackType.Success,
       )
       router.replace({
         pathname: '/session/recap',
-        params: { sessionId: String(sessionId), from: 'completion' },
+        params: {
+          sessionId: String(sessionId),
+          from: 'completion',
+          ...(streak?.streakIncremented
+            ? { streakWeeks: String(streak.currentStreakWeeks) }
+            : {}),
+        },
       })
     } catch (err) {
       console.error('complete session error', err)

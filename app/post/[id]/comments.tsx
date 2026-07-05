@@ -17,8 +17,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Avatar } from '@/components/social/avatar'
-import { PostCard } from '@/components/social/post-card'
-import type { FeedPost } from '@/components/social/types'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
@@ -40,7 +38,7 @@ type CommentRow = {
   isMine: boolean
 }
 
-export default function PostDetailScreen() {
+export default function PostCommentsScreen() {
   const { palette } = useTheme()
   const params = useLocalSearchParams<{ id?: string }>()
   const postId =
@@ -96,6 +94,11 @@ export default function PostDetailScreen() {
       },
     ])
   }
+
+  const author = post?.type === 'repost' ? post.original?.author : post?.author
+  const workoutTitle =
+    (post?.type === 'repost' ? post.original?.workout : post?.workout)?.title ??
+    null
 
   const renderComment = ({ item }: { item: CommentRow }) => (
     <Pressable
@@ -162,9 +165,20 @@ export default function PostDetailScreen() {
             color={palette.textPrimary}
           />
         </Pressable>
-        <Text style={[typography.h3, { color: palette.textPrimary }]}>
-          Post
-        </Text>
+        <View style={styles.headerTitleWrap}>
+          <Text style={[typography.h3, { color: palette.textPrimary }]}>
+            Comments
+          </Text>
+          {author ? (
+            <Text
+              style={[typography.small, { color: palette.textTertiary }]}
+              numberOfLines={1}
+            >
+              {author.displayName}
+              {workoutTitle ? ` \u00b7 ${workoutTitle}` : ''}
+            </Text>
+          ) : null}
+        </View>
         <View style={{ width: 22 }} />
       </View>
 
@@ -188,20 +202,6 @@ export default function PostDetailScreen() {
             data={comments as CommentRow[]}
             keyExtractor={(item) => String(item._id)}
             renderItem={renderComment}
-            ListHeaderComponent={
-              <View style={styles.postWrap}>
-                <PostCard
-                  post={post as FeedPost}
-                  myUserId={myProfile?.userId ?? null}
-                  inDetail
-                />
-                <Text
-                  style={[styles.commentsLabel, { color: palette.textTertiary }]}
-                >
-                  COMMENTS
-                </Text>
-              </View>
-            }
             ListEmptyComponent={
               <Text
                 style={[
@@ -283,19 +283,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  headerTitleWrap: {
+    flex: 1,
+    alignItems: 'center',
   },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
-  },
-  postWrap: {
-    marginBottom: spacing.md,
-  },
-  commentsLabel: {
-    ...typography.caption,
-    marginTop: spacing.xl,
   },
   listContent: {
     paddingHorizontal: spacing.xl,

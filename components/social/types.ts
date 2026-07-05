@@ -6,6 +6,7 @@ export type ProfileCard = {
   displayName: string
   avatarUrl: string | null
   isPrivate: boolean
+  streakWeeks: number
 }
 
 export type PostWorkout = {
@@ -53,9 +54,30 @@ export type FeedPost = {
   cheerCounts: Record<string, number>
   commentCount: number
   repostCount: number
+  triedCount: number
   myReaction: string | null
   createdAt: number
   original: OriginalPost | null
+}
+
+export type WorkoutSetDetail = {
+  setIndex: number
+  weightKg: number | null
+  reps: number | null
+  rpe: number | null
+  durationSec: number | null
+  distanceM: number | null
+  isWarmup: boolean
+}
+
+export type WorkoutExerciseDetail = {
+  id: string
+  name: string
+  bodyPart: string
+  modality: string
+  targetSets: number
+  trackingMetric: string
+  sets: WorkoutSetDetail[]
 }
 
 export const REACTION_META: Record<

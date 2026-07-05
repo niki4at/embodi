@@ -25,7 +25,15 @@ type PushData = {
 
 function routeFromPushData(data: PushData): void {
   if (data.postId) {
-    router.push({ pathname: '/post/[id]', params: { id: data.postId } })
+    // Comment pushes land directly in the conversation.
+    if (data.type === 'comment') {
+      router.push({
+        pathname: '/post/[id]/comments',
+        params: { id: data.postId },
+      })
+    } else {
+      router.push({ pathname: '/post/[id]', params: { id: data.postId } })
+    }
   } else if (data.communityId) {
     router.push({
       pathname: '/community/[id]',

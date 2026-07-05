@@ -162,7 +162,14 @@ function ThemedNavigation() {
           }}
         />
         <Stack.Screen
-          name="post/[id]"
+          name="post/[id]/index"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="post/[id]/comments"
           options={{
             headerShown: false,
             animation: 'slide_from_right',

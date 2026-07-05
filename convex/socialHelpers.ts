@@ -14,6 +14,8 @@ export type ProfileCard = {
   displayName: string
   avatarUrl: string | null
   isPrivate: boolean
+  /** Current weekly workout streak (0 = no active streak). */
+  streakWeeks: number
 }
 
 export async function requireIdentity(ctx: QueryCtx | MutationCtx) {
@@ -48,6 +50,10 @@ export async function toProfileCard(
   ctx: QueryCtx | MutationCtx,
   profile: ProfileDoc
 ): Promise<ProfileCard> {
+  const streak = await ctx.db
+    .query('streaks')
+    .withIndex('by_userId', (q) => q.eq('userId', profile.userId))
+    .unique()
   return {
     userId: profile.userId,
     username: profile.username,
@@ -56,6 +62,7 @@ export async function toProfileCard(
       ? await ctx.storage.getUrl(profile.avatarStorageId)
       : null,
     isPrivate: profile.isPrivate,
+    streakWeeks: streak?.currentStreakWeeks ?? 0,
   }
 }
 

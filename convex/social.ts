@@ -4,7 +4,12 @@ import { mergedStream, stream } from 'convex-helpers/server/stream'
 
 import { api } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
-import { mutation, query, type QueryCtx } from './_generated/server'
+import {
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from './_generated/server'
 import schema from './schema'
 import {
   canViewContent,
@@ -15,6 +20,7 @@ import {
   requireIdentity,
   type ProfileCard,
 } from './socialHelpers'
+import { getWeeklyActivityForUsers } from './streaks'
 
 const MAX_PHOTOS = 5
 const MAX_CAPTION = 500
@@ -54,6 +60,7 @@ type PostCard = {
   cheerCounts: Record<string, number>
   commentCount: number
   repostCount: number
+  triedCount: number
   myReaction: string | null
   createdAt: number
   original: OriginalPostCard
@@ -128,6 +135,7 @@ async function buildPostCards(
         cheerCounts: post.cheerCounts,
         commentCount: post.commentCount,
         repostCount: post.repostCount,
+        triedCount: post.triedCount ?? 0,
         myReaction: myReactionRow?.kind ?? null,
         createdAt: post.createdAt,
         original,
@@ -424,6 +432,28 @@ export const getUserPosts = query({
   },
 })
 
+/** Full visibility check for a single post (blocks, private, backers-only). */
+async function canViewPost(
+  ctx: QueryCtx | MutationCtx,
+  viewerId: string,
+  post: PostDoc
+): Promise<boolean> {
+  const author = await getProfileByUserId(ctx, post.authorId)
+  if (!author) return false
+  if (post.authorId === viewerId) return true
+  if (!(await canViewContent(ctx, viewerId, author))) return false
+  if (post.visibility === 'backers') {
+    const edge = await ctx.db
+      .query('follows')
+      .withIndex('by_follower_and_followee', (q) =>
+        q.eq('followerId', viewerId).eq('followeeId', post.authorId)
+      )
+      .unique()
+    if (edge?.status !== 'active') return false
+  }
+  return true
+}
+
 export const getPost = query({
   args: { postId: v.id('posts') },
   handler: async (ctx, { postId }) => {
@@ -431,21 +461,7 @@ export const getPost = query({
     if (!identity) return null
     const post = await ctx.db.get(postId)
     if (!post) return null
-
-    const author = await getProfileByUserId(ctx, post.authorId)
-    if (!author) return null
-    if (post.authorId !== identity.subject) {
-      if (!(await canViewContent(ctx, identity.subject, author))) return null
-      if (post.visibility === 'backers') {
-        const edge = await ctx.db
-          .query('follows')
-          .withIndex('by_follower_and_followee', (q) =>
-            q.eq('followerId', identity.subject).eq('followeeId', post.authorId)
-          )
-          .unique()
-        if (edge?.status !== 'active') return null
-      }
-    }
+    if (!(await canViewPost(ctx, identity.subject, post))) return null
 
     const [card] = await buildPostCards(ctx, identity.subject, [post])
     return card
@@ -605,6 +621,298 @@ export const deleteComment = mutation({
       })
     }
     return null
+  },
+})
+
+const setDetailValidator = v.object({
+  setIndex: v.number(),
+  weightKg: v.union(v.number(), v.null()),
+  reps: v.union(v.number(), v.null()),
+  rpe: v.union(v.number(), v.null()),
+  durationSec: v.union(v.number(), v.null()),
+  distanceM: v.union(v.number(), v.null()),
+  isWarmup: v.boolean(),
+})
+
+const exerciseDetailValidator = v.object({
+  id: v.string(),
+  name: v.string(),
+  bodyPart: v.string(),
+  modality: v.string(),
+  targetSets: v.number(),
+  trackingMetric: v.string(),
+  sets: v.array(setDetailValidator),
+})
+
+/**
+ * Full per-exercise breakdown of a shared workout, viewable by anyone who
+ * can see the post. Joins the post's source session + logged sets; legacy
+ * posts without a session return empty exercises so the client falls back
+ * to the snapshot stats.
+ */
+export const getPostWorkoutDetail = query({
+  args: { postId: v.id('posts') },
+  returns: v.union(
+    v.null(),
+    v.object({
+      exercises: v.array(exerciseDetailValidator),
+      canTry: v.boolean(),
+    })
+  ),
+  handler: async (ctx, { postId }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
+    let post = await ctx.db.get(postId)
+    if (!post) return null
+    if (!(await canViewPost(ctx, identity.subject, post))) return null
+
+    // Reposts drill into the original workout.
+    if (post.type === 'repost' && post.originalPostId) {
+      const original = await ctx.db.get(post.originalPostId)
+      if (!original) return { exercises: [], canTry: false }
+      if (!(await canViewPost(ctx, identity.subject, original))) {
+        return { exercises: [], canTry: false }
+      }
+      post = original
+    }
+
+    const session = post.sessionId ? await ctx.db.get(post.sessionId) : null
+    if (!session) return { exercises: [], canTry: false }
+
+    const sets = await ctx.db
+      .query('workout_sets')
+      .withIndex('by_sessionId', (q) => q.eq('sessionId', session._id))
+      .collect()
+
+    const setsByExercise = new Map<string, typeof sets>()
+    for (const set of sets) {
+      const list = setsByExercise.get(set.exerciseId) ?? []
+      list.push(set)
+      setsByExercise.set(set.exerciseId, list)
+    }
+
+    const exercises = session.plan
+      .filter((exercise) => {
+        const logged = setsByExercise.get(exercise.id)
+        if (exercise.skipped) return (logged?.length ?? 0) > 0
+        return true
+      })
+      .map((exercise) => ({
+        id: exercise.id,
+        name: exercise.name,
+        bodyPart: exercise.bodyPart,
+        modality: exercise.modality,
+        targetSets: exercise.targetSets,
+        trackingMetric: exercise.trackingMetric,
+        sets: (setsByExercise.get(exercise.id) ?? [])
+          .sort((a, b) => a.setIndex - b.setIndex)
+          .map((set) => ({
+            setIndex: set.setIndex,
+            weightKg: set.weightKg ?? null,
+            reps: set.reps ?? null,
+            rpe: set.rpe ?? null,
+            durationSec: set.durationSec ?? null,
+            distanceM: set.distanceM ?? null,
+            isWarmup: set.isWarmup ?? false,
+          })),
+      }))
+
+    return {
+      exercises,
+      canTry: session.plan.length > 0,
+    }
+  },
+})
+
+// Fresh, unique id per exercise when a shared workout is cloned into the
+// viewer's own session/routine (mirrors convex/routines.ts).
+const generateTriedExerciseId = () =>
+  `exercise-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`
+
+/**
+ * "Try this workout": clone a shared workout's plan into the viewer's own
+ * custom session (start now) or saved routine. Records the try for trending
+ * and tells the author someone is doing their workout.
+ */
+export const tryWorkout = mutation({
+  args: {
+    postId: v.id('posts'),
+    mode: v.union(v.literal('session'), v.literal('routine')),
+  },
+  returns: v.object({
+    sessionId: v.union(v.id('workout_sessions'), v.null()),
+    routineId: v.union(v.id('workout_routines'), v.null()),
+  }),
+  handler: async (ctx, { postId, mode }) => {
+    const identity = await requireIdentity(ctx)
+
+    let post = await ctx.db.get(postId)
+    if (!post) throw new Error('Post not found')
+    if (!(await canViewPost(ctx, identity.subject, post))) {
+      throw new Error('Post not found')
+    }
+    if (post.type === 'repost' && post.originalPostId) {
+      const original = await ctx.db.get(post.originalPostId)
+      if (!original || !(await canViewPost(ctx, identity.subject, original))) {
+        throw new Error('Post not found')
+      }
+      post = original
+    }
+
+    const session = post.sessionId ? await ctx.db.get(post.sessionId) : null
+    if (!session || session.plan.length === 0) {
+      throw new Error('This workout cannot be recreated')
+    }
+
+    const title = post.workout?.title ?? session.goal
+    const plan = session.plan
+      .filter((exercise) => !exercise.skipped)
+      .map((exercise) => {
+        const next = { ...exercise, id: generateTriedExerciseId() }
+        delete next.skipped
+        return next
+      })
+    if (plan.length === 0) {
+      throw new Error('This workout cannot be recreated')
+    }
+
+    const now = Date.now()
+    let sessionId: Id<'workout_sessions'> | null = null
+    let routineId: Id<'workout_routines'> | null = null
+
+    if (mode === 'session') {
+      sessionId = await ctx.db.insert('workout_sessions', {
+        userId: identity.subject,
+        goal: title,
+        modality: session.modality,
+        durationMin: session.durationMin,
+        status: 'generated',
+        source: 'custom',
+        plan,
+        healthFacts: [],
+        citations: [],
+        createdAt: now,
+        updatedAt: now,
+      })
+    } else {
+      routineId = await ctx.db.insert('workout_routines', {
+        userId: identity.subject,
+        name: title,
+        goal: session.goal,
+        modality: session.modality,
+        durationMin: session.durationMin,
+        plan,
+        sourceSessionId: session._id,
+        createdAt: now,
+        updatedAt: now,
+      })
+    }
+
+    // Trying your own workout is allowed but never counts toward trending.
+    if (post.authorId !== identity.subject) {
+      await ctx.db.insert('post_tries', {
+        postId: post._id,
+        authorId: post.authorId,
+        userId: identity.subject,
+        mode,
+        createdAt: now,
+      })
+      await ctx.db.patch(post._id, {
+        triedCount: (post.triedCount ?? 0) + 1,
+      })
+
+      const me = await getProfileByUserId(ctx, identity.subject)
+      await notify(ctx, {
+        userId: post.authorId,
+        type: 'workout_tried',
+        actorId: identity.subject,
+        message:
+          mode === 'session'
+            ? `@${me?.username ?? 'someone'} is doing your workout right now`
+            : `@${me?.username ?? 'someone'} saved your workout to their routines`,
+        postId: post._id,
+      })
+    }
+
+    return { sessionId, routineId }
+  },
+})
+
+const leaderboardEntryValidator = v.object({
+  userId: v.string(),
+  username: v.string(),
+  displayName: v.string(),
+  avatarUrl: v.union(v.string(), v.null()),
+  isMe: v.boolean(),
+  workoutsThisWeek: v.number(),
+  streakWeeks: v.number(),
+  rank: v.number(),
+})
+
+/**
+ * Weekly leaderboard: you + everyone you back, ranked by workouts completed
+ * this week. Resets Monday (ISO week).
+ */
+export const getWeeklyLeaderboard = query({
+  args: { now: v.number() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      entries: v.array(leaderboardEntryValidator),
+      myRank: v.number(),
+    })
+  ),
+  handler: async (ctx, { now }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
+
+    const edges = await ctx.db
+      .query('follows')
+      .withIndex('by_follower_and_status', (q) =>
+        q.eq('followerId', identity.subject).eq('status', 'active')
+      )
+      .take(50)
+    const userIds = [identity.subject, ...edges.map((e) => e.followeeId)]
+
+    const [activity, cards] = await Promise.all([
+      getWeeklyActivityForUsers(ctx, userIds, now),
+      getProfileCards(ctx, userIds),
+    ])
+
+    const ranked = userIds
+      .map((userId) => {
+        const card = cards.get(userId)
+        const stats = activity.get(userId)
+        if (!card) return null
+        return {
+          userId,
+          username: card.username,
+          displayName: card.displayName,
+          avatarUrl: card.avatarUrl,
+          isMe: userId === identity.subject,
+          workoutsThisWeek: stats?.workoutsThisWeek ?? 0,
+          streakWeeks: stats?.streakWeeks ?? 0,
+        }
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+      .sort(
+        (a, b) =>
+          b.workoutsThisWeek - a.workoutsThisWeek ||
+          b.streakWeeks - a.streakWeeks ||
+          a.username.localeCompare(b.username)
+      )
+      .map((entry, index) => ({ ...entry, rank: index + 1 }))
+
+    const myRank = ranked.find((e) => e.isMe)?.rank ?? ranked.length
+    const top = ranked.slice(0, 10)
+    if (!top.some((e) => e.isMe)) {
+      const me = ranked.find((e) => e.isMe)
+      if (me) top.push(me)
+    }
+
+    return { entries: top, myRank }
   },
 })
 

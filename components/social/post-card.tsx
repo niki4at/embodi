@@ -24,6 +24,7 @@ import {
   type ReactionKind,
 } from '@/components/social/types'
 import { WorkoutStatCard } from '@/components/social/workout-stat-card'
+import { StreakFlame } from '@/components/streak/streak-flame'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
@@ -202,6 +203,13 @@ export function PostCard({
     router.push({ pathname: '/post/[id]', params: { id: String(post._id) } })
   }
 
+  const openComments = () => {
+    router.push({
+      pathname: '/post/[id]/comments',
+      params: { id: String(post._id) },
+    })
+  }
+
   const openAuthor = (username?: string) => {
     if (!username) return
     router.push({ pathname: '/u/[username]', params: { username } })
@@ -295,15 +303,21 @@ export function PostCard({
           size={small ? 30 : 40}
         />
         <View style={styles.authorText}>
-          <Text
-            style={[
-              small ? typography.smallStrong : typography.bodyStrong,
-              { color: palette.textPrimary },
-            ]}
-            numberOfLines={1}
-          >
-            {author?.displayName ?? 'Unknown'}
-          </Text>
+          <View style={styles.authorNameRow}>
+            <Text
+              style={[
+                small ? typography.smallStrong : typography.bodyStrong,
+                styles.authorName,
+                { color: palette.textPrimary },
+              ]}
+              numberOfLines={1}
+            >
+              {author?.displayName ?? 'Unknown'}
+            </Text>
+            {author && author.streakWeeks > 0 ? (
+              <StreakFlame weeks={author.streakWeeks} size="sm" />
+            ) : null}
+          </View>
           <Text
             style={[typography.small, { color: palette.textTertiary }]}
             numberOfLines={1}
@@ -330,11 +344,15 @@ export function PostCard({
   )
 
   return (
-    <View
+    <Pressable
+      onPress={openPost}
+      disabled={inDetail}
       style={[
         styles.card,
         { backgroundColor: palette.surface, borderColor: palette.border },
       ]}
+      accessibilityRole={inDetail ? undefined : 'button'}
+      accessibilityLabel={inDetail ? undefined : 'Open workout details'}
     >
       {isRepost ? (
         <View style={styles.repostHint}>
@@ -431,8 +449,7 @@ export function PostCard({
         </Pressable>
 
         <Pressable
-          onPress={openPost}
-          disabled={inDetail}
+          onPress={openComments}
           style={[styles.actionButton, { backgroundColor: palette.surfaceAlt }]}
           accessibilityRole="button"
           accessibilityLabel="Comments"
@@ -476,6 +493,21 @@ export function PostCard({
               {post.repostCount > 0 ? post.repostCount : 'Repost'}
             </Text>
           </Pressable>
+        ) : null}
+
+        {post.triedCount > 0 ? (
+          <View
+            style={[
+              styles.actionButton,
+              styles.triedPill,
+              { backgroundColor: palette.successMuted },
+            ]}
+          >
+            <IconSymbol name="figure.run" size={14} color={palette.success} />
+            <Text style={[typography.smallStrong, { color: palette.success }]}>
+              {post.triedCount} tried
+            </Text>
+          </View>
         ) : null}
       </View>
 
@@ -606,7 +638,7 @@ export function PostCard({
           </Pressable>
         </Pressable>
       </Modal>
-    </View>
+    </Pressable>
   )
 }
 
@@ -635,6 +667,17 @@ const styles = StyleSheet.create({
   },
   authorText: {
     flex: 1,
+  },
+  authorNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  authorName: {
+    flexShrink: 1,
+  },
+  triedPill: {
+    marginLeft: 'auto',
   },
   media: {
     borderRadius: radius.xl,

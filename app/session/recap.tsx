@@ -18,6 +18,7 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { StreakCelebration } from '@/components/streak/streak-celebration'
 import { groupPlanByPhase, PHASE_META } from '@/components/trainer/phases'
 import type { ExercisePlan } from '@/components/trainer/types'
 import { IconSymbol } from '@/components/ui/icon-symbol'
@@ -30,6 +31,7 @@ import type { Id } from '@/convex/_generated/dataModel'
 type RecapParams = {
   sessionId?: string
   from?: string
+  streakWeeks?: string
 }
 
 type LoggedSet = {
@@ -101,6 +103,10 @@ export default function RecapScreen() {
       ? (params.sessionId as Id<'workout_sessions'>)
       : undefined
   const isCompletion = params.from === 'completion'
+  const streakWeeksParam =
+    typeof params.streakWeeks === 'string'
+      ? Number.parseInt(params.streakWeeks, 10)
+      : NaN
 
   const sessionData = useQuery(
     api.trainer.getSessionWithSets,
@@ -127,6 +133,9 @@ export default function RecapScreen() {
   const [coachNote, setCoachNote] = useState<string | null>(null)
   const [noteLoading, setNoteLoading] = useState(false)
   const [breakdownOpen, setBreakdownOpen] = useState(!isCompletion)
+  const [streakCelebrationOpen, setStreakCelebrationOpen] = useState(
+    isCompletion && Number.isFinite(streakWeeksParam) && streakWeeksParam > 0,
+  )
 
   const session = sessionData?.session
   const sets = useMemo<LoggedSet[]>(
@@ -838,6 +847,12 @@ export default function RecapScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <StreakCelebration
+        visible={streakCelebrationOpen}
+        weeks={Number.isFinite(streakWeeksParam) ? streakWeeksParam : 0}
+        onClose={() => setStreakCelebrationOpen(false)}
+      />
     </SafeAreaView>
   )
 }

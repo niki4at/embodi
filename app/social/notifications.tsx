@@ -49,6 +49,8 @@ function iconForType(
     case 'community_invite':
     case 'community_milestone':
       return 'person.2.fill'
+    case 'workout_tried':
+      return 'figure.run'
     default:
       return 'bell.fill'
   }
@@ -80,7 +82,14 @@ export default function NotificationsScreen() {
   const openNotification = (item: NotificationRow) => {
     void Haptics.selectionAsync()
     if (item.postId) {
-      router.push({ pathname: '/post/[id]', params: { id: item.postId } })
+      if (item.type === 'comment') {
+        router.push({
+          pathname: '/post/[id]/comments',
+          params: { id: item.postId },
+        })
+      } else {
+        router.push({ pathname: '/post/[id]', params: { id: item.postId } })
+      }
     } else if (item.communityId) {
       router.push({
         pathname: '/community/[id]',

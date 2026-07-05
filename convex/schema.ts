@@ -689,6 +689,8 @@ export default defineSchema({
     cheerCounts: v.record(v.string(), v.number()),
     commentCount: v.number(),
     repostCount: v.number(),
+    // How many people started/saved this workout via "Try this workout".
+    triedCount: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index('by_author_and_createdAt', ['authorId', 'createdAt'])
@@ -792,6 +794,7 @@ export default defineSchema({
       v.literal('cheer'),
       v.literal('comment'),
       v.literal('repost'),
+      v.literal('workout_tried'),
       v.literal('community_invite'),
       v.literal('community_milestone')
     ),
@@ -835,6 +838,57 @@ export default defineSchema({
         goalLabel: v.string(),
         memberCount: v.number(),
         eventDate: v.union(v.number(), v.null()),
+      })
+    ),
+  }),
+
+  // Weekly workout streaks: one row per user. A streak counts consecutive
+  // weeks where the user hit their personal weekly workout goal. The week
+  // window rolls forward lazily on read/write; a weekly cron finalizes
+  // lapsed streaks so leaderboards stay honest.
+  streaks: defineTable({
+    userId: v.string(),
+    // Workouts per week required to keep the streak alive (1-7).
+    weeklyGoal: v.number(),
+    currentStreakWeeks: v.number(),
+    longestStreakWeeks: v.number(),
+    // Monday 00:00 UTC of the week the counters below refer to.
+    weekStartMs: v.number(),
+    workoutsThisWeek: v.number(),
+    // Whether this week's goal has been reached (streak already incremented).
+    goalMetThisWeek: v.boolean(),
+    updatedAt: v.number(),
+  }).index('by_userId', ['userId']),
+
+  // One row each time someone taps "Try this workout" on a shared post.
+  // Powers the tried counter on posts and the weekly trending top 10.
+  post_tries: defineTable({
+    postId: v.id('posts'),
+    // Post owner, denormalized so trending never joins back to posts.
+    authorId: v.string(),
+    userId: v.string(),
+    mode: v.union(v.literal('session'), v.literal('routine')),
+    createdAt: v.number(),
+  })
+    .index('by_post', ['postId'])
+    .index('by_user', ['userId'])
+    .index('by_createdAt', ['createdAt']),
+
+  // Cron snapshot of the week's top 10 most-tried public workouts. One active
+  // row replaced each run, mirroring discover_snapshots.
+  trending_snapshots: defineTable({
+    weekStartMs: v.number(),
+    computedAt: v.number(),
+    entries: v.array(
+      v.object({
+        postId: v.id('posts'),
+        rank: v.number(),
+        title: v.string(),
+        modality: v.string(),
+        triedCount: v.number(),
+        authorUserId: v.string(),
+        authorUsername: v.string(),
+        authorDisplayName: v.string(),
       })
     ),
   }),
