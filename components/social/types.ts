@@ -12,6 +12,7 @@ export type ProfileCard = {
 export type PostWorkout = {
   title: string
   modality: string
+  trainingEnvironment?: 'home' | 'gym' | 'outdoors' | 'travel'
   durationMin: number | null
   totalVolumeKg: number
   totalReps: number

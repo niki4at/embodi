@@ -3,6 +3,7 @@ import * as Haptics from 'expo-haptics'
 import React, { useEffect, useRef, useState } from 'react'
 import {
   type LayoutChangeEvent,
+  type ViewStyle,
   Platform,
   Pressable,
   StyleSheet,
@@ -90,7 +91,9 @@ export function FloatingTabBar({
 
   const focusedRoute = state.routes[state.index]
   const focusedOptions = descriptors[focusedRoute.key]?.options
-  const focusedTabBarStyle = StyleSheet.flatten(focusedOptions?.tabBarStyle)
+  const focusedTabBarStyle = StyleSheet.flatten(
+    focusedOptions?.tabBarStyle,
+  ) as ViewStyle | undefined
 
   if (focusedTabBarStyle?.display === 'none') {
     return null

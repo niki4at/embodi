@@ -29,6 +29,11 @@ import {
   formatCycleForPrompt,
   type CycleStatus,
 } from './cycle'
+import {
+  describeTrainingConstraints,
+  exerciseFitsTrainingContext,
+  type TrainingContext,
+} from './lib/equipmentConstraints'
 import { applyWorkoutCompletion } from './streaks'
 
 type Citation = CitationSource
@@ -431,6 +436,38 @@ function buildPlanFromLibraryPicks(picks: LibraryPick[]): ExercisePlan[] {
   })
 }
 
+function sessionTrainingContext(session: {
+  trainingEnvironment?: 'home' | 'gym' | 'outdoors' | 'travel'
+  equipmentIntent?: 'available' | 'bodyweight' | 'treadmill'
+  contextTags?: string[]
+  equipmentSnapshot?: TrainingContext['equipmentSnapshot']
+  unavailableEquipment?: string[]
+}): TrainingContext {
+  return {
+    trainingEnvironment: session.trainingEnvironment,
+    equipmentIntent: session.equipmentIntent,
+    contextTags: session.contextTags,
+    equipmentSnapshot: session.equipmentSnapshot,
+    unavailableEquipment: session.unavailableEquipment,
+  }
+}
+
+function assertExercisesFitSession(
+  exercises: Pick<ExercisePlan, 'name' | 'equipment'>[],
+  session: Parameters<typeof sessionTrainingContext>[0],
+): void {
+  const context = sessionTrainingContext(session)
+  const invalid = exercises.find(
+    (exercise) =>
+      !exerciseFitsTrainingContext(exercise.equipment, context),
+  )
+  if (invalid) {
+    throw new Error(
+      `${invalid.name} requires equipment unavailable for this session`,
+    )
+  }
+}
+
 export const createCustomSession = mutation({
   args: { exercises: v.array(libraryPickArg) },
   handler: async (ctx, { exercises }): Promise<Id<'workout_sessions'>> => {
@@ -493,6 +530,7 @@ export const addExercisesToSession = mutation({
     }
 
     const additions = buildPlanFromLibraryPicks(exercises)
+    assertExercisesFitSession(additions, session)
     await ctx.db.patch(sessionId, {
       plan: [...session.plan, ...additions],
       updatedAt: Date.now(),
@@ -635,6 +673,7 @@ export const appendSessionExercise = internalMutation({
   handler: async (ctx, { sessionId, exercise }) => {
     const session = await ctx.db.get(sessionId)
     if (!session) return
+    assertExercisesFitSession([exercise], session)
 
     const updatedPlan = [...session.plan, exercise]
     await ctx.db.patch(sessionId, {
@@ -1034,6 +1073,7 @@ export const replaceExerciseInSession = mutation({
     if (idx === -1) throw new Error('Exercise not in plan')
 
     const updatedPlan = [...session.plan]
+    assertExercisesFitSession([newExercise], session)
     updatedPlan[idx] = newExercise
     await ctx.db.patch(sessionId, {
       plan: updatedPlan,
@@ -1064,6 +1104,7 @@ export const generateExerciseAlternatives = action({
     userPrompt: v.optional(v.string()),
     count: v.optional(v.number()),
   },
+  returns: v.array(exerciseArg),
   handler: async (
     ctx,
     { sessionId, exerciseId, userPrompt, count }
@@ -1109,6 +1150,17 @@ export const generateExerciseAlternatives = action({
       {}
     )
     const profileSummary = extendedProfile?.profileSummary ?? null
+    const replacementContext: TrainingContext = {
+      trainingEnvironment: sessionData.session.trainingEnvironment,
+      equipmentIntent: sessionData.session.equipmentIntent,
+      contextTags: sessionData.session.contextTags,
+      equipmentSnapshot: sessionData.session.equipmentSnapshot?.map(
+        (item) => item.catalogKey
+      ),
+      unavailableEquipment: sessionData.session.unavailableEquipment,
+    }
+    const replacementConstraintText =
+      describeTrainingConstraints(replacementContext)
 
     const targetCount = Math.max(
       1,
@@ -1125,6 +1177,7 @@ Rules:
 - Honour the client's injuries, conditions, medications, and current state.
 - Match the same training intent (modality + body part) as the exercise being replaced unless the user explicitly asks for something different.
 - Avoid duplicating any exercise already in the session.
+- Respect the session's place and equipment intent. Never suggest equipment outside the authoritative training-context block.
 - Cue breath, tempo, and intent. Use proven, evidence-aware approaches.
 - Set restSec for each alternative to fit that movement's demand and the client's state today (heavier/near-failure work rests longer; light, mobility, and breathwork rest little). Don't just copy the replaced exercise's rest if a different value fits better.
 - Output JSON matching the schema. Generate UNIQUE exercise ids that do not collide with the one being replaced.`
@@ -1147,10 +1200,11 @@ Rules:
       otherExerciseNames.length
         ? `Other exercises already in the session (don't duplicate): ${otherExerciseNames.join(', ')}`
         : '',
+      replacementConstraintText,
       '',
       userPrompt
         ? `User's specific request: "${userPrompt.slice(0, 500)}"`
-        : `Generate ${targetCount} distinct alternatives the user can pick from. Cover a range of angles (different equipment / progression / regression).`,
+        : `Generate ${targetCount} distinct alternatives the user can pick from. Cover a range of angles, progressions, and regressions within the allowed equipment.`,
       '',
       `Return exactly ${targetCount} alternative${targetCount > 1 ? 's' : ''}.`
     )
@@ -1263,9 +1317,16 @@ Rules:
     }
 
     // Force fresh ids so a replacement always invalidates orphaned set logs.
-    const alternatives = normalizeExercises(parsed.alternatives ?? []).map(
-      (ex) => ({ ...ex, id: generateExerciseId() })
-    )
+    const alternatives = normalizeExercises(parsed.alternatives ?? [])
+      .filter((exercise) =>
+        exerciseFitsTrainingContext(exercise.equipment, replacementContext)
+      )
+      .map((ex) => ({ ...ex, id: generateExerciseId() }))
+    if (alternatives.length === 0) {
+      throw new Error(
+        'No safe replacement matched the equipment available for this session'
+      )
+    }
     return alternatives
   },
 })
@@ -1876,6 +1937,8 @@ export const getWorkoutHistory = query({
           durationMin: session.durationMin,
           actualDurationMin: actualDurationMin(session),
           status: session.status,
+          trainingEnvironment: session.trainingEnvironment,
+          equipmentIntent: session.equipmentIntent,
           setsLogged: sets.length,
           totalTargetSets,
           completedAt: session.completedAt ?? session.updatedAt,
@@ -2266,6 +2329,20 @@ async function buildWorkoutPlanStreaming(
 ): Promise<{ goalFocus: string; modality: string; durationMin: number }> {
   const client = getOpenAI()
   const model = getOpenAIModel()
+  const trainingContext: TrainingContext | null = checkinData
+    ? {
+        trainingEnvironment: checkinData.trainingEnvironment,
+        equipmentIntent: checkinData.equipmentIntent,
+        contextTags: checkinData.contextTags,
+        equipmentSnapshot: checkinData.equipmentSnapshot?.map(
+          (item) => item.catalogKey
+        ),
+        unavailableEquipment: checkinData.unavailableEquipment,
+      }
+    : null
+  const trainingConstraintText = trainingContext
+    ? describeTrainingConstraints(trainingContext)
+    : ''
 
   // Build the system prompt - enhanced when we have a profile summary and/or check-in
   let systemPromptText = profileSummary
@@ -2364,6 +2441,12 @@ IMPORTANT: Use the provided tools to build the plan step by step:
   // Add check-in data if available (this is TODAY's state)
   if (checkinData) {
     userPromptParts.push('\n' + formatCheckinForPrompt(checkinData))
+  }
+  if (trainingConstraintText) {
+    systemPromptText += `
+
+EQUIPMENT SAFETY: The user message contains an authoritative training-context block. Every exercise must satisfy its place and equipment rule. A saved item is available but optional. Never add unavailable equipment for variety.`
+    userPromptParts.push('\n' + trainingConstraintText)
   }
 
   // Flare-up regions to steer around (persistent, independent of check-in).
@@ -2474,6 +2557,7 @@ IMPORTANT: Use the provided tools to build the plan step by step:
 
         try {
           const args = JSON.parse(item.arguments)
+          let appendDefaultToolResult = true
 
           switch (item.name) {
             case 'set_session_metadata':
@@ -2494,8 +2578,28 @@ IMPORTANT: Use the provided tools to build the plan step by step:
               break
 
             case 'add_exercise': {
-              exerciseCount++
               const exercise = normalizeExercise(args)
+              if (
+                trainingContext &&
+                !exerciseFitsTrainingContext(exercise.equipment, trainingContext)
+              ) {
+                appendDefaultToolResult = false
+                toolResults.push({
+                  type: 'function_call_output',
+                  call_id: item.call_id,
+                  output: JSON.stringify({
+                    success: false,
+                    error:
+                      'Exercise rejected because its equipment is unavailable in the current training context. Replace it with a compliant movement.',
+                    rejectedEquipment: exercise.equipment,
+                  }),
+                })
+                console.warn(
+                  `[buildWorkoutPlanStreaming] Rejected unavailable equipment for ${exercise.name}: ${exercise.equipment.join(', ')}`
+                )
+                break
+              }
+              exerciseCount++
               await ctx.runMutation(internal.trainer.appendSessionExercise, {
                 sessionId,
                 exercise,
@@ -2514,11 +2618,13 @@ IMPORTANT: Use the provided tools to build the plan step by step:
               break
           }
 
-          toolResults.push({
-            type: 'function_call_output',
-            call_id: item.call_id,
-            output: JSON.stringify({ success: true, exerciseCount }),
-          })
+          if (appendDefaultToolResult) {
+            toolResults.push({
+              type: 'function_call_output',
+              call_id: item.call_id,
+              output: JSON.stringify({ success: true, exerciseCount }),
+            })
+          }
         } catch (parseError) {
           console.error(
             `Error processing tool call ${item.name}:`,
@@ -2545,7 +2651,7 @@ IMPORTANT: Use the provided tools to build the plan step by step:
     // If no exercises were added, use fallback
     if (exerciseCount === 0) {
       console.warn('No exercises generated, using fallback')
-      const fallback = fallbackPlan(profile)
+      const fallback = fallbackPlanForContext(profile, trainingContext)
       for (const exercise of fallback.exercises) {
         await ctx.runMutation(internal.trainer.appendSessionExercise, {
           sessionId,
@@ -2562,7 +2668,7 @@ IMPORTANT: Use the provided tools to build the plan step by step:
     return metadata
   } catch (error) {
     console.error('Failed to generate plan, using fallback', error)
-    const fallback = fallbackPlan(profile)
+    const fallback = fallbackPlanForContext(profile, trainingContext)
     for (const exercise of fallback.exercises) {
       await ctx.runMutation(internal.trainer.appendSessionExercise, {
         sessionId,
@@ -2796,5 +2902,53 @@ function fallbackPlan(profile: Profile): PlanPayload {
     modality: inferModality(profile),
     durationMin: estimateDuration(profile),
     exercises: defaultExercises,
+  }
+}
+
+export function fallbackPlanForContext(
+  profile: Profile,
+  context: TrainingContext | null,
+): PlanPayload {
+  const fallback = fallbackPlan(profile)
+  if (!context?.trainingEnvironment || !context.equipmentIntent) {
+    return fallback
+  }
+
+  const treadmillExercise: ExercisePlan = {
+    id: createId('fallback'),
+    name: 'Treadmill Walk',
+    bodyPart: 'Cardio',
+    modality: 'cardio',
+    instructions:
+      'Walk at a pace you can sustain with relaxed shoulders and steady breathing.',
+    equipment: ['Treadmill'],
+    targetSets: 1,
+    targetReps: [1],
+    tempo: 'Steady',
+    restSec: 0,
+    durationMin: Math.max(10, estimateDuration(profile) - 10),
+    cues: ['Stand tall', 'Use a conversational pace'],
+    trackingMetric: 'duration',
+  }
+  const candidates =
+    context.equipmentIntent === 'treadmill'
+      ? [
+          fallback.exercises[0],
+          treadmillExercise,
+          fallback.exercises[fallback.exercises.length - 1],
+        ].filter((exercise): exercise is ExercisePlan => exercise !== undefined)
+      : fallback.exercises
+  const exercises = candidates.filter((exercise) =>
+    exerciseFitsTrainingContext(exercise.equipment, context),
+  )
+  if (exercises.length === 0) {
+    throw new Error('No fallback exercises fit the training context')
+  }
+
+  return {
+    ...fallback,
+    modality:
+      context.equipmentIntent === 'treadmill' ? 'cardio' : fallback.modality,
+    exercises,
   }
 }

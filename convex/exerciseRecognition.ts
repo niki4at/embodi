@@ -4,6 +4,7 @@ import type {
   ResponseFormatTextJSONSchemaConfig,
 } from 'openai/resources/responses/responses'
 
+import { internal } from './_generated/api'
 import { action, mutation } from './_generated/server'
 import { getOpenAI, getOpenAIModel, openAIResponsesLowLatency } from './openai'
 
@@ -58,6 +59,26 @@ const recognitionResult = v.object({
       bodyPart: v.string(),
       modality: v.string(),
       equipment: v.array(v.string()),
+    })
+  ),
+})
+
+const inventoryCatalogItem = v.object({
+  key: v.string(),
+  label: v.string(),
+})
+
+const inventoryRecognitionResult = v.object({
+  summary: v.string(),
+  matches: v.array(
+    v.object({
+      catalogKey: v.string(),
+      confidence: v.number(),
+      quantity: v.number(),
+      suggestedMinWeightKg: v.optional(v.number()),
+      suggestedMaxWeightKg: v.optional(v.number()),
+      adjustable: v.optional(v.boolean()),
+      reason: v.string(),
     })
   ),
 })
@@ -250,6 +271,186 @@ Rules:
     } finally {
       // Scan images are transient — never let them accumulate in storage.
       await ctx.storage.delete(imageId)
+    }
+  },
+})
+
+type InventoryRecognitionPayload = {
+  summary: string
+  matches: {
+    catalogKey: string
+    confidence: number
+    quantity: number
+    suggestedMinWeightKg?: number
+    suggestedMaxWeightKg?: number
+    adjustable?: boolean
+    reason: string
+  }[]
+}
+
+/**
+ * Recognizes owned equipment for the persistent home inventory. Unlike the
+ * exercise scanner, this deliberately keeps the private source photo so the
+ * user can review it from Training setup and delete it with the inventory row.
+ */
+export const recognizeInventoryFromImage = action({
+  args: {
+    imageId: v.id('_storage'),
+    catalog: v.array(inventoryCatalogItem),
+  },
+  returns: inventoryRecognitionResult,
+  handler: async (ctx, { imageId, catalog }): Promise<InventoryRecognitionPayload> => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+    if (catalog.length === 0 || catalog.length > 100) {
+      throw new Error('Inventory scan catalog must contain 1 to 100 items')
+    }
+    if (
+      catalog.some(
+        (item) =>
+          !item.key.trim() ||
+          !item.label.trim() ||
+          item.key.length > 80 ||
+          item.label.length > 80,
+      )
+    ) {
+      throw new Error('Inventory catalog keys and labels must be 80 characters or fewer')
+    }
+    const photoOwner = await ctx.runQuery(
+      internal.equipment.getPhotoUploadOwner,
+      { storageId: imageId },
+    )
+    if (!photoOwner || photoOwner.userId !== identity.subject) {
+      throw new Error('Equipment photo not found')
+    }
+
+    const imageUrl = await ctx.storage.getUrl(imageId)
+    if (!imageUrl) {
+      throw new Error('Equipment photo not found')
+    }
+
+    const validKeys = new Set(catalog.map((item) => item.key))
+    const catalogText = catalog
+      .map((item) => `${item.key} | ${item.label}`)
+      .join('\n')
+    const client = getOpenAI()
+    const model = getOpenAIModel()
+
+    const request: ResponseParams = {
+      model,
+      ...openAIResponsesLowLatency,
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'inventory_recognition',
+          schema: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['summary', 'matches'],
+            properties: {
+              summary: { type: 'string' },
+              matches: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: [
+                    'catalogKey',
+                    'confidence',
+                    'quantity',
+                    'suggestedMinWeightKg',
+                    'suggestedMaxWeightKg',
+                    'adjustable',
+                    'reason',
+                  ],
+                  properties: {
+                    catalogKey: { type: 'string' },
+                    confidence: { type: 'number' },
+                    quantity: { type: 'integer' },
+                    suggestedMinWeightKg: {
+                      anyOf: [{ type: 'number' }, { type: 'null' }],
+                    },
+                    suggestedMaxWeightKg: {
+                      anyOf: [{ type: 'number' }, { type: 'null' }],
+                    },
+                    adjustable: {
+                      anyOf: [{ type: 'boolean' }, { type: 'null' }],
+                    },
+                    reason: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      input: [
+        {
+          role: 'system',
+          content: [
+            {
+              type: 'input_text',
+              text: `Identify fitness equipment the user owns from a private home-inventory photo.
+Return every visible item that matches the supplied catalog. Never invent catalog keys.
+Estimate quantity and weight range only when visible; otherwise return null.
+Confidence must be between 0 and 1. Keep reasons factual and under 120 characters.`,
+            },
+          ],
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: `Equipment catalog:\n${catalogText}\n\nIdentify the owned equipment visible in this image.`,
+            },
+            { type: 'input_image', image_url: imageUrl, detail: 'auto' },
+          ],
+        },
+      ],
+    }
+
+    const response = await client.responses.parse<
+      ResponseParams,
+      {
+        summary: string
+        matches: {
+          catalogKey: string
+          confidence: number
+          quantity: number
+          suggestedMinWeightKg: number | null
+          suggestedMaxWeightKg: number | null
+          adjustable: boolean | null
+          reason: string
+        }[]
+      }
+    >(request)
+    const parsed = response.output_parsed
+    if (!parsed) {
+      throw new Error('Could not recognize this equipment photo')
+    }
+
+    return {
+      summary: parsed.summary.trim().slice(0, 160),
+      matches: parsed.matches
+        .filter((match) => validKeys.has(match.catalogKey))
+        .map((match) => ({
+          catalogKey: match.catalogKey,
+          confidence: Math.max(0, Math.min(1, match.confidence)),
+          quantity: Math.max(1, Math.min(20, Math.round(match.quantity))),
+          ...(match.suggestedMinWeightKg == null
+            ? {}
+            : { suggestedMinWeightKg: Math.max(0, match.suggestedMinWeightKg) }),
+          ...(match.suggestedMaxWeightKg == null
+            ? {}
+            : { suggestedMaxWeightKg: Math.max(0, match.suggestedMaxWeightKg) }),
+          ...(match.adjustable == null ? {} : { adjustable: match.adjustable }),
+          reason: match.reason.trim().slice(0, 120),
+        }))
+        .sort((a, b) => b.confidence - a.confidence)
+        .slice(0, 12),
     }
   },
 })

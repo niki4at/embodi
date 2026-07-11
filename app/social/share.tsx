@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics'
 import { Image } from 'expo-image'
 import * as ImagePicker from 'expo-image-picker'
 import { router, useLocalSearchParams } from 'expo-router'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +12,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -53,6 +54,11 @@ export default function ShareComposerScreen() {
     sessionId ? { sessionId } : 'skip'
   )
   const myProfile = useQuery(api.profiles.getMyProfile)
+  const sessionData = useQuery(
+    api.trainer.getSessionWithSets,
+    sessionId ? { sessionId } : 'skip',
+  )
+  const trainingPreferences = useQuery(api.trainingPreferences.get)
   const generateUploadUrl = useMutation(api.social.generatePostPhotoUploadUrl)
   const createPost = useMutation(api.social.createPost)
 
@@ -60,7 +66,20 @@ export default function ShareComposerScreen() {
   const [caption, setCaption] = useState('')
   const [photoUris, setPhotoUris] = useState<string[]>([])
   const [visibility, setVisibility] = useState<'public' | 'backers'>('public')
+  const [shareTrainingEnvironment, setShareTrainingEnvironment] =
+    useState(false)
   const [posting, setPosting] = useState(false)
+  const sharingDefaultApplied = useRef(false)
+
+  useEffect(() => {
+    if (sharingDefaultApplied.current || trainingPreferences === undefined) {
+      return
+    }
+    sharingDefaultApplied.current = true
+    setShareTrainingEnvironment(
+      trainingPreferences?.shareGenericLocation === true,
+    )
+  }, [trainingPreferences])
 
   const effectiveTitle = title ?? insights?.goal ?? ''
 
@@ -78,10 +97,13 @@ export default function ShareComposerScreen() {
       workingSets: insights.workingSetsLogged,
       avgRpe: insights.avgRpe,
       bodyParts: insights.bodyParts,
+      trainingEnvironment: shareTrainingEnvironment
+        ? sessionData?.session.trainingEnvironment
+        : undefined,
       highlights: insights.highlights.slice(0, 3),
       dateMs: insights.dateMs,
     }
-  }, [insights, effectiveTitle])
+  }, [effectiveTitle, insights, sessionData?.session.trainingEnvironment, shareTrainingEnvironment])
 
   const addPhotos = async (source: 'camera' | 'library') => {
     Haptics.selectionAsync()
@@ -128,6 +150,7 @@ export default function ShareComposerScreen() {
         photoStorageIds: storageIds,
         visibility,
         communityId,
+        shareTrainingEnvironment,
       })
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       router.back()
@@ -344,6 +367,60 @@ export default function ShareComposerScreen() {
               </View>
             </View>
 
+            {sessionData?.session.trainingEnvironment ? (
+              <View
+                style={[
+                  styles.locationShareRow,
+                  {
+                    backgroundColor: palette.surface,
+                    borderColor: palette.border,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.locationShareIcon,
+                    { backgroundColor: palette.primaryMuted },
+                  ]}
+                >
+                  <IconSymbol
+                    name="location.fill"
+                    size={18}
+                    color={palette.primary}
+                  />
+                </View>
+                <View style={styles.locationShareCopy}>
+                  <Text
+                    style={[
+                      styles.locationShareTitle,
+                      { color: palette.textPrimary },
+                    ]}
+                  >
+                    Share generic training place
+                  </Text>
+                  <Text
+                    style={[
+                      styles.locationShareDescription,
+                      { color: palette.textSecondary },
+                    ]}
+                  >
+                    Adds Home, Gym, Outdoors, or Travel. Names and coordinates
+                    always stay private.
+                  </Text>
+                </View>
+                <Switch
+                  value={shareTrainingEnvironment}
+                  onValueChange={setShareTrainingEnvironment}
+                  accessibilityLabel="Share generic training place"
+                  trackColor={{
+                    false: palette.surfaceHigh,
+                    true: palette.primary,
+                  }}
+                  thumbColor={palette.white}
+                />
+              </View>
+            ) : null}
+
             <Text style={[styles.fieldLabel, { color: palette.textSecondary }]}>
               Who can see it
             </Text>
@@ -554,6 +631,33 @@ const styles = StyleSheet.create({
     ...typography.bodyStrong,
   },
   spotifySubtitle: {
+    ...typography.small,
+    marginTop: 2,
+  },
+  locationShareRow: {
+    minHeight: 82,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  locationShareIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locationShareCopy: {
+    flex: 1,
+  },
+  locationShareTitle: {
+    ...typography.bodyStrong,
+  },
+  locationShareDescription: {
     ...typography.small,
     marginTop: 2,
   },

@@ -15,6 +15,10 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { IconSymbol } from '@/components/ui/icon-symbol'
+import {
+  TRAINING_ENVIRONMENT_LABELS,
+  type TrainingEnvironment,
+} from '@/components/training-context'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
@@ -31,6 +35,7 @@ type HistoryEntry = {
   totalTargetSets: number
   completedAt: number
   createdAt: number
+  trainingEnvironment?: TrainingEnvironment
 }
 
 type HistoryGroup = {
@@ -273,6 +278,9 @@ export default function HistoryScreen() {
                       {entry.modality} {'\u00b7'}{' '}
                       {entry.actualDurationMin ?? entry.durationMin} min{' '}
                       {'\u00b7'} {entry.setsLogged} sets
+                      {entry.trainingEnvironment
+                        ? ` \u00b7 ${TRAINING_ENVIRONMENT_LABELS[entry.trainingEnvironment]}`
+                        : ''}
                     </Text>
                   </View>
                   {isDiscarded ? (

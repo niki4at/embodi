@@ -110,6 +110,13 @@ function ThemedNavigation() {
           }}
         />
         <Stack.Screen
+          name="training-setup"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
           name="history"
           options={{
             headerShown: false,

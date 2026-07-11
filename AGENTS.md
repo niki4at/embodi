@@ -61,6 +61,22 @@ npm run development-builds      # Create development builds (workflow)
 npm run reset-project           # Reset to blank template
 ```
 
+### Android emulator (day to day)
+
+The Embodi dev client is **already installed** on the local Android emulator (`Medium_Phone_API_36.1`). For normal JS/UI work, do **not** run `npm run android` (that triggers a full Gradle native rebuild every time). Use this flow instead:
+
+1. Start the emulator (if it is not already running):
+   ```bash
+   emulator -avd Medium_Phone_API_36.1
+   ```
+2. Start Metro only:
+   ```bash
+   npm start
+   ```
+3. Open the **Embodi** dev client app on the emulator (or press `a` in the Expo terminal).
+
+Run `npm run android` / `npx expo run:android` only when you need a fresh native install: first setup, new native modules, `app.json` plugin changes, or after deleting the app from the emulator.
+
 ### Building & Testing
 
 ```bash
@@ -182,7 +198,7 @@ When working on this project:
 
 - Primary Embodi Figma file (overall app design): https://www.figma.com/design/Btvt6p53EA2NQ6Z4XrUKFE/Embodi; pain rating page Figma (Interactive Pain Rating Page): https://www.figma.com/make/rFbFQtHf4kUxSp7f0Nu69O/Interactive-Pain-Rating-Page--Copy-; for body/line artwork prefer the supplied JPG over the SVG when both exist.
 - Convex OpenAI usage reads `OPENAI_MODEL` (currently `gpt-5.4-mini-2026-03-17`, tuned for instant/low-latency replies with minimal reasoning) and `OPEN_API_KEY` from the Convex environment via `convex/openai.ts`; update the backend with `npx convex dev` or a deploy—Expo reload alone does not push Convex function changes.
-- Native development requires expo-dev-client (Expo Go won't launch `com.nick4eto.embodi`); install the dev client locally with `npx expo run:android` or `npx expo run:ios`. `expo-notifications` plugin sound assets must use underscore filenames (e.g. `rest_done.wav`); hyphens break Android prebuild.
+- Native development requires expo-dev-client (Expo Go won't launch `com.nick4eto.embodi`); the Android dev client is already on emulator `Medium_Phone_API_36.1`—day to day use `npm start` and open the Embodi app, not `npm run android`. Rebuild with `npx expo run:android` or `npx expo run:ios` only when native deps or plugins change. `expo-notifications` plugin sound assets must use underscore filenames (e.g. `rest_done.wav`); hyphens break Android prebuild.
 - The home screen uses a single state-aware `TodayCard` that always routes through check-in; `createPendingSession` in `convex/trainer.ts` is no longer wired to a no-context "Start workout" button.
 - `convex/weeklyInsights.ts` regenerates the home "This Week" stats and recommendations on the weekly cron in `convex/crons.ts` and again after each completed workout; user thumbs-up/down feedback is stored and fed back into future generations.
 - Menstrual-cycle tracking lives in `convex/cycle.ts` and `app/cycle.tsx`; it's opt-in via a Settings toggle shown only to users who selected female or "prefer not to say", and the current phase is passed into the trainer prompt in `convex/trainer.ts`.

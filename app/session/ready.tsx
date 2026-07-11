@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,6 +25,12 @@ import {
   type ExercisePhase,
 } from '@/components/trainer/phases'
 import type { ExercisePlan } from '@/components/trainer/types'
+import {
+  CONTEXT_TAGS,
+  ContextSummary,
+  type TrainingContextSelection,
+  type TrainingContextTag,
+} from '@/components/training-context'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { PillButton } from '@/components/ui/pill-button'
 import { motion, radius, spacing, typography } from '@/constants/design'
@@ -118,6 +125,24 @@ export default function SessionReadyScreen() {
     return parts.filter(Boolean).join(', ')
   }, [todaysCheckin])
 
+  const sessionContext = useMemo<TrainingContextSelection | null>(() => {
+    if (!session?.trainingEnvironment || !session.equipmentIntent) return null
+    const contextTags = (session.contextTags ?? []).filter(
+      (tag): tag is TrainingContextTag =>
+        CONTEXT_TAGS.some((knownTag) => knownTag === tag),
+    )
+    return {
+      trainingEnvironment: session.trainingEnvironment,
+      equipmentIntent: session.equipmentIntent,
+      contextTags,
+      suggestionSource: session.suggestionSource ?? 'fallback',
+      suggestionReason:
+        session.suggestionReason ?? 'Used to build this session.',
+      equipmentSnapshot: session.equipmentSnapshot ?? [],
+      unavailableEquipment: session.unavailableEquipment ?? [],
+    }
+  }, [session])
+
   const handleStart = useCallback(async () => {
     if (!sessionId) return
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -132,6 +157,29 @@ export default function SessionReadyScreen() {
     if (router.canGoBack()) router.back()
     else router.replace('/')
   }, [])
+
+  const handleChangeContext = useCallback(() => {
+    if (!sessionContext) return
+    void Haptics.selectionAsync()
+    Alert.alert(
+      'Build a fresh session?',
+      'This session was generated for the context shown. Changing it starts a fresh check-in and builds a new session.',
+      [
+        { text: 'Keep this session', style: 'cancel' },
+        {
+          text: 'Fresh check-in',
+          onPress: () =>
+            router.push({
+              pathname: '/checkin',
+              params: {
+                trainingEnvironment: sessionContext.trainingEnvironment,
+                equipmentIntent: sessionContext.equipmentIntent,
+              },
+            }),
+        },
+      ],
+    )
+  }, [sessionContext])
 
   const handlePhaseReorder = useCallback(
     async (phasePlanIndices: number[], newOrderedIds: string[]) => {
@@ -315,6 +363,19 @@ export default function SessionReadyScreen() {
                   />
                 </TouchableOpacity>
               ) : null}
+            </Animated.View>
+          ) : null}
+
+          {sessionContext ? (
+            <Animated.View
+              entering={FadeInDown.duration(motion.duration.base).delay(60)}
+              style={styles.contextSummary}
+            >
+              <ContextSummary
+                value={sessionContext}
+                label="Built for"
+                onChange={handleChangeContext}
+              />
             </Animated.View>
           ) : null}
 
@@ -605,6 +666,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radius.md,
     borderWidth: 1,
+    marginBottom: spacing.xl,
+  },
+  contextSummary: {
     marginBottom: spacing.xl,
   },
   basisLabel: {

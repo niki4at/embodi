@@ -5,6 +5,7 @@ import { router, useLocalSearchParams, type Href } from 'expo-router'
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,6 +22,22 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { PillButton } from '@/components/ui/pill-button'
+import {
+  ContextEditorSheet,
+  ContextSummary,
+  CONTEXT_TAGS,
+  EQUIPMENT_INTENT_LABELS,
+  EQUIPMENT_INTENTS,
+  isEquipmentIntent,
+  isTrainingEnvironment,
+  requiresTrainingContextConfirmation,
+  TRAINING_ENVIRONMENT_LABELS,
+  TRAINING_ENVIRONMENTS,
+  useForegroundPlaceMatch,
+  type ContextSuggestionSource,
+  type TrainingContextTag,
+  type TrainingContextSelection,
+} from '@/components/training-context'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 
@@ -160,10 +177,57 @@ const TIME_OPTIONS: ChoiceOption<TimeAvailable>[] = [
 ]
 
 const TOTAL_STEPS = 4
+const WEEKDAYS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+] as const
+
+function preferredSuggestionSource(
+  environmentSource: ContextSuggestionSource,
+  equipmentSource: ContextSuggestionSource,
+): ContextSuggestionSource {
+  const priority: ContextSuggestionSource[] = [
+    'manual',
+    'place',
+    'workout_need',
+    'weekly_rhythm',
+    'history',
+    'fallback',
+  ]
+  return (
+    priority.find(
+      (source) =>
+        source === environmentSource || source === equipmentSource,
+    ) ?? 'fallback'
+  )
+}
+
+function parseStringArray(raw: string | undefined): string[] {
+  if (!raw) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return Array.isArray(parsed)
+      ? parsed.filter((value): value is string => typeof value === 'string')
+      : []
+  } catch {
+    return []
+  }
+}
 
 export default function CheckInScreen() {
   const { palette } = useTheme()
-  const params = useLocalSearchParams<{ rec?: string }>()
+  const params = useLocalSearchParams<{
+    rec?: string
+    trainingEnvironment?: string
+    equipmentIntent?: string
+    contextTags?: string
+    unavailableEquipment?: string
+  }>()
   const recommendation = useMemo(
     () => parseRecommendationSeed(params.rec),
     [params.rec]
@@ -172,6 +236,13 @@ export default function CheckInScreen() {
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [notesFocused, setNotesFocused] = useState(false)
+  const [contextEditorOpen, setContextEditorOpen] = useState(false)
+  const [homeSetupPrompted, setHomeSetupPrompted] = useState(false)
+  const [confirmedEnvironment, setConfirmedEnvironment] = useState(false)
+  const [confirmedEquipmentIntent, setConfirmedEquipmentIntent] =
+    useState(false)
+  const [trainingContext, setTrainingContext] =
+    useState<TrainingContextSelection | null>(null)
   const [formData, setFormData] = useState<CheckInFormData>(() => {
     const seededWorkoutType = recommendation
       ? workoutTypeFromModality(recommendation.modality)
@@ -205,7 +276,136 @@ export default function CheckInScreen() {
   }, [recommendation])
 
   const onboardingData = useQuery(api.onboarding.getOnboarding)
+  const trainingPreferences = useQuery(api.trainingPreferences.get)
+  const equipmentInventory = useQuery(api.equipment.listActive)
   const createCheckin = useMutation(api.checkin.createCheckin)
+  const recordContextEvent = useMutation(api.trainingContext.recordEvent)
+  const { match: foregroundPlaceMatch } = useForegroundPlaceMatch(
+    trainingPreferences?.locationEnabled === true,
+  )
+  const suggestionNow = useMemo(() => new Date(), [])
+  const requestedEnvironment = isTrainingEnvironment(params.trainingEnvironment)
+    ? params.trainingEnvironment
+    : undefined
+  const requestedEquipmentIntent = isEquipmentIntent(params.equipmentIntent)
+    ? params.equipmentIntent
+    : undefined
+  const requestedContextTags = useMemo(
+    () =>
+      parseStringArray(params.contextTags).filter(
+        (tag): tag is TrainingContextTag =>
+          CONTEXT_TAGS.some((candidate) => candidate === tag),
+      ),
+    [params.contextTags],
+  )
+  const requestedUnavailableEquipment = useMemo(
+    () => parseStringArray(params.unavailableEquipment),
+    [params.unavailableEquipment],
+  )
+  const contextSuggestion = useQuery(
+    api.trainingContext.suggest,
+    formData.workoutType
+      ? {
+          manualContext:
+            requestedEnvironment || requestedEquipmentIntent
+              ? {
+                  trainingEnvironment: requestedEnvironment,
+                  equipmentIntent: requestedEquipmentIntent,
+                }
+              : undefined,
+          foregroundPlaceMatch: foregroundPlaceMatch ?? undefined,
+          workoutType: formData.workoutType,
+          goal: recommendation?.title ?? onboardingData?.goal,
+          weekday: WEEKDAYS[suggestionNow.getDay()],
+          timeOfDay:
+            suggestionNow.getHours() < 12 ? 'morning' : 'evening',
+        }
+      : 'skip',
+  )
+
+  const equipmentSnapshot = useMemo(
+    () =>
+      (equipmentInventory ?? []).map(({ equipment }) => ({
+        catalogKey: equipment.catalogKey,
+        label: equipment.label,
+        details: equipment.details,
+        capabilities: equipment.capabilities,
+      })),
+    [equipmentInventory],
+  )
+
+  useEffect(() => {
+    if (
+      !formData.workoutType ||
+      trainingContext?.suggestionSource === 'manual' ||
+      equipmentInventory === undefined ||
+      contextSuggestion === undefined
+    ) {
+      return
+    }
+    const nextEnvironment = contextSuggestion.environment.value
+    const nextEquipmentIntent =
+      contextSuggestion.equipmentIntent.value === 'available' &&
+      nextEnvironment === 'home' &&
+      equipmentSnapshot.length === 0
+        ? 'bodyweight'
+        : contextSuggestion.equipmentIntent.value
+    const reasons = [
+      contextSuggestion.environment.reason,
+      contextSuggestion.equipmentIntent.reason,
+    ].filter((reason, index, values) => values.indexOf(reason) === index)
+    setTrainingContext(
+      {
+        trainingEnvironment: nextEnvironment,
+        equipmentIntent: nextEquipmentIntent,
+        contextTags: requestedContextTags,
+        suggestionSource: preferredSuggestionSource(
+          contextSuggestion.environment.source,
+          contextSuggestion.equipmentIntent.source,
+        ),
+        suggestionReason: reasons.join(' '),
+        equipmentSnapshot,
+        unavailableEquipment: requestedUnavailableEquipment,
+      },
+    )
+  }, [
+    equipmentInventory,
+    equipmentSnapshot,
+    formData.workoutType,
+    contextSuggestion,
+    requestedContextTags,
+    requestedUnavailableEquipment,
+    trainingContext?.suggestionSource,
+  ])
+
+  useEffect(() => {
+    if (
+      currentStep !== 3 ||
+      homeSetupPrompted ||
+      trainingContext?.trainingEnvironment !== 'home' ||
+      equipmentInventory === undefined ||
+      equipmentInventory.length > 0
+    ) {
+      return
+    }
+    setHomeSetupPrompted(true)
+    Alert.alert(
+      'Set up your home equipment?',
+      'Save it once and Embodi will consider it for future Home sessions. You can use bodyweight today and do this later.',
+      [
+        { text: 'Bodyweight today', style: 'cancel' },
+        {
+          text: 'Add equipment',
+          onPress: () => router.push('/training-setup' as Href),
+        },
+      ],
+    )
+  }, [
+    currentStep,
+    equipmentInventory,
+    homeSetupPrompted,
+    trainingContext?.trainingEnvironment,
+  ])
 
   const updateFormData = <K extends keyof CheckInFormData>(
     key: K,
@@ -222,6 +422,16 @@ export default function CheckInScreen() {
       painAreas: entries.filter(([, lvl]) => lvl > 0).map(([part]) => part),
     }
   }, [formData.painRatings])
+  const needsEnvironmentConfirmation =
+    requiresTrainingContextConfirmation(
+      contextSuggestion?.environment.confidence,
+      confirmedEnvironment,
+    )
+  const needsEquipmentConfirmation =
+    requiresTrainingContextConfirmation(
+      contextSuggestion?.equipmentIntent.confidence,
+      confirmedEquipmentIntent,
+    )
 
   const canProceed = (): boolean => {
     switch (currentStep) {
@@ -234,7 +444,12 @@ export default function CheckInScreen() {
           formData.workoutType !== null && formData.intensityPreference !== null
         )
       case 3:
-        return formData.timeAvailable !== null
+        return (
+          formData.timeAvailable !== null &&
+          trainingContext !== null &&
+          !needsEnvironmentConfirmation &&
+          !needsEquipmentConfirmation
+        )
       default:
         return true
     }
@@ -263,7 +478,10 @@ export default function CheckInScreen() {
       !formData.sleepQuality ||
       !formData.workoutType ||
       !formData.intensityPreference ||
-      !formData.timeAvailable
+      !formData.timeAvailable ||
+      !trainingContext ||
+      needsEnvironmentConfirmation ||
+      needsEquipmentConfirmation
     ) {
       return
     }
@@ -285,12 +503,35 @@ export default function CheckInScreen() {
           intensityPreference: formData.intensityPreference,
           timeAvailable: formData.timeAvailable,
           notes: formData.notes.trim() || undefined,
+          trainingEnvironment: trainingContext.trainingEnvironment,
+          equipmentIntent: trainingContext.equipmentIntent,
+          contextTags: trainingContext.contextTags,
+          suggestionSource: trainingContext.suggestionSource,
+          suggestionReason: trainingContext.suggestionReason,
+          unavailableEquipment: trainingContext.unavailableEquipment,
         },
         startSession: true,
         recommendationSeed: recommendation ?? undefined,
       })
 
       if (result.sessionId) {
+        await recordContextEvent({
+          trainingEnvironment: trainingContext.trainingEnvironment,
+          equipmentIntent: trainingContext.equipmentIntent,
+          contextTags: trainingContext.contextTags,
+          workoutType: formData.workoutType,
+          goal: recommendation?.title ?? onboardingData?.goal,
+          localWeekday: WEEKDAYS[suggestionNow.getDay()],
+          timeOfDay:
+            suggestionNow.getHours() < 12 ? 'morning' : 'evening',
+          suggestionSource: trainingContext.suggestionSource,
+          suggestionReason: trainingContext.suggestionReason,
+          equipmentKeys: trainingContext.equipmentSnapshot.map(
+            (item) => item.catalogKey,
+          ),
+        }).catch((error: unknown) => {
+          console.info('Could not record training context pattern', error)
+        })
         const sessionHref = {
           pathname: '/session/ready',
           params: { sessionId: String(result.sessionId) },
@@ -410,7 +651,14 @@ export default function CheckInScreen() {
               subtitle="What sounds good right now?"
               options={WORKOUT_OPTIONS}
               value={formData.workoutType}
-              onChange={v => updateFormData('workoutType', v)}
+              onChange={(value) => {
+                updateFormData('workoutType', value)
+                setConfirmedEnvironment(false)
+                setConfirmedEquipmentIntent(false)
+                if (trainingContext?.suggestionSource !== 'manual') {
+                  setTrainingContext(null)
+                }
+              }}
               columns={2}
               delay={80}
             />
@@ -461,6 +709,182 @@ export default function CheckInScreen() {
               columns={2}
               delay={80}
             />
+
+            {trainingContext ? (
+              <Animated.View
+                entering={FadeInDown.delay(120).duration(motion.duration.base)}
+                style={styles.contextContainer}
+              >
+                {contextSuggestion &&
+                ((contextSuggestion.environment.confidence < 0.5 &&
+                  !confirmedEnvironment) ||
+                  (contextSuggestion.equipmentIntent.confidence < 0.5 &&
+                    !confirmedEquipmentIntent)) ? (
+                  <View
+                    style={[
+                      styles.uncertainContext,
+                      {
+                        backgroundColor: palette.surface,
+                        borderColor: palette.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.uncertainTitle,
+                        { color: palette.textPrimary },
+                      ]}
+                    >
+                      Confirm today&apos;s setup
+                    </Text>
+                    {contextSuggestion.environment.confidence < 0.5 &&
+                    !confirmedEnvironment ? (
+                      <View style={styles.quickChoices}>
+                        {TRAINING_ENVIRONMENTS.map((environment) => (
+                          <TouchableOpacity
+                            key={environment}
+                            onPress={() => {
+                              setConfirmedEnvironment(true)
+                              setTrainingContext((current) =>
+                                current
+                                  ? {
+                                      ...current,
+                                      trainingEnvironment: environment,
+                                      suggestionSource: 'manual',
+                                      suggestionReason:
+                                        'Confirmed for this session.',
+                                    }
+                                  : current,
+                              )
+                            }}
+                            accessibilityRole="button"
+                            style={[
+                              styles.quickChoice,
+                              {
+                                backgroundColor:
+                                  trainingContext.trainingEnvironment ===
+                                  environment
+                                    ? palette.primaryMuted
+                                    : palette.surfaceAlt,
+                                borderColor:
+                                  trainingContext.trainingEnvironment ===
+                                  environment
+                                    ? palette.primary
+                                    : palette.border,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.quickChoiceText,
+                                { color: palette.textPrimary },
+                              ]}
+                            >
+                              {TRAINING_ENVIRONMENT_LABELS[environment]}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    ) : null}
+                    {contextSuggestion.equipmentIntent.confidence < 0.5 &&
+                    !confirmedEquipmentIntent ? (
+                      <View style={styles.quickChoices}>
+                        {EQUIPMENT_INTENTS.map((intent) => (
+                          <TouchableOpacity
+                            key={intent}
+                            onPress={() => {
+                              setConfirmedEquipmentIntent(true)
+                              setTrainingContext((current) =>
+                                current
+                                  ? {
+                                      ...current,
+                                      equipmentIntent: intent,
+                                      suggestionSource: 'manual',
+                                      suggestionReason:
+                                        'Confirmed for this session.',
+                                    }
+                                  : current,
+                              )
+                            }}
+                            accessibilityRole="button"
+                            style={[
+                              styles.quickChoice,
+                              {
+                                backgroundColor:
+                                  trainingContext.equipmentIntent === intent
+                                    ? palette.primaryMuted
+                                    : palette.surfaceAlt,
+                                borderColor:
+                                  trainingContext.equipmentIntent === intent
+                                    ? palette.primary
+                                    : palette.border,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.quickChoiceText,
+                                { color: palette.textPrimary },
+                              ]}
+                            >
+                              {EQUIPMENT_INTENT_LABELS[intent]}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+                <ContextSummary
+                  value={trainingContext}
+                  onChange={() => setContextEditorOpen(true)}
+                />
+                {trainingContext.trainingEnvironment === 'home' &&
+                trainingContext.equipmentSnapshot.length === 0 ? (
+                  <TouchableOpacity
+                    onPress={() => router.push('/training-setup' as Href)}
+                    accessibilityRole="link"
+                    accessibilityLabel="Add equipment in training setup"
+                    style={styles.trainingSetupLink}
+                  >
+                    <Text
+                      style={[
+                        styles.trainingSetupLinkText,
+                        { color: palette.primary },
+                      ]}
+                    >
+                      Training at home with bodyweight. Add equipment
+                    </Text>
+                    <IconSymbol
+                      name="chevron.right"
+                      size={14}
+                      color={palette.primary}
+                    />
+                  </TouchableOpacity>
+                ) : null}
+              </Animated.View>
+            ) : (
+              <View
+                style={[
+                  styles.contextLoading,
+                  {
+                    backgroundColor: palette.surface,
+                    borderColor: palette.border,
+                  },
+                ]}
+                accessibilityLiveRegion="polite"
+              >
+                <ActivityIndicator size="small" color={palette.primary} />
+                <Text
+                  style={[
+                    styles.contextLoadingText,
+                    { color: palette.textSecondary },
+                  ]}
+                >
+                  Matching your place and equipment…
+                </Text>
+              </View>
+            )}
 
             <Animated.View
               entering={FadeInDown.delay(160).duration(motion.duration.base)}
@@ -638,6 +1062,28 @@ export default function CheckInScreen() {
             />
           )}
         </View>
+
+        {trainingContext ? (
+          <ContextEditorSheet
+            visible={contextEditorOpen}
+            value={trainingContext}
+            onClose={() => setContextEditorOpen(false)}
+            onSave={(value) => {
+              setTrainingContext(value)
+              setConfirmedEnvironment(true)
+              setConfirmedEquipmentIntent(true)
+              setContextEditorOpen(false)
+            }}
+            showTrainingSetupLink={
+              trainingContext.trainingEnvironment === 'home' &&
+              trainingContext.equipmentSnapshot.length === 0
+            }
+            onOpenTrainingSetup={() => {
+              setContextEditorOpen(false)
+              router.push('/training-setup' as Href)
+            }}
+          />
+        ) : null}
       </View>
     </SafeAreaView>
   )
@@ -731,6 +1177,61 @@ const styles = StyleSheet.create({
   },
   notesContainer: {
     marginTop: spacing.sm,
+  },
+  contextContainer: {
+    marginTop: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+  uncertainContext: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  uncertainTitle: {
+    ...typography.bodyStrong,
+  },
+  quickChoices: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  quickChoice: {
+    minHeight: 38,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickChoiceText: {
+    ...typography.smallStrong,
+  },
+  trainingSetupLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  trainingSetupLinkText: {
+    ...typography.smallStrong,
+    flex: 1,
+  },
+  contextLoading: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginTop: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+  contextLoadingText: {
+    ...typography.small,
   },
   notesLabel: {
     ...typography.h3,

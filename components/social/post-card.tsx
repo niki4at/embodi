@@ -34,6 +34,12 @@ import { timeAgo } from '@/utils/timeAgo'
 function StatStrip({ workout }: { workout: PostWorkout }) {
   const { palette } = useTheme()
   const items: string[] = []
+  if (workout.trainingEnvironment) {
+    items.push(
+      workout.trainingEnvironment.charAt(0).toUpperCase() +
+        workout.trainingEnvironment.slice(1),
+    )
+  }
   if (workout.durationMin != null) items.push(`${workout.durationMin} min`)
   if (workout.totalVolumeKg > 0) {
     items.push(`${workout.totalVolumeKg.toLocaleString()} kg`)

@@ -15,6 +15,47 @@ const recommendationSeedArg = v.object({
   source: v.union(v.literal('aligned'), v.literal('exploration')),
 })
 
+const trainingEnvironmentArg = v.union(
+  v.literal('home'),
+  v.literal('gym'),
+  v.literal('outdoors'),
+  v.literal('travel')
+)
+
+const equipmentIntentArg = v.union(
+  v.literal('available'),
+  v.literal('bodyweight'),
+  v.literal('treadmill')
+)
+
+const suggestionSourceArg = v.union(
+  v.literal('manual'),
+  v.literal('place'),
+  v.literal('workout_need'),
+  v.literal('weekly_rhythm'),
+  v.literal('history'),
+  v.literal('fallback')
+)
+
+const equipmentCapabilitiesArg = v.object({
+  weightMinKg: v.optional(v.number()),
+  weightMaxKg: v.optional(v.number()),
+  adjustable: v.optional(v.boolean()),
+  incline: v.optional(v.boolean()),
+  speedControl: v.optional(v.boolean()),
+  resistanceLevels: v.optional(v.number()),
+  quantity: v.optional(v.number()),
+  resistance: v.optional(v.string()),
+  dimensions: v.optional(v.string()),
+})
+
+const equipmentSnapshotItemArg = v.object({
+  catalogKey: v.string(),
+  label: v.string(),
+  details: v.optional(v.string()),
+  capabilities: v.optional(equipmentCapabilitiesArg),
+})
+
 // Check-in data shape for validation
 const checkinDataArg = v.object({
   energyLevel: v.number(),
@@ -47,6 +88,57 @@ const checkinDataArg = v.object({
     v.literal('60')
   ),
   notes: v.optional(v.string()),
+  trainingEnvironment: v.optional(trainingEnvironmentArg),
+  equipmentIntent: v.optional(equipmentIntentArg),
+  contextTags: v.optional(v.array(v.string())),
+  suggestionSource: v.optional(suggestionSourceArg),
+  suggestionReason: v.optional(v.string()),
+  unavailableEquipment: v.optional(v.array(v.string())),
+})
+
+const checkinDocument = v.object({
+  _id: v.id('daily_checkins'),
+  _creationTime: v.number(),
+  userId: v.string(),
+  energyLevel: v.number(),
+  sleepQuality: v.union(
+    v.literal('rough'),
+    v.literal('okay'),
+    v.literal('decent'),
+    v.literal('great')
+  ),
+  painLevel: v.number(),
+  painAreas: v.optional(v.array(v.string())),
+  stressLevel: v.number(),
+  workoutType: v.union(
+    v.literal('strength'),
+    v.literal('mobility'),
+    v.literal('cardio'),
+    v.literal('recovery'),
+    v.literal('mixed')
+  ),
+  focusAreas: v.optional(v.array(v.string())),
+  intensityPreference: v.union(
+    v.literal('easy'),
+    v.literal('moderate'),
+    v.literal('challenging')
+  ),
+  timeAvailable: v.union(
+    v.literal('15'),
+    v.literal('30'),
+    v.literal('45'),
+    v.literal('60')
+  ),
+  notes: v.optional(v.string()),
+  trainingEnvironment: v.optional(trainingEnvironmentArg),
+  equipmentIntent: v.optional(equipmentIntentArg),
+  contextTags: v.optional(v.array(v.string())),
+  suggestionSource: v.optional(suggestionSourceArg),
+  suggestionReason: v.optional(v.string()),
+  equipmentSnapshot: v.optional(v.array(equipmentSnapshotItemArg)),
+  unavailableEquipment: v.optional(v.array(v.string())),
+  sessionId: v.optional(v.id('workout_sessions')),
+  createdAt: v.number(),
 })
 
 export type CheckinData = {
@@ -60,6 +152,82 @@ export type CheckinData = {
   intensityPreference: 'easy' | 'moderate' | 'challenging'
   timeAvailable: '15' | '30' | '45' | '60'
   notes?: string
+  trainingEnvironment?: 'home' | 'gym' | 'outdoors' | 'travel'
+  equipmentIntent?: 'available' | 'bodyweight' | 'treadmill'
+  contextTags?: string[]
+  suggestionSource?:
+    | 'manual'
+    | 'place'
+    | 'workout_need'
+    | 'weekly_rhythm'
+    | 'history'
+    | 'fallback'
+  suggestionReason?: string
+  equipmentSnapshot?: {
+    catalogKey: string
+    label: string
+    details?: string
+    capabilities?: {
+      weightMinKg?: number
+      weightMaxKg?: number
+      adjustable?: boolean
+      incline?: boolean
+      speedControl?: boolean
+      resistanceLevels?: number
+    }
+  }[]
+  unavailableEquipment?: string[]
+}
+
+function validateContextBounds(data: Partial<CheckinData>): void {
+  if (
+    data.energyLevel !== undefined &&
+    (!Number.isFinite(data.energyLevel) ||
+      data.energyLevel < 1 ||
+      data.energyLevel > 10)
+  ) {
+    throw new Error('Energy level must be between 1 and 10')
+  }
+  if (
+    data.painLevel !== undefined &&
+    (!Number.isFinite(data.painLevel) ||
+      data.painLevel < 0 ||
+      data.painLevel > 10)
+  ) {
+    throw new Error('Pain level must be between 0 and 10')
+  }
+  if (
+    data.stressLevel !== undefined &&
+    (!Number.isFinite(data.stressLevel) ||
+      data.stressLevel < 1 ||
+      data.stressLevel > 5)
+  ) {
+    throw new Error('Stress level must be between 1 and 5')
+  }
+  if ((data.notes?.length ?? 0) > 1000) {
+    throw new Error('Notes must be 1000 characters or fewer')
+  }
+  if ((data.painAreas?.length ?? 0) > 30) {
+    throw new Error('Pain areas support at most 30 items')
+  }
+  if ((data.focusAreas?.length ?? 0) > 20) {
+    throw new Error('Focus areas support at most 20 items')
+  }
+  if ((data.contextTags?.length ?? 0) > 12) {
+    throw new Error('Context supports at most 12 tags')
+  }
+  if (data.contextTags?.some((tag) => tag.length > 80)) {
+    throw new Error('Context tags must be 80 characters or fewer')
+  }
+  if ((data.unavailableEquipment?.length ?? 0) > 100) {
+    throw new Error('Unavailable equipment supports at most 100 items')
+  }
+  if (data.unavailableEquipment?.some((item) => item.length > 80)) {
+    throw new Error('Unavailable equipment names must be 80 characters or fewer')
+  }
+  if ((data.suggestionReason?.length ?? 0) > 240) {
+    throw new Error('Suggestion reason must be 240 characters or fewer')
+  }
 }
 
 // Helper to get start of today (midnight) in user's timezone approximation
@@ -76,6 +244,10 @@ export const createCheckin = mutation({
     startSession: v.optional(v.boolean()),
     recommendationSeed: v.optional(recommendationSeedArg),
   },
+  returns: v.object({
+    checkinId: v.id('daily_checkins'),
+    sessionId: v.optional(v.id('workout_sessions')),
+  }),
   handler: async (
     ctx,
     { data, startSession, recommendationSeed }
@@ -90,6 +262,23 @@ export const createCheckin = mutation({
 
     const userId = identity.subject
     const now = Date.now()
+    validateContextBounds(data)
+    const trustedEquipment =
+      data.trainingEnvironment === 'home' &&
+      data.equipmentIntent === 'available'
+        ? await ctx.db
+            .query('user_equipment')
+            .withIndex('by_userId_and_isArchived', (q) =>
+              q.eq('userId', userId).eq('isArchived', false)
+            )
+            .take(100)
+        : []
+    const trustedEquipmentSnapshot = trustedEquipment.map((item) => ({
+      catalogKey: item.catalogKey,
+      label: item.label,
+      details: item.details,
+      capabilities: item.capabilities,
+    }))
 
     // Create the check-in record
     const checkinId = await ctx.db.insert('daily_checkins', {
@@ -104,6 +293,13 @@ export const createCheckin = mutation({
       intensityPreference: data.intensityPreference,
       timeAvailable: data.timeAvailable,
       notes: data.notes,
+      trainingEnvironment: data.trainingEnvironment,
+      equipmentIntent: data.equipmentIntent,
+      contextTags: data.contextTags,
+      suggestionSource: data.suggestionSource,
+      suggestionReason: data.suggestionReason,
+      equipmentSnapshot: trustedEquipmentSnapshot,
+      unavailableEquipment: data.unavailableEquipment,
       createdAt: now,
     })
 
@@ -133,6 +329,13 @@ export const createCheckin = mutation({
         citations: [],
         checkinId,
         recommendationSeed,
+        trainingEnvironment: data.trainingEnvironment,
+        equipmentIntent: data.equipmentIntent,
+        contextTags: data.contextTags,
+        suggestionSource: data.suggestionSource,
+        suggestionReason: data.suggestionReason,
+        equipmentSnapshot: trustedEquipmentSnapshot,
+        unavailableEquipment: data.unavailableEquipment,
         createdAt: now,
         updatedAt: now,
       })
@@ -163,6 +366,7 @@ export const startSessionFromTodaysCheckin = mutation({
     // finishing today's.
     allowAdditional: v.optional(v.boolean()),
   },
+  returns: v.id('workout_sessions'),
   handler: async (ctx, { allowAdditional }): Promise<Id<'workout_sessions'>> => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) {
@@ -172,15 +376,13 @@ export const startSessionFromTodaysCheckin = mutation({
     const userId = identity.subject
     const startOfToday = getStartOfToday()
 
-    const checkins = await ctx.db
+    const todaysCheckin = await ctx.db
       .query('daily_checkins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .withIndex('by_userId_date', (q) =>
+        q.eq('userId', userId).gte('createdAt', startOfToday)
+      )
       .order('desc')
-      .take(5)
-
-    const todaysCheckin = checkins.find(
-      (checkin) => checkin.createdAt >= startOfToday
-    )
+      .first()
     if (!todaysCheckin) {
       throw new Error('No check-in for today')
     }
@@ -209,6 +411,13 @@ export const startSessionFromTodaysCheckin = mutation({
       healthFacts: [],
       citations: [],
       checkinId: todaysCheckin._id,
+      trainingEnvironment: todaysCheckin.trainingEnvironment,
+      equipmentIntent: todaysCheckin.equipmentIntent,
+      contextTags: todaysCheckin.contextTags,
+      suggestionSource: todaysCheckin.suggestionSource,
+      suggestionReason: todaysCheckin.suggestionReason,
+      equipmentSnapshot: todaysCheckin.equipmentSnapshot,
+      unavailableEquipment: todaysCheckin.unavailableEquipment,
       createdAt: now,
       updatedAt: now,
     })
@@ -228,6 +437,7 @@ export const startSessionFromTodaysCheckin = mutation({
 // Get today's check-in for the current user (if exists)
 export const getTodaysCheckin = query({
   args: {},
+  returns: v.union(checkinDocument, v.null()),
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) {
@@ -236,19 +446,13 @@ export const getTodaysCheckin = query({
 
     const startOfToday = getStartOfToday()
 
-    // Get the most recent check-in from today
-    const checkins = await ctx.db
+    return await ctx.db
       .query('daily_checkins')
-      .withIndex('by_userId', (q) => q.eq('userId', identity.subject))
+      .withIndex('by_userId_date', (q) =>
+        q.eq('userId', identity.subject).gte('createdAt', startOfToday)
+      )
       .order('desc')
-      .collect()
-
-    // Find one from today
-    const todaysCheckin = checkins.find(
-      (checkin) => checkin.createdAt >= startOfToday
-    )
-
-    return todaysCheckin || null
+      .first()
   },
 })
 
@@ -257,6 +461,7 @@ export const getCheckinHistory = query({
   args: {
     limit: v.optional(v.number()),
   },
+  returns: v.array(checkinDocument),
   handler: async (ctx, { limit = 7 }) => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) {
@@ -267,7 +472,7 @@ export const getCheckinHistory = query({
       .query('daily_checkins')
       .withIndex('by_userId', (q) => q.eq('userId', identity.subject))
       .order('desc')
-      .take(limit)
+      .take(Math.min(Math.max(Math.floor(limit), 1), 30))
 
     return checkins
   },
@@ -278,6 +483,7 @@ export const getCheckinById = internalQuery({
   args: {
     checkinId: v.id('daily_checkins'),
   },
+  returns: v.union(checkinDocument, v.null()),
   handler: async (ctx, { checkinId }) => {
     return await ctx.db.get(checkinId)
   },
@@ -326,8 +532,15 @@ export const updateCheckin = mutation({
         )
       ),
       notes: v.optional(v.string()),
+      trainingEnvironment: v.optional(trainingEnvironmentArg),
+      equipmentIntent: v.optional(equipmentIntentArg),
+      contextTags: v.optional(v.array(v.string())),
+      suggestionSource: v.optional(suggestionSourceArg),
+      suggestionReason: v.optional(v.string()),
+      unavailableEquipment: v.optional(v.array(v.string())),
     }),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, { checkinId, data }) => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) {
@@ -338,6 +551,7 @@ export const updateCheckin = mutation({
     if (!checkin || checkin.userId !== identity.subject) {
       throw new Error('Check-in not found')
     }
+    validateContextBounds(data)
 
     // Build update object with only defined fields
     const updates: Record<string, unknown> = {}
@@ -353,6 +567,17 @@ export const updateCheckin = mutation({
     if (data.timeAvailable !== undefined)
       updates.timeAvailable = data.timeAvailable
     if (data.notes !== undefined) updates.notes = data.notes
+    if (data.trainingEnvironment !== undefined)
+      updates.trainingEnvironment = data.trainingEnvironment
+    if (data.equipmentIntent !== undefined)
+      updates.equipmentIntent = data.equipmentIntent
+    if (data.contextTags !== undefined) updates.contextTags = data.contextTags
+    if (data.suggestionSource !== undefined)
+      updates.suggestionSource = data.suggestionSource
+    if (data.suggestionReason !== undefined)
+      updates.suggestionReason = data.suggestionReason
+    if (data.unavailableEquipment !== undefined)
+      updates.unavailableEquipment = data.unavailableEquipment
 
     await ctx.db.patch(checkinId, updates)
 
@@ -372,6 +597,13 @@ export function formatCheckinForPrompt(checkin: {
   intensityPreference: string
   timeAvailable: string
   notes?: string
+  trainingEnvironment?: string
+  equipmentIntent?: string
+  contextTags?: string[]
+  suggestionSource?: string
+  suggestionReason?: string
+  equipmentSnapshot?: { catalogKey: string; label: string }[]
+  unavailableEquipment?: string[]
 }): string {
   const sleepLabels: Record<string, string> = {
     rough: 'Rough night, tired',
@@ -428,6 +660,30 @@ export function formatCheckinForPrompt(checkin: {
 
   if (checkin.notes) {
     lines.push(`- Additional Notes: "${checkin.notes}"`)
+  }
+  if (checkin.trainingEnvironment) {
+    lines.push(`- Training Environment: ${checkin.trainingEnvironment}`)
+  }
+  if (checkin.equipmentIntent) {
+    lines.push(`- Equipment Intent: ${checkin.equipmentIntent}`)
+  }
+  if (checkin.contextTags?.length) {
+    lines.push(`- Context Tags: ${checkin.contextTags.join(', ')}`)
+  }
+  if (checkin.suggestionSource && checkin.suggestionReason) {
+    lines.push(
+      `- Context Suggestion: ${checkin.suggestionSource} (${checkin.suggestionReason})`
+    )
+  }
+  if (checkin.equipmentSnapshot?.length) {
+    lines.push(
+      `- Available Equipment: ${checkin.equipmentSnapshot.map((item) => item.label).join(', ')}`
+    )
+  }
+  if (checkin.unavailableEquipment?.length) {
+    lines.push(
+      `- Unavailable Equipment: ${checkin.unavailableEquipment.join(', ')}`
+    )
   }
 
   lines.push('')

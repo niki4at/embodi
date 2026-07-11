@@ -19,6 +19,12 @@ import Animated, { FadeInDown } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { StreakCelebration } from '@/components/streak/streak-celebration'
+import {
+  CONTEXT_TAGS,
+  ContextSummary,
+  type TrainingContextSelection,
+  type TrainingContextTag,
+} from '@/components/training-context'
 import { groupPlanByPhase, PHASE_META } from '@/components/trainer/phases'
 import type { ExercisePlan } from '@/components/trainer/types'
 import { IconSymbol } from '@/components/ui/icon-symbol'
@@ -143,6 +149,22 @@ export default function RecapScreen() {
     [sessionData?.sets],
   )
   const isDiscarded = session?.status === 'discarded'
+  const sessionContext = useMemo<TrainingContextSelection | null>(() => {
+    if (!session?.trainingEnvironment || !session.equipmentIntent) return null
+    const contextTags = (session.contextTags ?? []).filter(
+      (tag): tag is TrainingContextTag =>
+        CONTEXT_TAGS.some((knownTag) => knownTag === tag),
+    )
+    return {
+      trainingEnvironment: session.trainingEnvironment,
+      equipmentIntent: session.equipmentIntent,
+      contextTags,
+      suggestionSource: session.suggestionSource ?? 'fallback',
+      suggestionReason: session.suggestionReason ?? '',
+      equipmentSnapshot: session.equipmentSnapshot ?? [],
+      unavailableEquipment: session.unavailableEquipment ?? [],
+    }
+  }, [session])
 
   // Celebrate once when arriving fresh off a completed session.
   const celebratedRef = useRef(false)
@@ -394,6 +416,35 @@ export default function RecapScreen() {
             {dateLabel} {'\u00b7'} {session.modality}
           </Text>
         </Animated.View>
+
+        {sessionContext ? (
+          <View style={styles.contextSummary}>
+            <ContextSummary value={sessionContext} label="Trained at" compact />
+            {sessionContext.trainingEnvironment === 'home' ||
+            sessionContext.unavailableEquipment.length > 0 ? (
+              <TouchableOpacity
+                onPress={() => router.push('/training-setup')}
+                accessibilityRole="link"
+                accessibilityLabel="Update saved equipment after this workout"
+                style={styles.updateEquipmentLink}
+              >
+                <Text
+                  style={[
+                    styles.updateEquipmentText,
+                    { color: palette.primary },
+                  ]}
+                >
+                  Save a change to your equipment setup
+                </Text>
+                <IconSymbol
+                  name="chevron.right"
+                  size={14}
+                  color={palette.primary}
+                />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : null}
 
         {statTiles.length > 0 && (
           <View style={styles.statsGrid}>
@@ -962,6 +1013,19 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.md,
     marginTop: spacing.sm,
+  },
+  contextSummary: {
+    marginBottom: spacing.lg,
+  },
+  updateEquipmentLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
+  },
+  updateEquipmentText: {
+    ...typography.smallStrong,
   },
   statTile: {
     flexBasis: '47%',

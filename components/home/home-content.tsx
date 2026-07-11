@@ -1,5 +1,12 @@
 import { useFloatingTabBarInset } from '@/components/navigation/floating-tab-bar'
 import { ProfileCompletionBanner } from '@/components/profile-completion'
+import {
+  ContextEditorSheet,
+  useForegroundPlaceMatch,
+  type EquipmentIntent,
+  type TrainingContextSelection,
+  type TrainingEnvironment,
+} from '@/components/training-context'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
@@ -42,6 +49,16 @@ const CYCLE_PHASE_LABEL: Record<CyclePhase, string> = {
   luteal: 'Luteal',
   unknown: 'Tracking',
 }
+
+const WEEKDAYS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+] as const
 
 const HEADER_DELAY = 0
 const STAGGER = 70
@@ -132,6 +149,8 @@ export default function HomeContent() {
   const { palette, resolved, toggle } = useTheme()
   const tabBarInset = useFloatingTabBarInset()
   const onboardingData = useQuery(api.onboarding.getOnboarding)
+  const trainingPreferences = useQuery(api.trainingPreferences.get)
+  const equipmentInventory = useQuery(api.equipment.listActive)
   const todaysCheckin = useQuery(api.checkin.getTodaysCheckin)
   const todaysSession = useQuery(api.trainer.getTodaysSession)
   const completedToday = useQuery(api.trainer.getTodaysCompletedSessions)
@@ -153,6 +172,9 @@ export default function HomeContent() {
     null,
   )
   const [streakSheetOpen, setStreakSheetOpen] = useState(false)
+  const [contextEditorOpen, setContextEditorOpen] = useState(false)
+  const [contextOverride, setContextOverride] =
+    useState<TrainingContextSelection | null>(null)
   // Stable per-mount so the streak query stays cacheable.
   const [streakNow] = useState(() => Date.now())
   const myStreak = useQuery(api.streaks.getMyStreak, { now: streakNow })
@@ -161,6 +183,57 @@ export default function HomeContent() {
     if (!cycleEnabled || !cycleData) return null
     return computeCycleStatus(cycleData.entries, Date.now())
   }, [cycleEnabled, cycleData])
+
+  const { match: foregroundPlaceMatch } = useForegroundPlaceMatch(
+    trainingPreferences?.locationEnabled === true,
+  )
+  const [suggestionNow] = useState(() => new Date())
+  const contextSuggestion = useQuery(api.trainingContext.suggest, {
+    foregroundPlaceMatch: foregroundPlaceMatch ?? undefined,
+    goal: onboardingData?.goal,
+    weekday: WEEKDAYS[suggestionNow.getDay()],
+    timeOfDay: suggestionNow.getHours() < 12 ? 'morning' : 'evening',
+  })
+  const equipmentSnapshot = useMemo(
+    () =>
+      (equipmentInventory ?? []).map(({ equipment }) => ({
+        catalogKey: equipment.catalogKey,
+        label: equipment.label,
+        details: equipment.details,
+        capabilities: equipment.capabilities,
+      })),
+    [equipmentInventory],
+  )
+  const inferredEnvironment: TrainingEnvironment =
+    contextSuggestion?.environment.value ??
+    trainingPreferences?.defaultContext.trainingEnvironment ??
+    'home'
+  const inferredEquipmentIntent: EquipmentIntent =
+    contextSuggestion?.equipmentIntent.value ??
+    trainingPreferences?.defaultContext.equipmentIntent ??
+    (inferredEnvironment === 'home' && equipmentSnapshot.length === 0
+      ? 'bodyweight'
+      : 'available')
+  const likelyContext: TrainingContextSelection =
+    contextOverride ?? {
+      trainingEnvironment: inferredEnvironment,
+      equipmentIntent:
+        inferredEnvironment === 'home' &&
+        inferredEquipmentIntent === 'available' &&
+        equipmentSnapshot.length === 0
+          ? 'bodyweight'
+          : inferredEquipmentIntent,
+      contextTags: [],
+      suggestionSource:
+        contextSuggestion?.environment.source ??
+        contextSuggestion?.equipmentIntent.source ??
+        'fallback',
+      suggestionReason:
+        contextSuggestion?.environment.reason ??
+        'Uses your default training context',
+      equipmentSnapshot,
+      unavailableEquipment: [],
+    }
 
   const state = deriveTodayState(todaysCheckin, todaysSession, completedToday)
 
@@ -235,6 +308,24 @@ export default function HomeContent() {
     }
   }, [isStartingCoachSession, startSessionFromCheckin, navigateToSession])
 
+  const openFreshCheckin = useCallback(() => {
+    if (!contextOverride) {
+      router.push('/checkin')
+      return
+    }
+    router.push({
+      pathname: '/checkin',
+      params: {
+        trainingEnvironment: contextOverride.trainingEnvironment,
+        equipmentIntent: contextOverride.equipmentIntent,
+        contextTags: JSON.stringify(contextOverride.contextTags),
+        unavailableEquipment: JSON.stringify(
+          contextOverride.unavailableEquipment,
+        ),
+      },
+    } as unknown as Href)
+  }, [contextOverride])
+
   const handleAskCoach = useCallback(() => {
     // If the user already checked in today, let them choose between reusing
     // that check-in or doing a fresh one before building another session.
@@ -251,18 +342,23 @@ export default function HomeContent() {
           },
           {
             text: 'New check-in',
-            onPress: () => router.push('/checkin'),
+            onPress: openFreshCheckin,
           },
           { text: 'Cancel', style: 'cancel' },
         ],
       )
       return
     }
-    router.push('/checkin')
-  }, [todaysCheckin, startReusingTodaysCheckin])
+    openFreshCheckin()
+  }, [todaysCheckin, startReusingTodaysCheckin, openFreshCheckin])
 
   const handleStartMyOwn = useCallback(() => {
     router.push('/build-workout' as Href)
+  }, [])
+
+  const handleContextPress = useCallback(() => {
+    void Haptics.selectionAsync()
+    setContextEditorOpen(true)
   }, [])
 
   const handleOpenRoutines = useCallback(() => {
@@ -450,6 +546,9 @@ export default function HomeContent() {
             <StartMovementCard
               onAskCoach={handleAskCoach}
               onStartMyOwn={handleStartMyOwn}
+              onContextPress={handleContextPress}
+              likelyEnvironment={likelyContext.trainingEnvironment}
+              likelyEquipmentIntent={likelyContext.equipmentIntent}
               isStartingCoachSession={isStartingCoachSession}
             />
           ) : (
@@ -577,6 +676,23 @@ export default function HomeContent() {
       <StreakSheet
         visible={streakSheetOpen}
         onClose={() => setStreakSheetOpen(false)}
+      />
+      <ContextEditorSheet
+        visible={contextEditorOpen}
+        value={likelyContext}
+        onClose={() => setContextEditorOpen(false)}
+        onSave={(value) => {
+          setContextOverride(value)
+          setContextEditorOpen(false)
+        }}
+        showTrainingSetupLink={
+          likelyContext.trainingEnvironment === 'home' &&
+          equipmentSnapshot.length === 0
+        }
+        onOpenTrainingSetup={() => {
+          setContextEditorOpen(false)
+          router.push('/training-setup' as Href)
+        }}
       />
     </SafeAreaView>
   )

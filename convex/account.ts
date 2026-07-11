@@ -59,6 +59,55 @@ export const deleteAccount = mutation({
       await ctx.db.delete(row._id)
     }
 
+    const trainingPreferences = await ctx.db
+      .query('training_preferences')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .unique()
+    if (trainingPreferences) {
+      await ctx.db.delete(trainingPreferences._id)
+    }
+
+    const equipmentPhotoUploads = await ctx.db
+      .query('equipment_photo_uploads')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .take(120)
+    for (const upload of equipmentPhotoUploads) {
+      await ctx.storage.delete(upload.storageId)
+      await ctx.db.delete(upload._id)
+    }
+
+    const equipment = await ctx.db
+      .query('user_equipment')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .take(100)
+    for (const item of equipment) {
+      if (
+        item.photoStorageId &&
+        !equipmentPhotoUploads.some(
+          (upload) => upload.storageId === item.photoStorageId,
+        )
+      ) {
+        await ctx.storage.delete(item.photoStorageId)
+      }
+      await ctx.db.delete(item._id)
+    }
+
+    const trainingPlaces = await ctx.db
+      .query('training_places')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .take(20)
+    for (const place of trainingPlaces) {
+      await ctx.db.delete(place._id)
+    }
+
+    const contextEvents = await ctx.db
+      .query('training_context_events')
+      .withIndex('by_userId_and_createdAt', (q) => q.eq('userId', userId))
+      .take(100)
+    for (const event of contextEvents) {
+      await ctx.db.delete(event._id)
+    }
+
     const cycleEntries = await ctx.db
       .query('cycle_entries')
       .withIndex('by_userId', (q) => q.eq('userId', userId))

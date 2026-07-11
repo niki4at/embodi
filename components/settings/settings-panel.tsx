@@ -119,6 +119,11 @@ export function SettingsPanel({
     router.push('/history')
   }, [])
 
+  const handleOpenTrainingSetup = useCallback(() => {
+    Haptics.selectionAsync()
+    router.push('/training-setup')
+  }, [])
+
   const email =
     user?.primaryEmailAddress?.emailAddress ??
     user?.emailAddresses?.[0]?.emailAddress ??
@@ -278,6 +283,20 @@ export function SettingsPanel({
           Haptics.selectionAsync()
           router.push('/social/blocked')
         }}
+        disabled={isWorking !== null}
+      />
+      <View style={styles.divider} />
+
+      <Text style={[styles.sectionLabel, { color: palette.textTertiary }]}>
+        Training
+      </Text>
+      <SettingsRow
+        icon="dumbbell.fill"
+        iconTint={palette.primary}
+        iconBg={palette.primaryMuted}
+        title="Training setup"
+        subtitle="Home equipment, places, weekly rhythm, and privacy"
+        onPress={handleOpenTrainingSetup}
         disabled={isWorking !== null}
       />
       <View style={styles.divider} />

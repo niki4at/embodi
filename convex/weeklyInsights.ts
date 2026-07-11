@@ -275,8 +275,26 @@ type UserContext = {
     conditions: string[]
   }
   profileSummary: string | null
+  trainingSetup: {
+    defaultContext: {
+      trainingEnvironment: string
+      equipmentIntent: string
+    } | null
+    weeklySchedule: {
+      weekday: string
+      morning?: {
+        trainingEnvironment: string
+        equipmentIntent: string
+      }
+      evening?: {
+        trainingEnvironment: string
+        equipmentIntent: string
+      }
+    }[]
+    homeEquipment: string[]
+  }
   thisWeek: {
-    checkins: Array<{
+    checkins: {
       date: string
       energyLevel: number
       sleepQuality: string
@@ -286,9 +304,11 @@ type UserContext = {
       workoutType: string
       intensityPreference: string
       timeAvailable: string
+      trainingEnvironment?: string
+      equipmentIntent?: string
       notes?: string
-    }>
-    sessions: Array<{
+    }[]
+    sessions: {
       date: string
       goal: string
       modality: string
@@ -297,7 +317,9 @@ type UserContext = {
       exerciseCount: number
       setsLogged: number
       modalitiesUsed: string[]
-    }>
+      trainingEnvironment?: string
+      equipmentIntent?: string
+    }[]
     totals: {
       sessionsCompleted: number
       totalDurationMin: number
@@ -316,12 +338,12 @@ type UserContext = {
     modalitiesTried: string[]
   }
   modalitiesEverTried: string[]
-  recentFeedback: Array<{
+  recentFeedback: {
     rating: 'liked' | 'disliked'
     comment: string | null
     sections: string[]
     weekStart: number
-  }>
+  }[]
   dataSignature: string
 }
 
@@ -516,6 +538,21 @@ export const getUserContext = internalQuery({
       .query('extended_profile')
       .withIndex('by_userId', (q) => q.eq('userId', userId))
       .first()
+    const trainingPreferences = await ctx.db
+      .query('training_preferences')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .unique()
+    const homeEquipment = await ctx.db
+      .query('user_equipment')
+      .withIndex('by_userId_and_isArchived', (q) =>
+        q.eq('userId', userId).eq('isArchived', false)
+      )
+      .take(100)
+    const trainingSetup = {
+      defaultContext: trainingPreferences?.defaultContext ?? null,
+      weeklySchedule: trainingPreferences?.weeklySchedule ?? [],
+      homeEquipment: homeEquipment.map((item) => item.label),
+    }
 
     const weekEnd = weekStart + WEEK_MS
     const priorWeekStart = weekStart - WEEK_MS
@@ -567,6 +604,8 @@ export const getUserContext = internalQuery({
           exerciseCount: session.plan.length,
           setsLogged: sets.length,
           modalitiesUsed,
+          trainingEnvironment: session.trainingEnvironment,
+          equipmentIntent: session.equipmentIntent,
         }
       })
     )
@@ -650,6 +689,7 @@ export const getUserContext = internalQuery({
       profileSummaryHash: extended?.profileSummary
         ? djb2Hash(extended.profileSummary)
         : null,
+      trainingSetup,
       checkins: thisWeekCheckins.map((c) => ({
         d: dayKey(c.createdAt),
         e: c.energyLevel,
@@ -673,6 +713,7 @@ export const getUserContext = internalQuery({
       weekEnd,
       profile,
       profileSummary: extended?.profileSummary ?? null,
+      trainingSetup,
       thisWeek: {
         checkins: thisWeekCheckins.map((c) => ({
           date: dayKey(c.createdAt),
@@ -684,6 +725,8 @@ export const getUserContext = internalQuery({
           workoutType: c.workoutType,
           intensityPreference: c.intensityPreference,
           timeAvailable: c.timeAvailable,
+          trainingEnvironment: c.trainingEnvironment,
+          equipmentIntent: c.equipmentIntent,
           notes: c.notes,
         })),
         sessions: summarizedSessions,
@@ -968,7 +1011,8 @@ Hard rules:
 - Aligned recommendations must match modalities the user already does or asks for. Use the user's check-in workoutType + recent sessions as ground truth.
 - Exploration recommendations must be modalities the user has NOT tried in the past 4 weeks AND that Embodi can track safely (Mobility, Strength, Cardio, Recovery, Mixed, Breath, Yoga). Skip exploration entirely if the user has flagged injuries, low energy, or high pain that makes a new modality unwise.
 - Respect injuries and conditions. Never recommend something contraindicated.
-- Do not recommend equipment the user does not have access to (use the timeAvailable + activity level as a hint and prefer "No equipment" when unsure).
+- Use the structured training setup as the source of truth. Home recommendations may use bodyweight and listed home equipment only; listed items are available options, not requirements. Gym recommendations may assume a full gym. Respect bodyweight and treadmill intent.
+- Keep recommendation titles and descriptions equipment-neutral unless the structured setup proves the equipment is available. The daily check-in chooses the final place and equipment before generation.
 - Use icon and tint values ONLY from the allowed enums in the schema.
 - Tone: warm, specific, second-person ("you"). No emoji. No filler. Contractions are fine.
 - Honor user feedback: if past insights were disliked, change what they reacted to (different stats, simpler recommendations, etc.). If liked, keep that quality and push further.`
@@ -982,6 +1026,8 @@ function buildUserPrompt(ctx: UserContext): string {
     lines.push('=== EXTENDED PROFILE SUMMARY ===')
     lines.push(ctx.profileSummary)
   }
+  lines.push('=== STRUCTURED TRAINING SETUP ===')
+  lines.push(JSON.stringify(ctx.trainingSetup, null, 2))
   lines.push('=== WEEK WINDOW ===')
   lines.push(
     `weekStart=${dayKey(ctx.weekStart)} weekEnd=${dayKey(ctx.weekEnd - 1)}`

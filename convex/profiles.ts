@@ -24,6 +24,7 @@ const profileCardValidator = v.object({
   displayName: v.string(),
   avatarUrl: v.union(v.string(), v.null()),
   isPrivate: v.boolean(),
+  streakWeeks: v.number(),
 })
 
 /**

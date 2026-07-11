@@ -49,18 +49,27 @@
       "expo-font",
       "expo-audio",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Embodi uses your location while the app is open to suggest whether you are training at Home or Gym. It does not keep a location history."
+        }
+      ],
+      [
         "expo-image-picker",
         {
-          "photosPermission": "Embodi uses your photos so you can scan gym equipment and find matching exercises.",
-          "cameraPermission": "Embodi uses your camera so you can photograph gym equipment and find matching exercises."
+          "photosPermission": "Embodi uses your photos so you can identify equipment, save a private home inventory, and find matching exercises.",
+          "cameraPermission": "Embodi uses your camera so you can identify equipment, save a private home inventory, and find matching exercises."
         }
       ],
       [
         "expo-notifications",
         {
-          "sounds": ["./assets/sounds/rest_done.wav"]
+          "sounds": [
+            "./assets/sounds/rest_done.wav"
+          ]
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

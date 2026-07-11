@@ -48,11 +48,19 @@ const exerciseShape = v.object({
   skipped: v.optional(v.boolean()),
 })
 
+const trainingEnvironment = v.union(
+  v.literal('home'),
+  v.literal('gym'),
+  v.literal('outdoors'),
+  v.literal('travel')
+)
+
 // Snapshot of a completed workout copied onto a post at share time so feed
 // reads never join back to sessions/sets.
 const postWorkoutShape = v.object({
   title: v.string(),
   modality: v.string(),
+  trainingEnvironment: v.optional(trainingEnvironment),
   durationMin: v.union(v.number(), v.null()),
   totalVolumeKg: v.number(),
   totalReps: v.number(),
@@ -89,6 +97,45 @@ const profileQuestionShape = v.object({
   sliderMax: v.optional(v.number()),
   sliderLabels: v.optional(v.array(v.string())),
   // Note: answers are stored separately in profile_answers table
+})
+
+const equipmentIntent = v.union(
+  v.literal('available'),
+  v.literal('bodyweight'),
+  v.literal('treadmill')
+)
+
+const contextSuggestionSource = v.union(
+  v.literal('manual'),
+  v.literal('place'),
+  v.literal('workout_need'),
+  v.literal('weekly_rhythm'),
+  v.literal('history'),
+  v.literal('fallback')
+)
+
+const trainingContextSelection = v.object({
+  trainingEnvironment,
+  equipmentIntent,
+})
+
+const equipmentCapabilities = v.object({
+  weightMinKg: v.optional(v.number()),
+  weightMaxKg: v.optional(v.number()),
+  adjustable: v.optional(v.boolean()),
+  incline: v.optional(v.boolean()),
+  speedControl: v.optional(v.boolean()),
+  resistanceLevels: v.optional(v.number()),
+  quantity: v.optional(v.number()),
+  resistance: v.optional(v.string()),
+  dimensions: v.optional(v.string()),
+})
+
+const equipmentSnapshotItem = v.object({
+  catalogKey: v.string(),
+  label: v.string(),
+  details: v.optional(v.string()),
+  capabilities: v.optional(equipmentCapabilities),
 })
 
 export default defineSchema({
@@ -165,6 +212,13 @@ export default defineSchema({
         source: v.union(v.literal('aligned'), v.literal('exploration')),
       })
     ),
+    trainingEnvironment: v.optional(trainingEnvironment),
+    equipmentIntent: v.optional(equipmentIntent),
+    contextTags: v.optional(v.array(v.string())),
+    suggestionSource: v.optional(contextSuggestionSource),
+    suggestionReason: v.optional(v.string()),
+    equipmentSnapshot: v.optional(v.array(equipmentSnapshotItem)),
+    unavailableEquipment: v.optional(v.array(v.string())),
     // Wall-clock anchors for the overall workout timer. startedAt is stamped
     // once when the user first opens the live session screen; completedAt when
     // the session is completed. Actual duration = completedAt - startedAt.
@@ -547,6 +601,107 @@ export default defineSchema({
     createdAt: v.number(),
   }).index('by_userId', ['userId']),
 
+  // One stable row per user. Weekly schedule is capped at seven weekdays by
+  // trainingPreferences.ts so this document stays small.
+  training_preferences: defineTable({
+    userId: v.string(),
+    weeklySchedule: v.array(
+      v.object({
+        weekday: v.union(
+          v.literal('monday'),
+          v.literal('tuesday'),
+          v.literal('wednesday'),
+          v.literal('thursday'),
+          v.literal('friday'),
+          v.literal('saturday'),
+          v.literal('sunday')
+        ),
+        morning: v.optional(trainingContextSelection),
+        evening: v.optional(trainingContextSelection),
+      })
+    ),
+    locationEnabled: v.boolean(),
+    sharingDefault: v.union(
+      v.literal('private'),
+      v.literal('backers'),
+      v.literal('public')
+    ),
+    shareGenericLocation: v.optional(v.boolean()),
+    defaultContext: trainingContextSelection,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index('by_userId', ['userId']),
+
+  user_equipment: defineTable({
+    userId: v.string(),
+    catalogKey: v.string(),
+    label: v.string(),
+    details: v.optional(v.string()),
+    capabilities: v.optional(equipmentCapabilities),
+    photoStorageId: v.optional(v.id('_storage')),
+    isArchived: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_userId_and_isArchived', ['userId', 'isArchived']),
+
+  equipment_photo_uploads: defineTable({
+    userId: v.string(),
+    storageId: v.id('_storage'),
+    status: v.union(v.literal('pending'), v.literal('attached')),
+    equipmentId: v.optional(v.id('user_equipment')),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_storageId', ['storageId']),
+
+  // Coordinates are AES-GCM ciphertext. Only the owner-facing Node action
+  // decrypts them; generic events and sessions store context labels only.
+  training_places: defineTable({
+    userId: v.string(),
+    label: v.string(),
+    trainingEnvironment,
+    equipmentIntent: v.optional(equipmentIntent),
+    radiusM: v.number(),
+    encryptedCoordinates: v.string(),
+    encryptionIv: v.string(),
+    encryptionAuthTag: v.string(),
+    encryptionKeyVersion: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index('by_userId', ['userId']),
+
+  // Bounded history used by the deterministic context scorer. Writers cap
+  // retained rows per user and never accept or persist coordinates.
+  training_context_events: defineTable({
+    userId: v.string(),
+    trainingEnvironment,
+    equipmentIntent,
+    contextTags: v.array(v.string()),
+    workoutType: v.optional(v.string()),
+    goal: v.optional(v.string()),
+    localWeekday: v.optional(
+      v.union(
+        v.literal('monday'),
+        v.literal('tuesday'),
+        v.literal('wednesday'),
+        v.literal('thursday'),
+        v.literal('friday'),
+        v.literal('saturday'),
+        v.literal('sunday')
+      )
+    ),
+    timeOfDay: v.optional(
+      v.union(v.literal('morning'), v.literal('evening'))
+    ),
+    suggestionSource: contextSuggestionSource,
+    suggestionReason: v.string(),
+    equipmentKeys: v.array(v.string()),
+    createdAt: v.number(),
+  }).index('by_userId_and_createdAt', ['userId', 'createdAt']),
+
   // Daily check-ins for pre-session state capture
   daily_checkins: defineTable({
     userId: v.string(),
@@ -582,6 +737,13 @@ export default defineSchema({
       v.literal('45'),
       v.literal('60')
     ),
+    trainingEnvironment: v.optional(trainingEnvironment),
+    equipmentIntent: v.optional(equipmentIntent),
+    contextTags: v.optional(v.array(v.string())),
+    suggestionSource: v.optional(contextSuggestionSource),
+    suggestionReason: v.optional(v.string()),
+    equipmentSnapshot: v.optional(v.array(equipmentSnapshotItem)),
+    unavailableEquipment: v.optional(v.array(v.string())),
     // Optional notes
     notes: v.optional(v.string()),
     // Link to the generated session

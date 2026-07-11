@@ -165,6 +165,7 @@ export const createPost = mutation({
     photoStorageIds: v.array(v.id('_storage')),
     visibility: v.union(v.literal('public'), v.literal('backers')),
     communityId: v.optional(v.id('communities')),
+    shareTrainingEnvironment: v.optional(v.boolean()),
   },
   returns: v.id('posts'),
   handler: async (ctx, args): Promise<Id<'posts'>> => {
@@ -207,6 +208,9 @@ export const createPost = mutation({
       workout: {
         title: (args.title ?? insights.goal).trim().slice(0, 80) || insights.goal,
         modality: insights.modality,
+        trainingEnvironment: args.shareTrainingEnvironment
+          ? session.trainingEnvironment
+          : undefined,
         durationMin: insights.durationMin,
         totalVolumeKg: insights.totalVolumeKg,
         totalReps: insights.totalReps,

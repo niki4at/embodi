@@ -1,4 +1,10 @@
 import { IconSymbol } from '@/components/ui/icon-symbol'
+import {
+  EQUIPMENT_INTENT_LABELS,
+  TRAINING_ENVIRONMENT_LABELS,
+  type EquipmentIntent,
+  type TrainingEnvironment,
+} from '@/components/training-context'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import * as Haptics from 'expo-haptics'
@@ -13,6 +19,9 @@ import Animated, {
 export interface StartMovementCardProps {
   onAskCoach: () => void
   onStartMyOwn: () => void
+  onContextPress: () => void
+  likelyEnvironment: TrainingEnvironment
+  likelyEquipmentIntent: EquipmentIntent
   isStartingCoachSession?: boolean
 }
 
@@ -24,6 +33,9 @@ export interface StartMovementCardProps {
 function StartMovementCardComponent({
   onAskCoach,
   onStartMyOwn,
+  onContextPress,
+  likelyEnvironment,
+  likelyEquipmentIntent,
   isStartingCoachSession = false,
 }: StartMovementCardProps) {
   const { palette, resolved, shadows } = useTheme()
@@ -55,9 +67,36 @@ function StartMovementCardComponent({
       ]}
     >
       <View style={styles.header}>
-        <Text style={[styles.title, { color: palette.textPrimary }]}>
-          Start your movement
-        </Text>
+        <View style={styles.headerTopRow}>
+          <Text style={[styles.title, { color: palette.textPrimary }]}>
+            Start your movement
+          </Text>
+          <Pressable
+            onPress={onContextPress}
+            accessibilityRole="button"
+            accessibilityLabel={`Suggested ${TRAINING_ENVIRONMENT_LABELS[likelyEnvironment]}, ${EQUIPMENT_INTENT_LABELS[likelyEquipmentIntent]}. Change training context.`}
+            style={[
+              styles.contextChip,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+              },
+            ]}
+          >
+            <IconSymbol
+              name="sparkles"
+              size={10}
+              color={palette.textSecondary}
+              style={styles.inferredIcon}
+            />
+            <Text
+              style={[styles.contextChipText, { color: palette.textSecondary }]}
+              numberOfLines={1}
+            >
+              {TRAINING_ENVIRONMENT_LABELS[likelyEnvironment]}
+            </Text>
+          </Pressable>
+        </View>
         <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
           Choose your preference
         </Text>
@@ -203,6 +242,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     paddingHorizontal: spacing.xs,
   },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
   title: {
     ...typography.h3,
     fontSize: 18,
@@ -210,6 +255,24 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.small,
+  },
+  contextChip: {
+    maxWidth: '48%',
+    minHeight: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  contextChipText: {
+    ...typography.caption,
+    flexShrink: 1,
+  },
+  inferredIcon: {
+    opacity: 0.55,
   },
   tilesRow: {
     flexDirection: 'row',

@@ -135,6 +135,7 @@ const MAPPING = {
   'music.note': 'music-note',
   'party.popper.fill': 'celebration',
   'headphones': 'headphones',
+  'location.fill': 'place',
 } as IconMapping;
 
 /**
