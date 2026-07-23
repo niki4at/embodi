@@ -25,7 +25,7 @@ const BACKFILL_SESSION_CAP = 200
 const HISTORY_WEEKS = 12
 
 /** Monday 00:00 UTC of the week containing ts (matches weeklyInsights). */
-function startOfIsoWeek(ts: number): number {
+export function startOfIsoWeek(ts: number): number {
   const d = new Date(ts)
   d.setUTCHours(0, 0, 0, 0)
   const day = d.getUTCDay()
@@ -48,7 +48,7 @@ type StreakSnapshot = {
  * the user hasn't trained (or the cron hasn't run) since the week rolled
  * over: the current-week counters reset and a missed week kills the streak.
  */
-function normalizeRow(row: Doc<'streaks'>, now: number): StreakSnapshot {
+export function normalizeRow(row: Doc<'streaks'>, now: number): StreakSnapshot {
   const thisWeek = startOfIsoWeek(now)
   if (row.weekStartMs >= thisWeek) {
     return {

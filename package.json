@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "version": "54.0.35",
   "scripts": {
+    "dev": "node ./scripts/dev.js",
     "start": "node ./scripts/start-localhost.js",
     "start:localhost": "expo start --localhost",
     "start:lan": "expo start --lan",

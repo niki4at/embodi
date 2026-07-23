@@ -94,10 +94,13 @@ async function buildPostCards(
     ...posts.map((p) => p.authorId),
     ...Array.from(originals.values()).map((p) => p.authorId),
   ]
-  const cards = await getProfileCards(ctx, authorIds)
+  const cards = await getProfileCards(ctx, authorIds, viewerId)
+
+  // Posts from deactivated (or deleted) authors are hidden entirely.
+  const visiblePosts = posts.filter((p) => cards.has(p.authorId))
 
   return await Promise.all(
-    posts.map(async (post) => {
+    visiblePosts.map(async (post) => {
       const myReactionRow = await ctx.db
         .query('reactions')
         .withIndex('by_post_and_user', (q) =>

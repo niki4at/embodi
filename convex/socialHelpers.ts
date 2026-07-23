@@ -1,6 +1,7 @@
 import type { Doc } from './_generated/dataModel'
 import { internal } from './_generated/api'
 import type { MutationCtx, QueryCtx } from './_generated/server'
+import { getSettingsForUser, shouldNotify } from './userSettings'
 
 export const USERNAME_REGEX = /^[a-z][a-z0-9_]{2,19}$/
 export const USERNAME_CHANGE_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000
@@ -48,12 +49,20 @@ export async function getProfileByUsername(
 
 export async function toProfileCard(
   ctx: QueryCtx | MutationCtx,
-  profile: ProfileDoc
+  profile: ProfileDoc,
+  viewerId?: string
 ): Promise<ProfileCard> {
   const streak = await ctx.db
     .query('streaks')
     .withIndex('by_userId', (q) => q.eq('userId', profile.userId))
     .unique()
+  let streakWeeks = streak?.currentStreakWeeks ?? 0
+  // The streak flame is part of the activity section: when the owner keeps
+  // weekly activity private, nobody else sees the streak anywhere.
+  if (streakWeeks > 0 && viewerId !== profile.userId) {
+    const settings = await getSettingsForUser(ctx, profile.userId)
+    if (!settings.publicActivity) streakWeeks = 0
+  }
   return {
     userId: profile.userId,
     username: profile.username,
@@ -62,22 +71,24 @@ export async function toProfileCard(
       ? await ctx.storage.getUrl(profile.avatarStorageId)
       : null,
     isPrivate: profile.isPrivate,
-    streakWeeks: streak?.currentStreakWeeks ?? 0,
+    streakWeeks,
   }
 }
 
 /** Batch-resolve profile cards for a set of user ids (deduped). */
 export async function getProfileCards(
   ctx: QueryCtx | MutationCtx,
-  userIds: string[]
+  userIds: string[],
+  viewerId?: string
 ): Promise<Map<string, ProfileCard>> {
   const unique = Array.from(new Set(userIds))
   const cards = new Map<string, ProfileCard>()
   await Promise.all(
     unique.map(async (userId) => {
       const profile = await getProfileByUserId(ctx, userId)
-      if (profile) {
-        cards.set(userId, await toProfileCard(ctx, profile))
+      // Deactivated accounts disappear from social surfaces, same as deleted.
+      if (profile && profile.deactivatedAt == null) {
+        cards.set(userId, await toProfileCard(ctx, profile, viewerId))
       }
     })
   )
@@ -126,6 +137,7 @@ export async function canViewContent(
   subject: ProfileDoc
 ): Promise<boolean> {
   if (viewerId === subject.userId) return true
+  if (subject.deactivatedAt != null) return false
   if (await isBlockedEitherWay(ctx, viewerId, subject.userId)) return false
   if (!subject.isPrivate) return true
   const edge = await getFollowEdge(ctx, viewerId, subject.userId)
@@ -134,7 +146,8 @@ export async function canViewContent(
 
 /**
  * Insert an in-app notification and schedule the push send. Self-notifications
- * are dropped so acting on your own content stays silent.
+ * are dropped so acting on your own content stays silent, and the recipient's
+ * notification-category settings are enforced before anything is written.
  */
 export async function notify(
   ctx: MutationCtx,
@@ -148,6 +161,9 @@ export async function notify(
   }
 ): Promise<void> {
   if (args.userId === args.actorId) return
+  const recipient = await getProfileByUserId(ctx, args.userId)
+  if (recipient?.deactivatedAt != null) return
+  if (!(await shouldNotify(ctx, args.userId, args.type))) return
   await ctx.db.insert('notifications', {
     userId: args.userId,
     type: args.type,

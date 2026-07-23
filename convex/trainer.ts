@@ -1429,6 +1429,11 @@ export const logSet = mutation({
           { userId: identity.subject, sessionId: args.sessionId }
         )
         await applyWorkoutCompletion(ctx, identity.subject, Date.now())
+        await ctx.scheduler.runAfter(
+          0,
+          internal.achievements.evaluateAfterCompletion,
+          { userId: identity.subject, sessionId: args.sessionId }
+        )
       }
     }
   },
@@ -1697,6 +1702,11 @@ export const completeSession = mutation({
       await ctx.scheduler.runAfter(
         0,
         internal.communities.recordWorkoutForUser,
+        { userId: identity.subject, sessionId: args.sessionId }
+      )
+      await ctx.scheduler.runAfter(
+        0,
+        internal.achievements.evaluateAfterCompletion,
         { userId: identity.subject, sessionId: args.sessionId }
       )
       // Inline (not scheduled) so the streak update reaches the recap screen.

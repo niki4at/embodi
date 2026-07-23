@@ -276,9 +276,44 @@ export default defineSchema({
     plan: v.array(exerciseShape),
     // Which session this routine was saved from (for provenance).
     sourceSessionId: v.optional(v.id('workout_sessions')),
+    // Routines are private by default; sharing to the public profile is an
+    // explicit per-routine opt-in (also gated by the publicRoutines setting).
+    isShared: v.optional(v.boolean()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index('by_userId', ['userId']),
+
+  // Deterministically earned milestones. One row per user per rule key;
+  // rules are evaluated after each completed workout (and challenge/community
+  // events) so awards never depend on AI output. Recovery milestones are
+  // private by default and never celebrate training through pain.
+  achievements: defineTable({
+    userId: v.string(),
+    key: v.string(),
+    category: v.union(
+      v.literal('consistency'),
+      v.literal('performance'),
+      v.literal('exploration'),
+      v.literal('challenges'),
+      v.literal('community'),
+      v.literal('recovery')
+    ),
+    title: v.string(),
+    description: v.string(),
+    earnedAt: v.number(),
+    // What triggered the award, for the Journey timeline source label.
+    sourceType: v.union(
+      v.literal('session'),
+      v.literal('streak'),
+      v.literal('challenge'),
+      v.literal('community'),
+      v.literal('profile')
+    ),
+    sourceId: v.optional(v.string()),
+    isPrivate: v.boolean(),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_userId_and_key', ['userId', 'key']),
 
   // AI-generated personalized profile questions
   profile_questions: defineTable({
@@ -783,6 +818,10 @@ export default defineSchema({
     postCount: v.number(),
     searchText: v.string(),
     usernameUpdatedAt: v.optional(v.number()),
+    // Temporary deactivation: hides the public profile and posts and pauses
+    // social notifications while preserving all training data. Cleared on
+    // the next sign-in (SocialBootstrap → ensureProfile).
+    deactivatedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -824,7 +863,9 @@ export default defineSchema({
     details: v.optional(v.string()),
     status: v.union(v.literal('open'), v.literal('resolved')),
     createdAt: v.number(),
-  }).index('by_status', ['status']),
+  })
+    .index('by_status', ['status'])
+    .index('by_reporter', ['reporterId']),
 
   // Feed posts. Workout posts snapshot recap stats; reposts point at the
   // original with an optional quote. Cheer counts are denormalized per kind.
@@ -969,7 +1010,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index('by_user_and_createdAt', ['userId', 'createdAt'])
-    .index('by_user_and_read', ['userId', 'read']),
+    .index('by_user_and_read', ['userId', 'read'])
+    .index('by_actor', ['actorId']),
 
   push_tokens: defineTable({
     userId: v.string(),
@@ -1003,6 +1045,25 @@ export default defineSchema({
       })
     ),
   }),
+
+  // Synced per-user preferences: notification categories, units, and which
+  // profile sections are publicly visible. One row per user; absent row means
+  // defaults (see convex/userSettings.ts).
+  user_settings: defineTable({
+    userId: v.string(),
+    // Notification categories (in-app inbox + push).
+    notifyBackers: v.boolean(), // new_backer, back_request, back_accepted
+    notifyReactions: v.boolean(), // cheer, comment, repost, workout_tried
+    notifyCommunities: v.boolean(), // community_invite, community_milestone
+    units: v.union(v.literal('metric'), v.literal('imperial')),
+    // Section-level public visibility on the profile page.
+    publicActivity: v.boolean(),
+    publicHeatmap: v.boolean(),
+    publicAchievements: v.boolean(),
+    publicChallenges: v.boolean(),
+    publicRoutines: v.boolean(),
+    updatedAt: v.number(),
+  }).index('by_userId', ['userId']),
 
   // Weekly workout streaks: one row per user. A streak counts consecutive
   // weeks where the user hit their personal weekly workout goal. The week

@@ -1,6 +1,6 @@
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams, type Href } from 'expo-router'
 import React, { useState } from 'react'
 import {
   ActivityIndicator,
@@ -8,6 +8,7 @@ import {
   FlatList,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -22,6 +23,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol'
 import { radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
+import type { Id } from '@/convex/_generated/dataModel'
 
 function PeopleListModal({
   title,
@@ -99,12 +101,13 @@ function PeopleListModal({
 
 export default function ProfileScreen() {
   const { palette } = useTheme()
-  const params = useLocalSearchParams<{ username?: string }>()
+  const params = useLocalSearchParams<{ username?: string; preview?: string }>()
   const username = typeof params.username === 'string' ? params.username : ''
+  const preview = params.preview === '1'
 
   const profile = useQuery(
     api.profiles.getProfilePage,
-    username ? { username } : 'skip'
+    username ? { username, previewAsPublic: preview } : 'skip'
   )
   const myProfile = useQuery(api.profiles.getMyProfile)
   const backUser = useMutation(api.profiles.backUser)
@@ -131,10 +134,60 @@ export default function ProfileScreen() {
     { initialNumItems: 8 }
   )
 
+  const achievements = useQuery(
+    api.achievements.listForProfile,
+    profile && profile.canViewPosts
+      ? { username, previewAsPublic: preview }
+      : 'skip'
+  )
+  const sharedRoutines = useQuery(
+    api.routines.listSharedRoutines,
+    profile && profile.canViewPosts
+      ? { username, previewAsPublic: preview }
+      : 'skip'
+  )
+  const startSessionFromRoutine = useMutation(
+    api.routines.startSessionFromRoutine
+  )
+
   const [listOpen, setListOpen] = useState<'backers' | 'backing' | null>(null)
+  const [startingRoutineId, setStartingRoutineId] = useState<string | null>(
+    null
+  )
+
+  const handleTryRoutine = (
+    routineId: Id<'workout_routines'>,
+    name: string
+  ) => {
+    if (preview || startingRoutineId) return
+    void Haptics.selectionAsync()
+    Alert.alert('Try this routine', `Start "${name}" as your own session?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Start',
+        onPress: () => {
+          setStartingRoutineId(String(routineId))
+          startSessionFromRoutine({ routineId })
+            .then((sessionId) => {
+              router.push({
+                pathname: '/session',
+                params: { sessionId: String(sessionId) },
+              } as unknown as Href)
+            })
+            .catch(() => {
+              Alert.alert(
+                'Not available',
+                'This routine is no longer shared.'
+              )
+            })
+            .finally(() => setStartingRoutineId(null))
+        },
+      },
+    ])
+  }
 
   const handleBackToggle = () => {
-    if (!profile) return
+    if (!profile || preview) return
     void Haptics.selectionAsync()
     if (profile.relationship === 'none') {
       backUser({ userId: profile.userId }).catch(() => {})
@@ -144,7 +197,7 @@ export default function ProfileScreen() {
   }
 
   const openMenu = () => {
-    if (!profile || profile.isMe) return
+    if (!profile || profile.isMe || preview) return
     Alert.alert(`@${profile.username}`, undefined, [
       {
         text: 'Report profile',
@@ -198,7 +251,7 @@ export default function ProfileScreen() {
         >
           @{username}
         </Text>
-        {profile && !profile.isMe ? (
+        {profile && !profile.isMe && !preview ? (
           <Pressable
             onPress={openMenu}
             hitSlop={12}
@@ -211,6 +264,17 @@ export default function ProfileScreen() {
           <View style={{ width: 22 }} />
         )}
       </View>
+
+      {preview ? (
+        <View
+          style={[styles.previewBanner, { backgroundColor: palette.surfaceAlt }]}
+        >
+          <IconSymbol name="eye" size={14} color={palette.textSecondary} />
+          <Text style={[typography.small, { color: palette.textSecondary }]}>
+            This is how others see your profile
+          </Text>
+        </View>
+      ) : null}
 
       {profile === undefined ? (
         <View style={styles.centered}>
@@ -368,6 +432,173 @@ export default function ProfileScreen() {
                 </Pressable>
               )}
 
+              {profile.publicProgress ? (
+                <View
+                  style={[
+                    styles.progressCard,
+                    {
+                      backgroundColor: palette.surface,
+                      borderColor: palette.border,
+                    },
+                  ]}
+                >
+                  <View style={styles.progressStat}>
+                    <Text
+                      style={[typography.h3, { color: palette.textPrimary }]}
+                    >
+                      {profile.publicProgress.workoutsThisWeek}/
+                      {profile.publicProgress.weeklyGoal}
+                    </Text>
+                    <Text
+                      style={[typography.small, { color: palette.textTertiary }]}
+                    >
+                      This week
+                    </Text>
+                  </View>
+                  <View style={styles.progressStat}>
+                    <Text
+                      style={[typography.h3, { color: palette.textPrimary }]}
+                    >
+                      {profile.publicProgress.streakWeeks}
+                    </Text>
+                    <Text
+                      style={[typography.small, { color: palette.textTertiary }]}
+                    >
+                      Week streak
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+
+              {achievements && achievements.length > 0 ? (
+                <View style={styles.sectionBlock}>
+                  <Text
+                    style={[styles.sectionLabel, { color: palette.textTertiary }]}
+                  >
+                    ACHIEVEMENTS
+                  </Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.achievementRow}
+                  >
+                    {achievements.map((achievement) => (
+                      <View
+                        key={achievement._id}
+                        style={[
+                          styles.achievementChip,
+                          {
+                            backgroundColor: palette.surface,
+                            borderColor: palette.border,
+                          },
+                        ]}
+                      >
+                        <IconSymbol
+                          name="trophy.fill"
+                          size={14}
+                          color={palette.primary}
+                        />
+                        <Text
+                          style={[
+                            typography.smallStrong,
+                            { color: palette.textPrimary },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {achievement.title}
+                        </Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : null}
+
+              {sharedRoutines && sharedRoutines.length > 0 ? (
+                <View style={styles.sectionBlock}>
+                  <Text
+                    style={[styles.sectionLabel, { color: palette.textTertiary }]}
+                  >
+                    SHARED ROUTINES
+                  </Text>
+                  {sharedRoutines.map((routine) => (
+                    <View
+                      key={routine._id}
+                      style={[
+                        styles.routineCard,
+                        {
+                          backgroundColor: palette.surface,
+                          borderColor: palette.border,
+                        },
+                      ]}
+                    >
+                      <View style={styles.routineText}>
+                        <Text
+                          style={[
+                            typography.bodyStrong,
+                            { color: palette.textPrimary },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {routine.name}
+                        </Text>
+                        <Text
+                          style={[
+                            typography.small,
+                            { color: palette.textSecondary },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {routine.modality} {'\u00b7'} {routine.exerciseCount}{' '}
+                          {routine.exerciseCount === 1 ? 'move' : 'moves'}{' '}
+                          {'\u00b7'} {routine.durationMin} min
+                        </Text>
+                        {routine.exercises.length > 0 ? (
+                          <Text
+                            style={[
+                              typography.small,
+                              { color: palette.textTertiary },
+                            ]}
+                            numberOfLines={2}
+                          >
+                            {routine.exercises.join(' · ')}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {!profile.isMe && !preview ? (
+                        <Pressable
+                          onPress={() =>
+                            handleTryRoutine(routine._id, routine.name)
+                          }
+                          disabled={startingRoutineId !== null}
+                          style={[
+                            styles.tryButton,
+                            { backgroundColor: palette.primaryMuted },
+                          ]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Try ${routine.name}`}
+                        >
+                          {startingRoutineId === String(routine._id) ? (
+                            <ActivityIndicator
+                              size="small"
+                              color={palette.primary}
+                            />
+                          ) : (
+                            <Text
+                              style={[
+                                typography.smallStrong,
+                                { color: palette.primary },
+                              ]}
+                            >
+                              Try
+                            </Text>
+                          )}
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
               {!profile.canViewPosts ? (
                 <View
                   style={[
@@ -495,6 +726,28 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: spacing.md,
   },
+  previewBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.sm,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.sm,
+  },
+  progressCard: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    paddingVertical: spacing.lg,
+    marginTop: spacing.lg,
+  },
+  progressStat: {
+    alignItems: 'center',
+  },
   privateCard: {
     alignSelf: 'stretch',
     alignItems: 'center',
@@ -511,6 +764,47 @@ const styles = StyleSheet.create({
     ...typography.caption,
     alignSelf: 'flex-start',
     marginTop: spacing.xl,
+  },
+  sectionBlock: {
+    alignSelf: 'stretch',
+    marginTop: spacing.xl,
+    gap: spacing.sm,
+  },
+  sectionLabel: {
+    ...typography.caption,
+  },
+  achievementRow: {
+    gap: spacing.sm,
+  },
+  achievementChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    maxWidth: 220,
+  },
+  routineCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.lg,
+  },
+  routineText: {
+    flex: 1,
+    gap: 2,
+  },
+  tryButton: {
+    minWidth: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
   },
   listContent: {
     paddingHorizontal: spacing.xl,

@@ -156,6 +156,9 @@ export const update = mutation({
     socialLocationSharing: v.optional(
       v.union(v.literal('private'), v.literal('generic'))
     ),
+    sharingDefault: v.optional(
+      v.union(v.literal('private'), v.literal('backers'), v.literal('public'))
+    ),
     weeklyRhythm: v.optional(v.array(dayRhythm)),
     resetLearnedPatterns: v.optional(v.boolean()),
   },
@@ -209,6 +212,7 @@ export const update = mutation({
           args.socialLocationSharing === undefined
             ? existing.shareGenericLocation
             : args.socialLocationSharing === 'generic',
+        sharingDefault: args.sharingDefault ?? existing.sharingDefault,
         weeklySchedule,
         updatedAt: now,
       })
@@ -217,7 +221,7 @@ export const update = mutation({
         userId: identity.subject,
         weeklySchedule,
         locationEnabled: args.locationEnabled ?? false,
-        sharingDefault: 'private',
+        sharingDefault: args.sharingDefault ?? 'private',
         shareGenericLocation: args.socialLocationSharing === 'generic',
         defaultContext,
         createdAt: now,

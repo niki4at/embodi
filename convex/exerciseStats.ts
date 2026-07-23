@@ -329,6 +329,185 @@ export const getLastTargetsForExercises = query({
   },
 })
 
+// Journey screen: one current record per exercise, with the date it was set.
+// Walks the recent completed sessions oldest-first so "achievedAt" lands on
+// the session where the standing best was actually reached.
+const personalRecordValidator = v.object({
+  name: v.string(),
+  kind: v.union(
+    v.literal('weight'),
+    v.literal('reps'),
+    v.literal('duration'),
+    v.literal('distance')
+  ),
+  value: v.number(),
+  achievedAt: v.number(),
+})
+
+type RecordTracker = {
+  name: string
+  trackingMetric: TrackingMetric
+  weightKg: number | null
+  weightAt: number
+  reps: number | null
+  repsAt: number
+  durationSec: number | null
+  durationAt: number
+  distanceM: number | null
+  distanceAt: number
+}
+
+export const getPersonalRecords = query({
+  args: {},
+  returns: v.array(personalRecordValidator),
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return []
+
+    const sessions = await ctx.db
+      .query('workout_sessions')
+      .withIndex('by_user_status', (q) =>
+        q.eq('userId', identity.subject).eq('status', 'completed')
+      )
+      .order('desc')
+      .take(MAX_SESSIONS)
+
+    const trackers = new Map<string, RecordTracker>()
+
+    // Oldest first, so later improvements overwrite the achieved-at date.
+    for (const session of [...sessions].reverse()) {
+      const performedAt = session.completedAt ?? session.updatedAt
+      const byExerciseId = new Map<
+        string,
+        { key: string; name: string; trackingMetric: TrackingMetric }
+      >()
+      for (const exercise of session.plan) {
+        byExerciseId.set(exercise.id, {
+          key: exercise.catalogId ?? normalize(exercise.name),
+          name: exercise.name,
+          trackingMetric: exercise.trackingMetric,
+        })
+      }
+
+      const sets = await ctx.db
+        .query('workout_sets')
+        .withIndex('by_sessionId', (q) => q.eq('sessionId', session._id))
+        .collect()
+
+      for (const set of sets) {
+        if (set.isWarmup) continue
+        const planInfo = byExerciseId.get(set.exerciseId)
+        if (!planInfo) continue
+
+        let tracker = trackers.get(planInfo.key)
+        if (!tracker) {
+          tracker = {
+            name: planInfo.name,
+            trackingMetric: planInfo.trackingMetric,
+            weightKg: null,
+            weightAt: 0,
+            reps: null,
+            repsAt: 0,
+            durationSec: null,
+            durationAt: 0,
+            distanceM: null,
+            distanceAt: 0,
+          }
+          trackers.set(planInfo.key, tracker)
+        }
+        // Keep the freshest display name for the movement.
+        tracker.name = planInfo.name
+
+        if (
+          set.weightKg != null &&
+          (tracker.weightKg == null || set.weightKg > tracker.weightKg)
+        ) {
+          tracker.weightKg = set.weightKg
+          tracker.weightAt = performedAt
+        }
+        if (set.reps != null && (tracker.reps == null || set.reps > tracker.reps)) {
+          tracker.reps = set.reps
+          tracker.repsAt = performedAt
+        }
+        if (
+          set.durationSec != null &&
+          (tracker.durationSec == null || set.durationSec > tracker.durationSec)
+        ) {
+          tracker.durationSec = set.durationSec
+          tracker.durationAt = performedAt
+        }
+        if (
+          set.distanceM != null &&
+          (tracker.distanceM == null || set.distanceM > tracker.distanceM)
+        ) {
+          tracker.distanceM = set.distanceM
+          tracker.distanceAt = performedAt
+        }
+      }
+    }
+
+    const records: {
+      name: string
+      kind: 'weight' | 'reps' | 'duration' | 'distance'
+      value: number
+      achievedAt: number
+    }[] = []
+
+    for (const tracker of trackers.values()) {
+      switch (tracker.trackingMetric) {
+        case 'distance':
+          if (tracker.distanceM != null) {
+            records.push({
+              name: tracker.name,
+              kind: 'distance',
+              value: tracker.distanceM,
+              achievedAt: tracker.distanceAt,
+            })
+          }
+          break
+        case 'duration':
+        case 'breath':
+        case 'custom':
+          if (tracker.durationSec != null) {
+            records.push({
+              name: tracker.name,
+              kind: 'duration',
+              value: tracker.durationSec,
+              achievedAt: tracker.durationAt,
+            })
+          }
+          break
+        case 'weight_reps':
+          if (tracker.weightKg != null) {
+            records.push({
+              name: tracker.name,
+              kind: 'weight',
+              value: tracker.weightKg,
+              achievedAt: tracker.weightAt,
+            })
+          } else if (tracker.reps != null) {
+            // Bodyweight movements: the rep count is the record.
+            records.push({
+              name: tracker.name,
+              kind: 'reps',
+              value: tracker.reps,
+              achievedAt: tracker.repsAt,
+            })
+          }
+          break
+        default: {
+          const exhaustive: never = tracker.trackingMetric
+          throw new Error(`Unhandled tracking metric: ${String(exhaustive)}`)
+        }
+      }
+    }
+
+    return records
+      .sort((a, b) => b.achievedAt - a.achievedAt)
+      .slice(0, 12)
+  },
+})
+
 // Used by the coach chat to ground replies in the user's real numbers.
 export const getExerciseStatsForUser = internalQuery({
   args: {

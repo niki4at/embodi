@@ -51,9 +51,10 @@ These documentation files are specifically formatted for AI agents and should be
 ### Development
 
 ```bash
-npm start                       # Start dev server with localhost networking for Android emulator
-npm run start:lan               # Start dev server on LAN for physical-device testing
-npx expo start --clear          # Clear cache and start dev server
+npm run dev                     # One command: Convex AI files (if stale) + Android emulator + Convex + Metro (localhost)
+npm start                       # Metro only (localhost networking for Android emulator)
+npm run start:lan               # Start Metro on LAN for physical-device testing
+npx expo start --clear          # Clear cache and start Metro
 npx expo install <package>      # Install packages with compatible versions
 npx expo install --check        # Check which installed packages need to be updated
 npx expo install --fix          # Automatically update any invalid package versions
@@ -63,17 +64,21 @@ npm run reset-project           # Reset to blank template
 
 ### Android emulator (day to day)
 
-The Embodi dev client is **already installed** on the local Android emulator (`Medium_Phone_API_36.1`). For normal JS/UI work, do **not** run `npm run android` (that triggers a full Gradle native rebuild every time). Use this flow instead:
+The Embodi dev client is **already installed** on the local Android emulator (`Medium_Phone_API_36.1`). For normal JS/UI work, do **not** run `npm run android` (that triggers a full Gradle native rebuild every time).
 
-1. Start the emulator (if it is not already running):
-   ```bash
-   emulator -avd Medium_Phone_API_36.1
-   ```
-2. Start Metro only:
-   ```bash
-   npm start
-   ```
-3. Open the **Embodi** dev client app on the emulator (or press `a` in the Expo terminal).
+**Preferred:** start everything with one command:
+
+```bash
+npm run dev
+```
+
+That launches the emulator (if needed), `npx convex dev`, and Metro on localhost. When the emulator is up, open the **Embodi** app (or press `a` in the Metro terminal).
+
+On Windows, `emulator` is often not on PATH. `npm run dev` resolves it via `%LOCALAPPDATA%\Android\Sdk\emulator\emulator.exe` (or `ANDROID_HOME`). Manual start if needed:
+
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -avd Medium_Phone_API_36.1
+```
 
 Run `npm run android` / `npx expo run:android` only when you need a fresh native install: first setup, new native modules, `app.json` plugin changes, or after deleting the app from the emulator.
 
@@ -184,11 +189,11 @@ When working on this project:
 - Match the Figma designs exactly: typography, asset sizes, and the body figure illustration.
 - Hide the bottom tab bar (Home/Challenges) on onboarding and account-completion screens.
 - Ship every screen with both light and dark mode styles; in dark mode, header controls (theme toggle and similar) use the same white icon treatment as the settings icon, and keep `IconSymbol` mappings complete so Android/web render the same glyphs.
-- Funnel every workout entry — including taps on recommended workouts — through the daily check-in flow so today's session is built on today's state, not stale onboarding data; on step 2, after workout type, offer optional multi-select body-focus chips (legs, arms, back, etc.) that bias session generation.
+- Funnel every workout entry — including taps on recommended workouts — through the daily check-in flow so today's session is built on today's state, not stale onboarding data; on step 2, after workout type, offer optional multi-select body-focus chips (legs, arms, back, etc.) that bias session generation. For strength/hybrid sessions, preselect a Home/Gym suggestion the user can switch in one tap; saved home equipment soft-constrains the coach (never prescribe unsaved gear); skip location for runs, walks, mobility, and recovery. Mark inferred suggestions with a subtle icon, not "likely" text.
 - Avoid manual refresh buttons when the UI can refetch on its own; prefer automatic, data-driven updates.
-- Keep home-screen stat and insight cards at a uniform size and never let their text clip; pick a layout that fits the longest entry.
-- Settings must offer both a regular sign-out (data preserved) and a confirmation-gated delete-account action that wipes only the current user's records.
-- Surface the log-session-style layout at the top of the home screen; coach-assisted is the primary path into the guided session-build flow that used to sit behind "build today's session," so omit a redundant standalone "build today's session" control when that layout is present.
+- Keep Profile and insight/stat cards at a uniform size and never let their text clip; pick a layout that fits the longest entry.
+- Settings opens only from the Profile gear as a grouped index (not a second Settings-as-Profile tab). Keep health conditions, medications, pain history, cycle data, and coach memory private in Settings; they must never appear on the social/public profile. Offer regular sign-out (data preserved) and a confirmation-gated delete-account wipe of only the current user's records. When Weekly activity (`publicActivity`) is off, hide streak on every public-facing surface (profile hero flame, search, feed cards), not only the this-week progress card. Text size follows the OS accessibility setting via a Settings deep-link (no separate in-app Default/Large/X-Large scale); theme stays System/Light/Dark in Settings.
+- Keep Home action-focused: greeting, state-aware session card, Today's context, compact Build your own/Routines, and one short coach suggestion that still routes through check-in. Omit settings gear, theme toggle, streak dashboard, weekly analytics, routines management, history lists, and profile-completion prompts from Home; those belong on Profile or Settings. Coach-assisted remains the primary start path; omit a redundant standalone "build today's session" control when that layout is present.
 - On the active session / workout builder, reveal each exercise as soon as it is ready; give each row a compact menu to remove or replace an exercise (pick from the library or tell the trainer what to substitute), reorder by drag-and-hold with a minimal style (no borders, no circle around the leading icon, no "hold to reorder" labels, text stays visible during drag), and let tapping a row open a stage-relevant exercise preview. Keep the set table flat: no visible boxes/borders around the sec/kg/reps/RPE inputs, no circle around the tick, no circles around the trash/plus icons, centered column headers (SEC/REPS/RPE/PREVIOUS/SET) directly above their values, no placeholder dash while typing, and a centered input cursor (never flush right); drop per-set expandable dropdowns in favor of a "Notes" button beside the exercise name, remove the per-exercise set counter (e.g. 0/2) while keeping the single sets counter at the top, and place RPE to the right of reps.
 - On movement-journey set rows, swipe right clones the set into a new unchecked row carrying its sec/kg/RPE and swipe left deletes that exact row; never allow deleting the last remaining set, surface green/red behind the card, allow free ticking and unticking, don't gate adding a set on completing the prior one, and keep the swipe animations snappy with only a subtle gesture hint instead of explicit add/remove buttons. Ticking a set fills the whole card green with a quick satisfying animation and hides the add/delete swipe actions while ticked; vertical swipes still scroll the page and horizontal swipes still add/remove a set even over an input, and inputs only enter edit mode on a single tap.
 - When the user completes the day's session, route through the workout recap screen (insights, total time, save-as-routine) before returning home to re-show the "Start your movement" screen (with a small completed-today summary) so they can start another session, choosing to reuse today's check-in or do a fresh one; also offer a way to discard an in-progress workout without completing it and a Past Workouts history page.
@@ -198,12 +203,13 @@ When working on this project:
 
 - Primary Embodi Figma file (overall app design): https://www.figma.com/design/Btvt6p53EA2NQ6Z4XrUKFE/Embodi; pain rating page Figma (Interactive Pain Rating Page): https://www.figma.com/make/rFbFQtHf4kUxSp7f0Nu69O/Interactive-Pain-Rating-Page--Copy-; for body/line artwork prefer the supplied JPG over the SVG when both exist.
 - Convex OpenAI usage reads `OPENAI_MODEL` (currently `gpt-5.4-mini-2026-03-17`, tuned for instant/low-latency replies with minimal reasoning) and `OPEN_API_KEY` from the Convex environment via `convex/openai.ts`; update the backend with `npx convex dev` or a deploy—Expo reload alone does not push Convex function changes.
-- Native development requires expo-dev-client (Expo Go won't launch `com.nick4eto.embodi`); the Android dev client is already on emulator `Medium_Phone_API_36.1`—day to day use `npm start` and open the Embodi app, not `npm run android`. Rebuild with `npx expo run:android` or `npx expo run:ios` only when native deps or plugins change. `expo-notifications` plugin sound assets must use underscore filenames (e.g. `rest_done.wav`); hyphens break Android prebuild.
-- The home screen uses a single state-aware `TodayCard` that always routes through check-in; `createPendingSession` in `convex/trainer.ts` is no longer wired to a no-context "Start workout" button.
+- Native development requires expo-dev-client (Expo Go won't launch `com.nick4eto.embodi`); the Android dev client is already on emulator `Medium_Phone_API_36.1`—day to day use `npm run dev` (emulator + Convex + Metro) and open the Embodi app, not `npm run android`. On Windows, `emulator` is often missing from PATH; use `%LOCALAPPDATA%\Android\Sdk\emulator\emulator.exe` or let `npm run dev` resolve it. Rebuild with `npx expo run:android` or `npx expo run:ios` only when native deps or plugins change. `expo-notifications` plugin sound assets must use underscore filenames (e.g. `rest_done.wav`); hyphens break Android prebuild.
+- Profile tab (`app/(tabs)/profile.tsx`, `components/profile/`) is the progress hub (stats, swipeable Minutes/Distance/Volume/Sessions heatmap, Journey preview, routines/posts); Journey is `app/journey.tsx` (milestones/filters; cross-exercise personal-records need a cheap stored-PR path, not scanning all sets—per-exercise PRs already live in `convex/exerciseStats.ts`). Settings is the gear-opened grouped index with `PreferencesProvider` for local presentation and `convex/userSettings.ts` for synced privacy/units/notifications; health context is `app/health-context.tsx`. Achievements: `convex/achievements.ts`; profile aggregates: `convex/profileSummary.ts` / `utils/activity-heatmap.ts`. Home uses a state-aware `TodayCard` through check-in; `createPendingSession` in `convex/trainer.ts` is no longer wired to a no-context "Start workout" button.
 - `convex/weeklyInsights.ts` regenerates the home "This Week" stats and recommendations on the weekly cron in `convex/crons.ts` and again after each completed workout; user thumbs-up/down feedback is stored and fed back into future generations.
 - Menstrual-cycle tracking lives in `convex/cycle.ts` and `app/cycle.tsx`; it's opt-in via a Settings toggle shown only to users who selected female or "prefer not to say", and the current phase is passed into the trainer prompt in `convex/trainer.ts`.
 - The web app is published at https://embodi.expo.app via Expo web hosting (EAS project `b91a84ce-6d3f-46f8-9967-2ad6414cce74`). `npm run draft` runs the EAS `create-draft` workflow (an `eas update` to the `test` channel plus a web deploy) but tends to hang locally on upload, so the reliable manual path is `npx expo export --platform web` then `npx eas-cli@latest deploy --prod`.
-- The home screen's second tab is a Challenges screen (user-set goals like running a marathon, swimming regularly, or losing/gaining weight) that builds programs and tracks progress; it replaced the old Library tab. The exercise library is only surfaced when the user builds/starts their own workout or adds/replaces an exercise in the coach's session.
+- The home screen's second tab is a **Challenges** screen: personal challenges (solo AI programs for goals like marathons or weight change) and a **Together** section for challenge communities (`/community/*`, invite/join codes, shared progress board)—distinct concepts, not merged. It replaced the old Library tab. The exercise library is only surfaced when the user builds/starts their own workout or adds/replaces an exercise in the coach's session.
+- Smart training context (`app/training-setup.tsx`, `convex/trainingContext.ts`, `convex/equipment.ts`) suggests Home/Gym during check-in from recent patterns and weekly rhythm, persists saved home equipment and optional gym exclusions in Settings → Training setup, and passes constraints to the trainer prompt.
 - The exercise picker (`components/library/exercise-library.tsx`) lists ~110 exercises grouped by body part from `constants/exercise-catalog.ts`, supports a tap-the-body-figure selector (`components/ui/body-part-selector.tsx`, figure shapes in `constants/body-shapes.ts`) and user-saved custom exercises (`convex/exercises.ts`, `custom_exercises` table); the same picker powers both build-your-own and in-session AI-coach substitution (`components/trainer/ExerciseMenuSheet.tsx`).
 - The active session (`components/trainer/`, `app/session/`) has per-exercise rest timers (`rest-timer/`, auto-start after a set is ticked, full-screen with a minimizable pill, AI-chosen rest values in coach sessions), an overall workout timer (`WorkoutTimer.tsx`), warmup-set flagging with distinct styling (no separate warm-up button), swipe-an-exercise-left to skip, coach comments rendered directly above the Complete button so they don't block it, and set logging from the exercise-detail "focus" view (not just the movement-journey list).
 - Finishing a workout routes to `app/session/recap.tsx` with instant stats, PR highlights, and a hybrid AI coach note from `convex/sessionInsights.ts`; users can save as routine (`convex/routines.ts`, `workout_routines` table) and tap Done to return home. Saved routines re-run from `/routines` or a home "Your routines" strip; custom-built and routine-started sessions use `source: 'custom'`, skip the daily check-in as a deliberate repeat, and use a flat layout instead of warm-up/strength/recovery phase tabs (auto-phase classification was unreliable). Exercise-detail screens show an animated GIF plus per-exercise records/history and a per-exercise coach chat (WorkoutX API via `WORKOUTX_API_KEY`); smart exercise recognition sends a camera photo (camera opens directly, not the gallery) to OpenAI vision to suggest catalog exercises in the add/choose/replace flows.

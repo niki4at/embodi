@@ -33,6 +33,7 @@ export default function RoutinesScreen() {
   )
   const renameRoutine = useMutation(api.routines.renameRoutine)
   const deleteRoutine = useMutation(api.routines.deleteRoutine)
+  const setRoutineShared = useMutation(api.routines.setRoutineShared)
 
   const [startingId, setStartingId] = useState<string | null>(null)
   const [renameTarget, setRenameTarget] = useState<{
@@ -93,6 +94,18 @@ export default function RoutinesScreen() {
       setIsRenaming(false)
     }
   }, [renameTarget, isRenaming, renameValue, renameRoutine])
+
+  const handleToggleShared = useCallback(
+    (id: Id<'workout_routines'>, isShared: boolean) => {
+      Haptics.selectionAsync()
+      setRoutineShared({ routineId: id, isShared: !isShared }).catch(
+        (error) => {
+          console.error('toggle routine shared error', error)
+        },
+      )
+    },
+    [setRoutineShared],
+  )
 
   const handleDelete = useCallback(
     (id: Id<'workout_routines'>, name: string) => {
@@ -241,11 +254,34 @@ export default function RoutinesScreen() {
                       {routine.modality} {'\u00b7'} {routine.exerciseCount}{' '}
                       {routine.exerciseCount === 1 ? 'move' : 'moves'} {'\u00b7'}{' '}
                       {routine.durationMin} min
+                      {routine.isShared ? ` ${'\u00b7'} Shared` : ''}
                     </Text>
                   </View>
                 </Pressable>
 
                 <View style={styles.cardActions}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      handleToggleShared(routine._id, routine.isShared)
+                    }
+                    hitSlop={8}
+                    style={styles.actionButton}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: routine.isShared }}
+                    accessibilityLabel={
+                      routine.isShared
+                        ? `Stop sharing ${routine.name} on your profile`
+                        : `Share ${routine.name} to your profile`
+                    }
+                  >
+                    <IconSymbol
+                      name="globe"
+                      size={18}
+                      color={
+                        routine.isShared ? palette.primary : palette.textTertiary
+                      }
+                    />
+                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => openRename(routine._id, routine.name)}
                     hitSlop={8}

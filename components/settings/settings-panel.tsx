@@ -1,4 +1,4 @@
-import { useAuth, useUser } from '@clerk/clerk-expo'
+import { useUser } from '@clerk/clerk-expo'
 import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
@@ -6,8 +6,7 @@ import React, { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  type AlertButton,
-  Platform,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,70 +21,38 @@ import { radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
 
-interface ConfirmActionOptions {
-  title: string
-  message: string
-  confirmText: string
-  confirmStyle?: AlertButton['style']
-  onConfirm: () => void
-}
+import { usePreferences } from '@/constants/preferences-context'
 
-function confirmAction({
-  title,
-  message,
-  confirmText,
-  confirmStyle,
-  onConfirm,
-}: ConfirmActionOptions) {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    if (window.confirm(`${title}\n\n${message}`)) {
-      onConfirm()
-    }
-    return
-  }
-
-  Alert.alert(
-    title,
-    message,
-    [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: confirmText,
-        style: confirmStyle,
-        onPress: onConfirm,
-      },
-    ],
-    { cancelable: true },
-  )
-}
-
-async function runHaptic(effect: () => Promise<void>) {
-  try {
-    await effect()
-  } catch {
-    // Haptics are optional feedback and should never block account actions.
-  }
-}
+import { AccountSection } from './account-section'
+import { ComingSoonCard } from './coming-soon-card'
+import { DataSection } from './data-section'
+import {
+  SettingsDivider,
+  SettingsRow,
+  SettingsSectionLabel,
+  SettingsSwitchRow,
+} from './settings-row'
+import { ThemeRow } from './theme-row'
+import { UnitsRow } from './units-row'
 
 interface SettingsPanelProps {
   /** Extra bottom padding so a floating tab bar never covers the last row. */
   bottomInset?: number
-  /** Show a "Past workouts" row that opens the history screen. */
-  showHistoryRow?: boolean
 }
 
+/**
+ * Canonical Settings index, grouped by intent: coaching context, training,
+ * social & privacy, app preferences, and account.
+ */
 export function SettingsPanel({
   bottomInset = spacing.xxxl,
-  showHistoryRow = false,
 }: SettingsPanelProps) {
   const { palette } = useTheme()
-  const { signOut } = useAuth()
   const { user } = useUser()
-  const deleteAccount = useMutation(api.account.deleteAccount)
+  const { reduceMotion, setReduceMotion } = usePreferences()
   const onboarding = useQuery(api.onboarding.getOnboarding)
   const socialProfile = useQuery(api.profiles.getMyProfile)
   const setTrackPeriod = useMutation(api.onboarding.setTrackPeriod)
-  const [isWorking, setIsWorking] = useState<null | 'logout' | 'delete'>(null)
   const [isTogglingCycle, setIsTogglingCycle] = useState(false)
 
   const cycleEligible =
@@ -109,19 +76,9 @@ export function SettingsPanel({
     [isTogglingCycle, setTrackPeriod],
   )
 
-  const handleOpenCycle = useCallback(() => {
+  const navigate = useCallback((path: string) => {
     Haptics.selectionAsync()
-    router.push('/cycle')
-  }, [])
-
-  const handleOpenHistory = useCallback(() => {
-    Haptics.selectionAsync()
-    router.push('/history')
-  }, [])
-
-  const handleOpenTrainingSetup = useCallback(() => {
-    Haptics.selectionAsync()
-    router.push('/training-setup')
+    router.push(path as never)
   }, [])
 
   const email =
@@ -133,89 +90,13 @@ export function SettingsPanel({
     email ||
     'Account'
 
-  const performLogout = useCallback(async () => {
-    if (isWorking) return
-    setIsWorking('logout')
-    try {
-      await runHaptic(() =>
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
-      )
-      await signOut()
-      router.replace('/')
-    } catch (err) {
-      console.error('Sign out failed', err)
-      setIsWorking(null)
-      Alert.alert('Could not log out', 'Something went wrong. Try again.')
-    }
-  }, [isWorking, signOut])
-
-  const performDelete = useCallback(async () => {
-    if (isWorking) return
-    setIsWorking('delete')
-    try {
-      await runHaptic(() =>
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
-      )
-      await deleteAccount()
-      try {
-        await user?.delete()
-      } catch (clerkErr) {
-        console.error('Clerk user delete failed', clerkErr)
-      }
-      try {
-        await signOut()
-      } catch {
-        // user.delete() already invalidates the session; ignore.
-      }
-      router.replace('/')
-    } catch (err) {
-      console.error('Delete account failed', err)
-      setIsWorking(null)
-      Alert.alert(
-        'Could not delete account',
-        'Your data was not deleted. Check your connection and try again.',
-      )
-    }
-  }, [deleteAccount, isWorking, signOut, user])
-
-  const confirmDelete = useCallback(() => {
-    if (isWorking) return
-    void runHaptic(() => Haptics.selectionAsync())
-    confirmAction({
-      title: 'Delete account?',
-      message:
-        'This permanently erases your profile, check-ins, sessions, and history. Other users keep their data. You can\u2019t undo this.',
-      confirmText: 'Delete account',
-      confirmStyle: 'destructive',
-      onConfirm: () => {
-        void performDelete()
-      },
-    })
-  }, [isWorking, performDelete])
-
-  const confirmLogout = useCallback(() => {
-    if (isWorking) return
-    void runHaptic(() => Haptics.selectionAsync())
-    confirmAction({
-      title: 'Log out?',
-      message: 'You can sign back in any time. Your data stays safe.',
-      confirmText: 'Log out',
-      onConfirm: () => {
-        void performLogout()
-      },
-    })
-  }, [isWorking, performLogout])
-
   return (
     <ScrollView
       contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset }]}
       showsVerticalScrollIndicator={false}
     >
       <Pressable
-        onPress={() => {
-          Haptics.selectionAsync()
-          router.push('/social/edit-profile')
-        }}
+        onPress={() => navigate('/social/edit-profile')}
         accessibilityRole="button"
         accessibilityLabel="Edit profile"
         style={({ pressed }) => [
@@ -257,81 +138,23 @@ export function SettingsPanel({
         <IconSymbol name="chevron.right" size={18} color={palette.textTertiary} />
       </Pressable>
 
-      <Text style={[styles.sectionLabel, { color: palette.textTertiary }]}>
-        Social
-      </Text>
+      <SettingsSectionLabel title="You & coaching" />
       <SettingsRow
-        icon="person.crop.circle"
+        icon="heart.text.square"
         iconTint={palette.primary}
         iconBg={palette.primaryMuted}
-        title="Edit profile"
-        subtitle="Photo, handle, bio, and privacy"
-        onPress={() => {
-          Haptics.selectionAsync()
-          router.push('/social/edit-profile')
-        }}
-        disabled={isWorking !== null}
+        title="Health & coaching"
+        subtitle="What your coach knows about your body and goals"
+        onPress={() => navigate('/health-context')}
       />
-      <View style={styles.divider} />
-      <SettingsRow
-        icon="person.crop.circle.badge.xmark"
-        iconTint={palette.textPrimary}
-        iconBg={palette.surfaceAlt}
-        title="Blocked people"
-        subtitle="Manage who can't see or reach you"
-        onPress={() => {
-          Haptics.selectionAsync()
-          router.push('/social/blocked')
-        }}
-        disabled={isWorking !== null}
-      />
-      <View style={styles.divider} />
-
-      <Text style={[styles.sectionLabel, { color: palette.textTertiary }]}>
-        Training
-      </Text>
-      <SettingsRow
-        icon="dumbbell.fill"
-        iconTint={palette.primary}
-        iconBg={palette.primaryMuted}
-        title="Training setup"
-        subtitle="Home equipment, places, weekly rhythm, and privacy"
-        onPress={handleOpenTrainingSetup}
-        disabled={isWorking !== null}
-      />
-      <View style={styles.divider} />
-
-      {showHistoryRow ? (
+      {cycleEligible ? (
         <>
-          <Text style={[styles.sectionLabel, { color: palette.textTertiary }]}>
-            Activity
-          </Text>
-          <SettingsRow
-            icon="clock.arrow.circlepath"
-            iconTint={palette.primary}
-            iconBg={palette.primaryMuted}
-            title="Past workouts"
-            subtitle={'Review every session you\u2019ve logged'}
-            onPress={handleOpenHistory}
-            disabled={isWorking !== null}
-          />
-          <View style={styles.divider} />
-        </>
-      ) : null}
-
-      {cycleEligible && (
-        <>
-          <Text style={[styles.sectionLabel, { color: palette.textTertiary }]}>
-            Cycle tracking
-          </Text>
-
+          <SettingsDivider />
           <CycleToggleRow
-            palette={palette}
             value={trackPeriodOn}
             loading={isTogglingCycle}
             onValueChange={handleToggleCycleTracking}
           />
-
           {trackPeriodOn ? (
             <View style={{ marginTop: spacing.sm }}>
               <SettingsRow
@@ -340,90 +163,121 @@ export function SettingsPanel({
                 iconBg={palette.primaryMuted}
                 title="Open cycle log"
                 subtitle="Log periods and review recent cycles"
-                onPress={handleOpenCycle}
-                disabled={isWorking !== null}
+                onPress={() => navigate('/cycle')}
               />
             </View>
           ) : null}
-
-          <View style={styles.divider} />
         </>
-      )}
+      ) : null}
+      <SettingsDivider />
 
-      <Text style={[styles.sectionLabel, { color: palette.textTertiary }]}>
-        Account
-      </Text>
-
+      <SettingsSectionLabel title="Training" />
       <SettingsRow
-        icon="rectangle.portrait.and.arrow.right"
+        icon="dumbbell.fill"
+        iconTint={palette.primary}
+        iconBg={palette.primaryMuted}
+        title="Training setup"
+        subtitle="Home equipment, places, weekly rhythm, and privacy"
+        onPress={() => navigate('/training-setup')}
+      />
+      <SettingsDivider />
+      <SettingsRow
+        icon="clock.arrow.circlepath"
+        iconTint={palette.primary}
+        iconBg={palette.primaryMuted}
+        title="Past workouts"
+        subtitle={'Review every session you\u2019ve logged'}
+        onPress={() => navigate('/history')}
+      />
+      <SettingsDivider />
+
+      <SettingsSectionLabel title="Social & privacy" />
+      <SettingsRow
+        icon="person.crop.circle"
+        iconTint={palette.primary}
+        iconBg={palette.primaryMuted}
+        title="Edit profile"
+        subtitle="Photo, handle, bio, and privacy"
+        onPress={() => navigate('/social/edit-profile')}
+      />
+      <SettingsDivider />
+      <SettingsRow
+        icon="eye"
+        iconTint={palette.primary}
+        iconBg={palette.primaryMuted}
+        title="Privacy"
+        subtitle="Public profile sections, post audience, and preview"
+        onPress={() => navigate('/privacy-settings')}
+      />
+      <SettingsDivider />
+      <SettingsRow
+        icon="bell.fill"
+        iconTint={palette.warning}
+        iconBg={palette.warningMuted}
+        title="Notifications"
+        subtitle="Choose which social activity reaches you"
+        onPress={() => navigate('/notification-settings')}
+      />
+      <SettingsDivider />
+      <SettingsRow
+        icon="person.crop.circle.badge.xmark"
         iconTint={palette.textPrimary}
         iconBg={palette.surfaceAlt}
-        title="Log out"
-        subtitle="Sign out and keep your data"
-        onPress={confirmLogout}
-        disabled={isWorking !== null}
-        loading={isWorking === 'logout'}
+        title="Blocked people"
+        subtitle="Manage who can't see or reach you"
+        onPress={() => navigate('/social/blocked')}
       />
+      <SettingsDivider />
 
-      <View style={styles.divider} />
-
-      <Text
-        style={[
-          styles.sectionLabel,
-          { color: palette.textTertiary, marginTop: spacing.xl },
-        ]}
-      >
-        Danger zone
-      </Text>
-
+      <SettingsSectionLabel title="App" />
+      <ThemeRow />
+      <SettingsDivider />
+      <UnitsRow />
+      <SettingsDivider />
+      <SettingsSwitchRow
+        icon="figure.walk"
+        iconTint={palette.textPrimary}
+        iconBg={palette.surfaceAlt}
+        title="Reduce motion"
+        subtitle="Minimise animations in this app"
+        value={reduceMotion}
+        onValueChange={(value) => {
+          Haptics.selectionAsync()
+          setReduceMotion(value)
+        }}
+      />
+      <SettingsDivider />
       <SettingsRow
-        icon="trash"
-        iconTint={palette.danger}
-        iconBg={palette.dangerMuted}
-        title="Delete account"
-        subtitle="Erase your profile, check-ins, and sessions"
-        destructive
-        onPress={confirmDelete}
-        disabled={isWorking !== null}
-        loading={isWorking === 'delete'}
+        icon="textformat.size"
+        iconTint={palette.textPrimary}
+        iconBg={palette.surfaceAlt}
+        title="Text size"
+        subtitle="Embodi follows your device text size. Adjust it in system settings."
+        onPress={() => {
+          Haptics.selectionAsync()
+          Linking.openSettings().catch(() => {})
+        }}
       />
+      <SettingsDivider />
+      <ComingSoonCard />
+      <SettingsDivider />
 
-      <View
-        style={[
-          styles.warningCard,
-          {
-            backgroundColor: palette.dangerMuted,
-            borderColor: palette.primaryBorder,
-          },
-        ]}
-      >
-        <IconSymbol
-          name="exclamationmark.triangle"
-          size={16}
-          color={palette.danger}
-        />
-        <Text style={[styles.warningText, { color: palette.textSecondary }]}>
-          Deleting your account is permanent. It only affects your data. Other
-          users keep everything they&apos;ve created.
-        </Text>
-      </View>
+      <DataSection />
+      <SettingsDivider />
+
+      <AccountSection />
     </ScrollView>
   )
 }
 
 interface CycleToggleRowProps {
-  palette: ReturnType<typeof useTheme>['palette']
   value: boolean
   loading: boolean
   onValueChange: (next: boolean) => void
 }
 
-function CycleToggleRow({
-  palette,
-  value,
-  loading,
-  onValueChange,
-}: CycleToggleRowProps) {
+function CycleToggleRow({ value, loading, onValueChange }: CycleToggleRowProps) {
+  const { palette } = useTheme()
   return (
     <View
       style={[
@@ -464,71 +318,6 @@ function CycleToggleRow({
   )
 }
 
-interface SettingsRowProps {
-  icon: React.ComponentProps<typeof IconSymbol>['name']
-  iconTint: string
-  iconBg: string
-  title: string
-  subtitle?: string
-  destructive?: boolean
-  disabled?: boolean
-  loading?: boolean
-  onPress: () => void
-}
-
-function SettingsRow({
-  icon,
-  iconTint,
-  iconBg,
-  title,
-  subtitle,
-  destructive,
-  disabled,
-  loading,
-  onPress,
-}: SettingsRowProps) {
-  const { palette } = useTheme()
-  const titleColor = destructive ? palette.danger : palette.textPrimary
-
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={title}
-      accessibilityState={{ disabled: !!disabled, busy: !!loading }}
-      style={({ pressed }) => [
-        styles.row,
-        {
-          backgroundColor: palette.surface,
-          borderColor: palette.border,
-          opacity: disabled && !loading ? 0.5 : pressed ? 0.85 : 1,
-        },
-      ]}
-    >
-      <View style={[styles.rowIcon, { backgroundColor: iconBg }]}>
-        <IconSymbol name={icon} size={18} color={iconTint} />
-      </View>
-      <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, { color: titleColor }]}>{title}</Text>
-        {subtitle ? (
-          <Text
-            style={[styles.rowSubtitle, { color: palette.textSecondary }]}
-            numberOfLines={2}
-          >
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
-      {loading ? (
-        <ActivityIndicator size="small" color={titleColor} />
-      ) : (
-        <IconSymbol name="chevron.right" size={18} color={palette.textTertiary} />
-      )}
-    </Pressable>
-  )
-}
-
 const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: spacing.xl,
@@ -559,10 +348,6 @@ const styles = StyleSheet.create({
   profileEmail: {
     ...typography.small,
   },
-  sectionLabel: {
-    ...typography.caption,
-    marginBottom: spacing.md,
-  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -586,22 +371,6 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   rowSubtitle: {
-    ...typography.small,
-  },
-  divider: {
-    height: spacing.md,
-  },
-  warningCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    marginTop: spacing.lg,
-  },
-  warningText: {
-    flex: 1,
     ...typography.small,
   },
 })

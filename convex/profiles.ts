@@ -17,6 +17,7 @@ import {
   toProfileCard,
   usernameBaseFromName,
 } from './socialHelpers'
+import { getSettingsForUser } from './userSettings'
 
 const profileCardValidator = v.object({
   userId: v.string(),
@@ -38,7 +39,16 @@ export const ensureProfile = mutation({
   handler: async (ctx) => {
     const identity = await requireIdentity(ctx)
     const existing = await getProfileByUserId(ctx, identity.subject)
-    if (existing) return null
+    if (existing) {
+      // Signing back in reactivates a deactivated account.
+      if (existing.deactivatedAt != null) {
+        await ctx.db.patch(existing._id, {
+          deactivatedAt: undefined,
+          updatedAt: Date.now(),
+        })
+      }
+      return null
+    }
 
     const onboarding = await ctx.db
       .query('onboarding')
@@ -152,7 +162,7 @@ export const getMyProfile = query({
     if (!identity) return null
     const profile = await getProfileByUserId(ctx, identity.subject)
     if (!profile) return null
-    const card = await toProfileCard(ctx, profile)
+    const card = await toProfileCard(ctx, profile, identity.subject)
     return {
       ...card,
       bio: profile.bio ?? null,
@@ -160,6 +170,7 @@ export const getMyProfile = query({
       backingCount: profile.backingCount,
       postCount: profile.postCount,
       usernameUpdatedAt: profile.usernameUpdatedAt ?? null,
+      deactivated: profile.deactivatedAt != null,
     }
   },
 })
@@ -242,27 +253,73 @@ export const generateAvatarUploadUrl = mutation({
 
 /** Public profile page: identity + counts + viewer relationship. */
 export const getProfilePage = query({
-  args: { username: v.string() },
-  handler: async (ctx, { username }) => {
+  args: {
+    username: v.string(),
+    // When the owner previews their own profile "as others", we compute the
+    // page exactly as a stranger (no backing relationship) would see it.
+    previewAsPublic: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { username, previewAsPublic }) => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) return null
 
     const profile = await lookupUsername(ctx, username)
     if (!profile) return null
+    if (
+      profile.deactivatedAt != null &&
+      profile.userId !== identity.subject
+    ) {
+      return null
+    }
     if (await isBlockedEitherWay(ctx, identity.subject, profile.userId)) {
       return null
     }
 
-    const isMe = profile.userId === identity.subject
-    const edge = isMe
-      ? null
-      : await getFollowEdge(ctx, identity.subject, profile.userId)
-    const backsMe = isMe
-      ? false
-      : (await getFollowEdge(ctx, profile.userId, identity.subject))
-          ?.status === 'active'
+    const preview = !!previewAsPublic && profile.userId === identity.subject
+    const isMe = profile.userId === identity.subject && !preview
+    const edge =
+      isMe || preview
+        ? null
+        : await getFollowEdge(ctx, identity.subject, profile.userId)
+    const backsMe =
+      isMe || preview
+        ? false
+        : (await getFollowEdge(ctx, profile.userId, identity.subject))
+            ?.status === 'active'
 
-    const card = await toProfileCard(ctx, profile)
+    // In preview mode the owner is treated as a stranger so the card hides
+    // exactly what strangers can't see (e.g. the streak flame).
+    const card = await toProfileCard(
+      ctx,
+      profile,
+      preview ? undefined : identity.subject
+    )
+    const canViewPosts = preview
+      ? !profile.isPrivate
+      : await canViewContent(ctx, identity.subject, profile)
+
+    // Weekly training progress, shown only when the owner keeps their
+    // activity section public (or is looking at themselves).
+    const subjectSettings = await getSettingsForUser(ctx, profile.userId)
+    let publicProgress: {
+      workoutsThisWeek: number
+      weeklyGoal: number
+      streakWeeks: number
+    } | null = null
+    if (isMe || (canViewPosts && subjectSettings.publicActivity)) {
+      const streak = await ctx.db
+        .query('streaks')
+        .withIndex('by_userId', (q) => q.eq('userId', profile.userId))
+        .unique()
+      if (streak) {
+        publicProgress = {
+          workoutsThisWeek: streak.workoutsThisWeek,
+          weeklyGoal: streak.weeklyGoal,
+          streakWeeks: streak.currentStreakWeeks,
+        }
+      }
+    }
+
     return {
       ...card,
       bio: profile.bio ?? null,
@@ -272,7 +329,8 @@ export const getProfilePage = query({
       isMe,
       relationship: (edge?.status ?? 'none') as 'active' | 'pending' | 'none',
       backsMe,
-      canViewPosts: await canViewContent(ctx, identity.subject, profile),
+      canViewPosts,
+      publicProgress,
     }
   },
 })
@@ -481,6 +539,7 @@ export const searchPeople = query({
     const visible: typeof matches = []
     for (const profile of matches) {
       if (profile.userId === identity.subject) continue
+      if (profile.deactivatedAt != null) continue
       if (await isBlockedEitherWay(ctx, identity.subject, profile.userId)) {
         continue
       }

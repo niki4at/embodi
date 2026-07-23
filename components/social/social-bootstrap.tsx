@@ -56,8 +56,10 @@ export function SocialBootstrap() {
     isSignedIn ? {} : 'skip'
   )
   const ensureProfile = useMutation(api.profiles.ensureProfile)
+  const reactivateAccount = useMutation(api.account.reactivateAccount)
   const registerPushToken = useMutation(api.notifications.registerPushToken)
   const ensuredRef = useRef(false)
+  const reactivatedRef = useRef(false)
   const pushRegisteredRef = useRef(false)
 
   // Existing users get a handle generated silently, exactly once.
@@ -69,6 +71,16 @@ export function SocialBootstrap() {
       ensuredRef.current = false
     })
   }, [isSignedIn, myProfile, hasOnboarded, ensureProfile])
+
+  // Signing back in reactivates a deactivated account.
+  useEffect(() => {
+    if (reactivatedRef.current) return
+    if (!isSignedIn || !myProfile?.deactivated) return
+    reactivatedRef.current = true
+    reactivateAccount({}).catch(() => {
+      reactivatedRef.current = false
+    })
+  }, [isSignedIn, myProfile, reactivateAccount])
 
   // Push token registration + tap routing.
   useEffect(() => {

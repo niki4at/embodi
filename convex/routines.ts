@@ -1,6 +1,12 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import type { Id } from './_generated/dataModel'
+import {
+  canViewContent,
+  getProfileByUserId,
+  getProfileByUsername,
+} from './socialHelpers'
+import { getSettingsForUser } from './userSettings'
 
 // Fresh, unique id for each exercise when a routine is instantiated into a
 // live session. Mirrors the scheme used in convex/trainer.ts so logged sets
@@ -22,6 +28,7 @@ export const listRoutines = query({
       modality: v.string(),
       durationMin: v.number(),
       exerciseCount: v.number(),
+      isShared: v.boolean(),
       createdAt: v.number(),
       updatedAt: v.number(),
     })
@@ -44,8 +51,84 @@ export const listRoutines = query({
         modality: routine.modality,
         durationMin: routine.durationMin,
         exerciseCount: routine.plan.length,
+        isShared: routine.isShared ?? false,
         createdAt: routine.createdAt,
         updatedAt: routine.updatedAt,
+      }))
+  },
+})
+
+// Explicit opt-in sharing: a routine only appears on the owner's public
+// profile when it is marked shared AND the profile's routines section is on.
+export const setRoutineShared = mutation({
+  args: {
+    routineId: v.id('workout_routines'),
+    isShared: v.boolean(),
+  },
+  returns: v.null(),
+  handler: async (ctx, { routineId, isShared }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+    const routine = await ctx.db.get(routineId)
+    if (!routine) {
+      throw new Error('Routine not found')
+    }
+    if (routine.userId !== identity.subject) {
+      throw new Error('Unauthorized')
+    }
+    await ctx.db.patch(routineId, { isShared, updatedAt: Date.now() })
+    return null
+  },
+})
+
+// Shared routines shown on someone's public profile. Respects blocks,
+// private accounts, deactivation, and the owner's publicRoutines setting.
+export const listSharedRoutines = query({
+  args: {
+    username: v.string(),
+    previewAsPublic: v.optional(v.boolean()),
+  },
+  returns: v.array(
+    v.object({
+      _id: v.id('workout_routines'),
+      name: v.string(),
+      modality: v.string(),
+      durationMin: v.number(),
+      exerciseCount: v.number(),
+      exercises: v.array(v.string()),
+    })
+  ),
+  handler: async (ctx, { username, previewAsPublic }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return []
+
+    const profile = await getProfileByUsername(ctx, username)
+    if (!profile) return []
+    if (!(await canViewContent(ctx, identity.subject, profile))) return []
+
+    const isMe = profile.userId === identity.subject && !previewAsPublic
+    const settings = await getSettingsForUser(ctx, profile.userId)
+    if (!isMe && !settings.publicRoutines) {
+      return []
+    }
+
+    const routines = await ctx.db
+      .query('workout_routines')
+      .withIndex('by_userId', (q) => q.eq('userId', profile.userId))
+      .collect()
+    return routines
+      .filter((routine) => routine.isShared === true)
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .slice(0, 20)
+      .map((routine) => ({
+        _id: routine._id,
+        name: routine.name,
+        modality: routine.modality,
+        durationMin: routine.durationMin,
+        exerciseCount: routine.plan.length,
+        exercises: routine.plan.slice(0, 6).map((exercise) => exercise.name),
       }))
   },
 })
@@ -121,7 +204,19 @@ export const startSessionFromRoutine = mutation({
       throw new Error('Routine not found')
     }
     if (routine.userId !== identity.subject) {
-      throw new Error('Unauthorized')
+      // Visitors may try a routine only when the owner explicitly shared it
+      // and their profile/routine visibility allows this viewer to see it.
+      if (routine.isShared !== true) {
+        throw new Error('Unauthorized')
+      }
+      const owner = await getProfileByUserId(ctx, routine.userId)
+      if (!owner || !(await canViewContent(ctx, identity.subject, owner))) {
+        throw new Error('Unauthorized')
+      }
+      const ownerSettings = await getSettingsForUser(ctx, routine.userId)
+      if (!ownerSettings.publicRoutines) {
+        throw new Error('Unauthorized')
+      }
     }
 
     const plan = routine.plan.map((exercise) => {

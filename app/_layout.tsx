@@ -11,13 +11,17 @@ import { StatusBar } from 'expo-status-bar'
 import * as WebBrowser from 'expo-web-browser'
 import { useEffect } from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import 'react-native-reanimated'
+import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated'
 
 import { ConvexClientProvider } from '@/components/ConvexClientProvider'
 import { SocialBootstrap } from '@/components/social/social-bootstrap'
 import RestTimerOverlay from '@/components/trainer/rest-timer/RestTimerOverlay'
 import RestTimerPill from '@/components/trainer/rest-timer/RestTimerPill'
 import { RestTimerProvider } from '@/components/trainer/rest-timer/RestTimerProvider'
+import {
+  PreferencesProvider,
+  usePreferences,
+} from '@/constants/preferences-context'
 import { ThemeProvider, useTheme } from '@/constants/theme-context'
 import { tokenCache } from '@/utils/clerkTokenCache'
 
@@ -35,6 +39,7 @@ export const unstable_settings = {
 
 function ThemedNavigation() {
   const { palette, resolved } = useTheme()
+  const { reduceMotion } = usePreferences()
   const base = resolved === 'dark' ? DarkTheme : DefaultTheme
   const navigationTheme = {
     ...base,
@@ -110,6 +115,27 @@ function ThemedNavigation() {
           }}
         />
         <Stack.Screen
+          name="health-context"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="notification-settings"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="privacy-settings"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
           name="training-setup"
           options={{
             headerShown: false,
@@ -118,6 +144,13 @@ function ThemedNavigation() {
         />
         <Stack.Screen
           name="history"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="journey"
           options={{
             headerShown: false,
             animation: 'slide_from_right',
@@ -248,6 +281,9 @@ function ThemedNavigation() {
           }}
         />
       </Stack>
+      <ReducedMotionConfig
+        mode={reduceMotion ? ReduceMotion.Always : ReduceMotion.System}
+      />
       <SocialBootstrap />
       <RestTimerPill />
       <RestTimerOverlay />
@@ -280,11 +316,13 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
         <ConvexClientProvider>
-          <ThemeProvider>
-            <RestTimerProvider>
-              <ThemedNavigation />
-            </RestTimerProvider>
-          </ThemeProvider>
+          <PreferencesProvider>
+            <ThemeProvider>
+              <RestTimerProvider>
+                <ThemedNavigation />
+              </RestTimerProvider>
+            </ThemeProvider>
+          </PreferencesProvider>
         </ConvexClientProvider>
       </ClerkProvider>
     </GestureHandlerRootView>

@@ -79,6 +79,13 @@ export default function ShareComposerScreen() {
     setShareTrainingEnvironment(
       trainingPreferences?.shareGenericLocation === true,
     )
+    // Default audience follows the saved sharing preference; posts only
+    // support public/backers, so a "private" default maps to backers.
+    if (trainingPreferences?.sharingDefault) {
+      setVisibility(
+        trainingPreferences.sharingDefault === 'public' ? 'public' : 'backers',
+      )
+    }
   }, [trainingPreferences])
 
   const effectiveTitle = title ?? insights?.goal ?? ''

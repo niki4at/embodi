@@ -1,5 +1,4 @@
 import { useFloatingTabBarInset } from '@/components/navigation/floating-tab-bar'
-import { ProfileCompletionBanner } from '@/components/profile-completion'
 import {
   ContextEditorSheet,
   useForegroundPlaceMatch,
@@ -34,21 +33,10 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated'
-import { computeCycleStatus, type CyclePhase } from '@/convex/cycle'
-import { FLAME_LIT } from '@/components/streak/streak-flame'
-import { StreakSheet } from '@/components/streak/streak-sheet'
-import { fonts } from '@/constants/fonts'
-import { FlareUpModeCard } from './flare-up-mode-card'
+import { computeCycleStatus } from '@/convex/cycle'
+import { CoachSuggestion } from './coach-suggestion'
 import { StartMovementCard } from './start-movement-card'
-import { WeeklyInsightsSection } from './weekly-insights'
-
-const CYCLE_PHASE_LABEL: Record<CyclePhase, string> = {
-  menstrual: 'Menstrual',
-  follicular: 'Follicular',
-  ovulatory: 'Ovulatory',
-  luteal: 'Luteal',
-  unknown: 'Tracking',
-}
+import { TodayContext } from './today-context'
 
 const WEEKDAYS = [
   'sunday',
@@ -146,7 +134,7 @@ function deriveTodayState(
 }
 
 export default function HomeContent() {
-  const { palette, resolved, toggle } = useTheme()
+  const { palette } = useTheme()
   const tabBarInset = useFloatingTabBarInset()
   const onboardingData = useQuery(api.onboarding.getOnboarding)
   const trainingPreferences = useQuery(api.trainingPreferences.get)
@@ -171,13 +159,9 @@ export default function HomeContent() {
   const [startingRoutineId, setStartingRoutineId] = useState<string | null>(
     null,
   )
-  const [streakSheetOpen, setStreakSheetOpen] = useState(false)
   const [contextEditorOpen, setContextEditorOpen] = useState(false)
   const [contextOverride, setContextOverride] =
     useState<TrainingContextSelection | null>(null)
-  // Stable per-mount so the streak query stays cacheable.
-  const [streakNow] = useState(() => Date.now())
-  const myStreak = useQuery(api.streaks.getMyStreak, { now: streakNow })
 
   const cycleStatus = useMemo(() => {
     if (!cycleEnabled || !cycleData) return null
@@ -397,28 +381,12 @@ export default function HomeContent() {
   )
 
   const handleUpdateCheckIn = useCallback(() => {
-    Haptics.selectionAsync()
     router.push('/checkin')
   }, [])
 
-  const handleStartProfileQuestions = useCallback(() => {
-    router.push('/profile-questions')
-  }, [])
-
-  const handleOpenSettings = useCallback(() => {
-    Haptics.selectionAsync()
-    router.push('/settings')
-  }, [])
-
   const handleOpenCycle = useCallback(() => {
-    Haptics.selectionAsync()
     router.push('/cycle')
   }, [])
-
-  const handleToggleTheme = useCallback(() => {
-    Haptics.selectionAsync()
-    toggle()
-  }, [toggle])
 
   const userName = onboardingData?.name || 'there'
   const firstName = userName.split(' ')[0]
@@ -439,118 +407,29 @@ export default function HomeContent() {
           entering={FadeInUp.duration(motion.duration.base)}
           style={styles.header}
         >
-          <View style={styles.headerLeft}>
-            <Text style={[styles.greeting, { color: palette.textTertiary }]}>
-              Welcome back
-            </Text>
-            <Text style={[styles.name, { color: palette.textPrimary }]}>
-              {firstName}
-            </Text>
-          </View>
-          <View style={styles.headerActions}>
-            {myStreak ? (
-              <TouchableOpacity
-                style={[
-                  styles.streakButton,
-                  {
-                    backgroundColor: palette.surface,
-                    borderColor: palette.border,
-                  },
-                ]}
-                onPress={() => {
-                  Haptics.selectionAsync()
-                  setStreakSheetOpen(true)
-                }}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={`${myStreak.currentStreakWeeks}-week streak`}
-              >
-                <IconSymbol
-                  name="flame.fill"
-                  size={17}
-                  color={
-                    myStreak.goalMetThisWeek
-                      ? FLAME_LIT
-                      : palette.textTertiary
-                  }
-                />
-                <Text
-                  style={[
-                    styles.streakCount,
-                    {
-                      color: myStreak.goalMetThisWeek
-                        ? FLAME_LIT
-                        : palette.textTertiary,
-                    },
-                  ]}
-                >
-                  {myStreak.currentStreakWeeks}
-                </Text>
-              </TouchableOpacity>
-            ) : null}
-            <TouchableOpacity
-              style={[
-                styles.iconButton,
-                {
-                  backgroundColor: palette.surface,
-                  borderColor: palette.border,
-                },
-              ]}
-              onPress={handleToggleTheme}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={
-                resolved === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
-              }
-            >
-              <IconSymbol
-                name={resolved === 'dark' ? 'sun.max.fill' : 'moon.fill'}
-                size={18}
-                color={resolved === 'dark' ? palette.white : palette.textPrimary}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.iconButton,
-                {
-                  backgroundColor: palette.surface,
-                  borderColor: palette.border,
-                },
-              ]}
-              onPress={handleOpenSettings}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Settings"
-            >
-              <IconSymbol
-                name="gear"
-                size={20}
-                color={resolved === 'dark' ? palette.white : palette.textPrimary}
-              />
-            </TouchableOpacity>
-          </View>
+          <Text style={[styles.greeting, { color: palette.textTertiary }]}>
+            Welcome back
+          </Text>
+          <Text style={[styles.name, { color: palette.textPrimary }]}>
+            {firstName}
+          </Text>
         </Animated.View>
-
-        <Animated.View
-          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 0.5).duration(motion.duration.base)}
-        >
-          <FlareUpModeCard />
-        </Animated.View>
-
-        <ProfileCompletionBanner onStartQuestions={handleStartProfileQuestions} />
 
         <Animated.View
           entering={FadeInDown.delay(HEADER_DELAY + STAGGER).duration(motion.duration.base)}
         >
           {state.kind === 'needs-checkin' ? (
-            <StartMovementCard
-              onAskCoach={handleAskCoach}
-              onStartMyOwn={handleStartMyOwn}
-              onContextPress={handleContextPress}
-              likelyEnvironment={likelyContext.trainingEnvironment}
-              likelyEquipmentIntent={likelyContext.equipmentIntent}
-              isStartingCoachSession={isStartingCoachSession}
-            />
+            <>
+              <StartMovementCard
+                onAskCoach={handleAskCoach}
+                onStartMyOwn={handleStartMyOwn}
+                onContextPress={handleContextPress}
+                likelyEnvironment={likelyContext.trainingEnvironment}
+                likelyEquipmentIntent={likelyContext.equipmentIntent}
+                isStartingCoachSession={isStartingCoachSession}
+              />
+              <CoachSuggestion />
+            </>
           ) : (
             <TodayCard
               state={state}
@@ -584,77 +463,30 @@ export default function HomeContent() {
           </Animated.View>
         )}
 
-        {todaysCheckin && (
-          <Animated.View
-            entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 2).duration(motion.duration.base)}
-            style={styles.checkInChipRow}
-          >
-            <TouchableOpacity
-              onPress={handleUpdateCheckIn}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Update today's check-in"
-              style={styles.checkInChip}
-            >
-              <IconSymbol
-                name="checkmark"
-                size={14}
-                color={palette.success}
-              />
-              <Text
-                style={[styles.checkInChipText, { color: palette.textSecondary }]}
-                numberOfLines={1}
-              >
-                Today&apos;s check-in · Energy {todaysCheckin.energyLevel}/10 · Pain{' '}
-                {todaysCheckin.painLevel}/10 · {todaysCheckin.timeAvailable}m
-              </Text>
-              <Text style={[styles.checkInChipAction, { color: palette.primary }]}>
-                Update
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
-        {cycleEnabled && cycleData !== undefined && (
-          <Animated.View
-            entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 2.5).duration(motion.duration.base)}
-            style={styles.checkInChipRow}
-          >
-            <TouchableOpacity
-              onPress={handleOpenCycle}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Open cycle tracker"
-              style={styles.checkInChip}
-            >
-              <IconSymbol
-                name="drop.fill"
-                size={14}
-                color={palette.primary}
-              />
-              <Text
-                style={[styles.checkInChipText, { color: palette.textSecondary }]}
-                numberOfLines={1}
-              >
-                {cycleStatus && cycleStatus.hasData
-                  ? `Cycle · ${CYCLE_PHASE_LABEL[cycleStatus.phase]}${cycleStatus.dayOfCycle && cycleStatus.phase !== 'unknown' ? ` · day ${cycleStatus.dayOfCycle}` : ''}`
-                  : 'Cycle · Log your first period to start'}
-              </Text>
-              <Text style={[styles.checkInChipAction, { color: palette.primary }]}>
-                {cycleStatus?.hasData ? 'Open' : 'Log'}
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
         <Animated.View
-          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 3).duration(motion.duration.base)}
+          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 2).duration(motion.duration.base)}
         >
-          <WeeklyInsightsSection />
+          <TodayContext
+            checkin={todaysCheckin ?? null}
+            context={likelyContext}
+            cycle={
+              cycleEnabled && cycleData !== undefined
+                ? {
+                    enabled: true,
+                    hasData: cycleStatus?.hasData ?? false,
+                    phase: cycleStatus?.phase ?? 'unknown',
+                    dayOfCycle: cycleStatus?.dayOfCycle ?? null,
+                  }
+                : null
+            }
+            onUpdateCheckin={handleUpdateCheckIn}
+            onEditContext={handleContextPress}
+            onOpenCycle={handleOpenCycle}
+          />
         </Animated.View>
 
         <Animated.View
-          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 5).duration(motion.duration.base)}
+          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 3).duration(motion.duration.base)}
           style={[
             styles.safetyCard,
             {
@@ -673,10 +505,6 @@ export default function HomeContent() {
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
-      <StreakSheet
-        visible={streakSheetOpen}
-        onClose={() => setStreakSheetOpen(false)}
-      />
       <ContextEditorSheet
         visible={contextEditorOpen}
         value={likelyContext}
@@ -1074,17 +902,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxxl,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: spacing.xxl,
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
   },
   greeting: {
     ...typography.small,
@@ -1092,29 +910,6 @@ const styles = StyleSheet.create({
   },
   name: {
     ...typography.h1,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  streakButton: {
-    height: 40,
-    borderRadius: radius.pill,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-  },
-  streakCount: {
-    fontFamily: fonts.uiBold,
-    fontSize: 14,
-    fontVariant: ['tabular-nums'],
   },
   primaryAction: {
     borderRadius: radius.xl,
@@ -1229,23 +1024,6 @@ const styles = StyleSheet.create({
   completedRowMeta: {
     ...typography.small,
     marginTop: 2,
-  },
-  checkInChipRow: {
-    marginTop: spacing.md,
-  },
-  checkInChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  checkInChipText: {
-    ...typography.small,
-    flex: 1,
-  },
-  checkInChipAction: {
-    ...typography.smallStrong,
   },
   safetyCard: {
     flexDirection: 'row',
