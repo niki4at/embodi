@@ -2,12 +2,11 @@ import { useAction, useMutation } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import { Image } from 'expo-image'
 import * as ImagePicker from 'expo-image-picker'
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -197,19 +196,10 @@ export function ScanEquipment({
     await takePhoto()
   }
 
-  const handlePickMatch = (entry: ExerciseEntry) => {
-    // Select first, then haptic — awaiting haptics before the callback can
-    // drop the add if vibration is slow/unavailable on web.
+  const handlePickMatch = async (entry: ExerciseEntry) => {
+    await Haptics.selectionAsync()
     onSelectExercise?.(entry)
-    void Haptics.selectionAsync()
   }
-
-  // Prefer the live parent selection set; fall back to empty so rows always
-  // render a determinate selected state after a tap.
-  const selected = useMemo(
-    () => selectedIds ?? new Set<string>(),
-    [selectedIds],
-  )
 
   const handleCreateCustom = async (custom: SuggestedCustom, index: number) => {
     if (creatingIndex !== null) return
@@ -224,6 +214,7 @@ export function ScanEquipment({
         modality,
         equipment: custom.equipment,
       })
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       onSelectExercise?.({
         id: `custom-${newId}`,
         name: custom.name,
@@ -235,10 +226,9 @@ export function ScanEquipment({
       })
       // Drop the suggestion so it isn't created twice.
       setCustoms((prev) => prev.filter((_, i) => i !== index))
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     } catch (error) {
       console.error('create custom from scan', error)
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
     } finally {
       setCreatingIndex(null)
     }
@@ -273,13 +263,10 @@ export function ScanEquipment({
         onRequestClose={closeSheet}
       >
         <View style={styles.overlay}>
-          {/* Absolute backdrop so it never steals layout space from the sheet
-              or sit on top of the match rows (flex:1 sibling was broken on web). */}
-          <Pressable
+          <TouchableOpacity
             style={styles.backdrop}
+            activeOpacity={1}
             onPress={closeSheet}
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss scan results"
           />
           <View
             style={[
@@ -290,7 +277,6 @@ export function ScanEquipment({
                 borderColor: palette.border,
                 paddingBottom: Math.max(insets.bottom, spacing.lg),
               },
-              phase === 'results' ? styles.sheetResults : null,
             ]}
           >
             <View
@@ -318,18 +304,16 @@ export function ScanEquipment({
                   </Text>
                 ) : null}
               </View>
-              <Pressable
+              <TouchableOpacity
                 onPress={closeSheet}
                 hitSlop={12}
                 style={[
                   styles.headerIcon,
                   { backgroundColor: palette.surface, borderColor: palette.border },
                 ]}
-                accessibilityRole="button"
-                accessibilityLabel="Close"
               >
                 <IconSymbol name="xmark" size={18} color={palette.textPrimary} />
-              </Pressable>
+              </TouchableOpacity>
             </View>
 
             {previewUri ? (
@@ -360,262 +344,205 @@ export function ScanEquipment({
                 <Text style={[styles.stateText, { color: palette.textSecondary }]}>
                   {errorMessage}
                 </Text>
-                <Pressable
+                <TouchableOpacity
                   onPress={() => void handleScanPress()}
                   style={[styles.retryBtn, { backgroundColor: palette.primary }]}
+                  activeOpacity={0.9}
                 >
                   <Text style={[styles.retryText, { color: palette.white }]}>
                     Try again
                   </Text>
-                </Pressable>
+                </TouchableOpacity>
               </View>
             ) : null}
 
             {phase === 'results' ? (
-              <>
-                <ScrollView
-                  style={styles.resultsScroll}
-                  contentContainerStyle={styles.resultsContent}
-                  showsVerticalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                  nestedScrollEnabled
-                >
-                  {matches.length > 0 ? (
-                    <>
-                      <Text
-                        style={[
-                          styles.sectionHeader,
-                          { color: palette.textSecondary },
-                        ]}
-                      >
-                        Matches from the library
-                      </Text>
-                      {matches.map((match) => {
-                        const isSelected = selected.has(match.entry.id)
-                        return (
-                          <Pressable
-                            key={match.entry.id}
-                            testID={`scan-match-${match.entry.id}`}
-                            accessibilityRole="button"
-                            accessibilityLabel={
-                              isSelected
-                                ? `Remove ${match.entry.name}`
-                                : `Add ${match.entry.name}`
-                            }
-                            onPress={() => handlePickMatch(match.entry)}
-                            style={({ pressed }) => [
-                              styles.card,
-                              {
-                                backgroundColor: palette.surface,
-                                borderColor: isSelected
-                                  ? palette.primary
-                                  : palette.border,
-                                opacity: pressed ? 0.85 : 1,
-                              },
-                            ]}
-                          >
-                            <View
-                              style={[
-                                styles.cardIcon,
-                                { backgroundColor: palette.primaryMuted },
-                              ]}
-                            >
-                              <IconSymbol
-                                name={match.entry.iconName}
-                                size={22}
-                                color={palette.primary}
-                              />
-                            </View>
-                            <View style={styles.cardBody}>
-                              <Text
-                                style={[
-                                  styles.cardName,
-                                  { color: palette.textPrimary },
-                                ]}
-                              >
-                                {match.entry.name}
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.cardMeta,
-                                  { color: palette.textSecondary },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {confidenceLabel(match.confidence)} ·{' '}
-                                {match.entry.bodyPart}
-                              </Text>
-                            </View>
-                            <IconSymbol
-                              name={isSelected ? 'checkmark' : 'plus'}
-                              size={22}
-                              color={
-                                isSelected
-                                  ? palette.primary
-                                  : palette.textTertiary
-                              }
-                            />
-                          </Pressable>
-                        )
-                      })}
-                    </>
-                  ) : null}
-
-                  {customs.length > 0 ? (
-                    <>
-                      <Text
-                        style={[
-                          styles.sectionHeader,
-                          styles.sectionHeaderSpaced,
-                          { color: palette.textSecondary },
-                        ]}
-                      >
-                        Create from your photo
-                      </Text>
-                      {customs.map((custom, index) => {
-                        const isCreating = creatingIndex === index
-                        const group = custom.group as BodyGroup
-                        const modality = custom.modality as ExerciseModality
-                        return (
-                          <Pressable
-                            key={`${custom.name}-${index}`}
-                            testID={`scan-custom-${index}`}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Create ${custom.name}`}
-                            disabled={creatingIndex !== null}
-                            onPress={() => void handleCreateCustom(custom, index)}
-                            style={({ pressed }) => [
-                              styles.card,
-                              {
-                                backgroundColor: palette.primaryMuted,
-                                borderColor: palette.primaryBorder,
-                                opacity:
-                                  creatingIndex !== null && !isCreating
-                                    ? 0.5
-                                    : pressed
-                                      ? 0.85
-                                      : 1,
-                              },
-                            ]}
-                          >
-                            <View
-                              style={[
-                                styles.cardIcon,
-                                { backgroundColor: palette.primary },
-                              ]}
-                            >
-                              <IconSymbol
-                                name={ICON_BY_MODALITY[modality]}
-                                size={22}
-                                color={palette.white}
-                              />
-                            </View>
-                            <View style={styles.cardBody}>
-                              <Text
-                                style={[
-                                  styles.cardName,
-                                  { color: palette.textPrimary },
-                                ]}
-                              >
-                                {custom.name}
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.cardMeta,
-                                  { color: palette.textSecondary },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                New custom · {BODY_GROUP_LABELS[group] ?? group}
-                              </Text>
-                            </View>
-                            {isCreating ? (
-                              <ActivityIndicator
-                                size="small"
-                                color={palette.primary}
-                              />
-                            ) : (
-                              <IconSymbol
-                                name="plus.circle.fill"
-                                size={22}
-                                color={palette.primary}
-                              />
-                            )}
-                          </Pressable>
-                        )
-                      })}
-                    </>
-                  ) : null}
-
-                  {matches.length === 0 && customs.length === 0 ? (
-                    <View style={styles.centerState}>
-                      <IconSymbol
-                        name="camera.fill"
-                        size={28}
-                        color={palette.textTertiary}
-                      />
-                      <Text
-                        style={[
-                          styles.stateText,
-                          { color: palette.textSecondary },
-                        ]}
-                      >
-                        {equipmentLabel
-                          ? `We saw "${equipmentLabel}" but couldn't match an exercise. Try a clearer photo or add it manually.`
-                          : "We couldn't spot any gym equipment. Try a clearer photo."}
-                      </Text>
-                      <Pressable
-                        onPress={() => void handleScanPress()}
-                        style={[
-                          styles.retryBtn,
-                          { backgroundColor: palette.primary },
-                        ]}
-                      >
-                        <Text
-                          style={[styles.retryText, { color: palette.white }]}
-                        >
-                          Scan again
-                        </Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
-                </ScrollView>
-
-                {matches.length > 0 || customs.length > 0 ? (
-                  <View
-                    style={[
-                      styles.footer,
-                      { borderTopColor: palette.divider },
-                    ]}
-                  >
+              <ScrollView
+                contentContainerStyle={styles.resultsContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {matches.length > 0 ? (
+                  <>
                     <Text
-                      style={[styles.footerHint, { color: palette.textSecondary }]}
-                      numberOfLines={1}
-                    >
-                      {matches.filter((m) => selected.has(m.entry.id)).length > 0
-                        ? `${matches.filter((m) => selected.has(m.entry.id)).length} added · tap again to remove`
-                        : 'Tap + to add to your workout'}
-                    </Text>
-                    <Pressable
-                      testID="scan-done"
-                      onPress={closeSheet}
-                      style={({ pressed }) => [
-                        styles.doneBtn,
-                        {
-                          backgroundColor: palette.primary,
-                          opacity: pressed ? 0.9 : 1,
-                        },
+                      style={[
+                        styles.sectionHeader,
+                        { color: palette.textSecondary },
                       ]}
-                      accessibilityRole="button"
-                      accessibilityLabel="Done"
                     >
-                      <Text style={[styles.doneText, { color: palette.white }]}>
-                        Done
+                      Matches from the library
+                    </Text>
+                    {matches.map((match) => {
+                      const isSelected = selectedIds?.has(match.entry.id)
+                      return (
+                        <TouchableOpacity
+                          key={match.entry.id}
+                          activeOpacity={0.85}
+                          onPress={() => void handlePickMatch(match.entry)}
+                          style={[
+                            styles.card,
+                            {
+                              backgroundColor: palette.surface,
+                              borderColor: isSelected
+                                ? palette.primary
+                                : palette.border,
+                            },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.cardIcon,
+                              { backgroundColor: palette.primaryMuted },
+                            ]}
+                          >
+                            <IconSymbol
+                              name={match.entry.iconName}
+                              size={22}
+                              color={palette.primary}
+                            />
+                          </View>
+                          <View style={styles.cardBody}>
+                            <Text
+                              style={[
+                                styles.cardName,
+                                { color: palette.textPrimary },
+                              ]}
+                            >
+                              {match.entry.name}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.cardMeta,
+                                { color: palette.textSecondary },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {confidenceLabel(match.confidence)} ·{' '}
+                              {match.entry.bodyPart}
+                            </Text>
+                          </View>
+                          <IconSymbol
+                            name={isSelected ? 'checkmark' : 'plus'}
+                            size={22}
+                            color={
+                              isSelected ? palette.primary : palette.textTertiary
+                            }
+                          />
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </>
+                ) : null}
+
+                {customs.length > 0 ? (
+                  <>
+                    <Text
+                      style={[
+                        styles.sectionHeader,
+                        styles.sectionHeaderSpaced,
+                        { color: palette.textSecondary },
+                      ]}
+                    >
+                      Create from your photo
+                    </Text>
+                    {customs.map((custom, index) => {
+                      const isCreating = creatingIndex === index
+                      const group = custom.group as BodyGroup
+                      const modality = custom.modality as ExerciseModality
+                      return (
+                        <TouchableOpacity
+                          key={`${custom.name}-${index}`}
+                          activeOpacity={0.85}
+                          disabled={creatingIndex !== null}
+                          onPress={() => void handleCreateCustom(custom, index)}
+                          style={[
+                            styles.card,
+                            {
+                              backgroundColor: palette.primaryMuted,
+                              borderColor: palette.primaryBorder,
+                            },
+                            creatingIndex !== null &&
+                              !isCreating &&
+                              styles.dimmed,
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.cardIcon,
+                              { backgroundColor: palette.primary },
+                            ]}
+                          >
+                            <IconSymbol
+                              name={ICON_BY_MODALITY[modality]}
+                              size={22}
+                              color={palette.white}
+                            />
+                          </View>
+                          <View style={styles.cardBody}>
+                            <Text
+                              style={[
+                                styles.cardName,
+                                { color: palette.textPrimary },
+                              ]}
+                            >
+                              {custom.name}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.cardMeta,
+                                { color: palette.textSecondary },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              New custom · {BODY_GROUP_LABELS[group] ?? group}
+                            </Text>
+                          </View>
+                          {isCreating ? (
+                            <ActivityIndicator
+                              size="small"
+                              color={palette.primary}
+                            />
+                          ) : (
+                            <IconSymbol
+                              name="plus.circle.fill"
+                              size={22}
+                              color={palette.primary}
+                            />
+                          )}
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </>
+                ) : null}
+
+                {matches.length === 0 && customs.length === 0 ? (
+                  <View style={styles.centerState}>
+                    <IconSymbol
+                      name="camera.fill"
+                      size={28}
+                      color={palette.textTertiary}
+                    />
+                    <Text
+                      style={[styles.stateText, { color: palette.textSecondary }]}
+                    >
+                      {equipmentLabel
+                        ? `We saw "${equipmentLabel}" but couldn't match an exercise. Try a clearer photo or add it manually.`
+                        : "We couldn't spot any gym equipment. Try a clearer photo."}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => void handleScanPress()}
+                      style={[
+                        styles.retryBtn,
+                        { backgroundColor: palette.primary },
+                      ]}
+                      activeOpacity={0.9}
+                    >
+                      <Text style={[styles.retryText, { color: palette.white }]}>
+                        Scan again
                       </Text>
-                    </Pressable>
+                    </TouchableOpacity>
                   </View>
                 ) : null}
-              </>
+              </ScrollView>
             ) : null}
           </View>
         </View>
@@ -638,49 +565,15 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
   },
   sheet: {
     maxHeight: '85%',
-    width: '100%',
     borderTopLeftRadius: radius.xxl,
     borderTopRightRadius: radius.xxl,
     borderTopWidth: 1,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
-    overflow: 'hidden',
-    zIndex: 1,
-  },
-  // Results need a real height so the ScrollView gets a bounded viewport and
-  // match rows stay tappable (maxHeight alone let content paint outside the
-  // hit target on web).
-  sheetResults: {
-    height: '85%',
-  },
-  resultsScroll: {
-    flex: 1,
-    minHeight: 0,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  footerHint: {
-    ...typography.small,
-    flex: 1,
-  },
-  doneBtn: {
-    height: 44,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  doneText: {
-    ...typography.button,
   },
   handle: {
     alignSelf: 'center',
@@ -777,5 +670,8 @@ const styles = StyleSheet.create({
   cardMeta: {
     ...typography.small,
     marginTop: 2,
+  },
+  dimmed: {
+    opacity: 0.5,
   },
 })
