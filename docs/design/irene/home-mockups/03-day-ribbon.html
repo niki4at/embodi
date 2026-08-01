@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03 · Day ribbon — Sody Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .ribbon{padding-bottom:110px;background:var(--cream)}
+  .moment{
+    position:relative;min-height:340px;padding:56px 22px 48px;
+    color:#fff;overflow:hidden;
+  }
+  .moment .bg{
+    position:absolute;inset:0;
+    background-size:cover;background-position:center;
+    transform:scale(1.05);
+    animation:ken 18s ease-in-out infinite alternate;
+  }
+  @keyframes ken{
+    from{transform:scale(1.05) translateY(0)}
+    to{transform:scale(1.12) translateY(-3%)}
+  }
+  .moment .veil{position:absolute;inset:0}
+  .moment .content{position:relative;z-index:2;max-width:28ch}
+  .time{font-size:11px;letter-spacing:.22em;margin-bottom:10px;opacity:.85}
+  .moment h2{font-family:'Fredoka';font-size:36px;line-height:.98;margin-bottom:10px}
+  .moment p{font-size:14.5px;line-height:1.4;opacity:.95;margin-bottom:18px}
+  .m1 .bg{background-image:url('https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=80')}
+  .m1 .veil{background:linear-gradient(120deg,rgba(74,67,236,.85),rgba(23,22,58,.35))}
+  .m2 .bg{background-image:url('https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=900&q=80')}
+  .m2 .veil{background:linear-gradient(160deg,rgba(144,170,71,.88),rgba(50,75,62,.55))}
+  .m3 .bg{background-image:url('https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=900&q=80')}
+  .m3 .veil{background:linear-gradient(180deg,rgba(23,22,58,.2),rgba(23,22,58,.85))}
+  .thread{
+    position:absolute;left:18px;top:0;bottom:0;width:3px;z-index:3;
+    background:linear-gradient(var(--lime),rgba(216,242,76,.1));
+  }
+  .dot{
+    position:absolute;left:11px;top:62px;z-index:4;
+    width:16px;height:16px;border-radius:50%;
+    background:var(--lime);box-shadow:0 0 0 6px rgba(216,242,76,.25);
+    animation:pulse 2s ease-in-out infinite;
+  }
+  .line-art{
+    position:absolute;right:-20px;top:40px;width:180px;opacity:.7;z-index:2;
+  }
+  .mascot{
+    position:absolute;right:12px;bottom:24px;width:88px;z-index:3;
+    animation:floaty 4s ease-in-out infinite;
+  }
+  .topbar{
+    position:sticky;top:0;z-index:20;
+    display:flex;justify-content:space-between;align-items:flex-end;
+    padding:48px 22px 14px;
+    background:linear-gradient(180deg,#fffce9 70%,rgba(255,252,233,0));
+  }
+  .topbar h1{font-family:'Fredoka';font-size:28px;color:var(--ink)}
+  .ask{
+    background:var(--ink);color:var(--lime);
+    border-radius:999px;padding:8px 12px;font-family:'Fredoka';font-weight:700;font-size:12px;
+  }
+</style>
+</head>
+<body>
+  <div class="page-meta">
+    <a href="index.html">← All mockups</a>
+    <h1>03 · Day ribbon</h1>
+    <p>Home as a timeline of the day — morning train, desk reset, evening unwind.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="phone-scroll">
+      <div class="ribbon">
+        <div class="topbar">
+          <div>
+            <p class="mono" style="font-size:11px;color:var(--blue)">Saturday</p>
+            <h1>Hey Irene</h1>
+          </div>
+          <div class="ask">✦ Coach</div>
+        </div>
+
+        <article class="moment m1">
+          <div class="thread"></div><div class="dot"></div>
+          <div class="bg"></div><div class="veil"></div>
+          <svg class="line-art" viewBox="0 0 200 240" fill="none">
+            <path class="squiggle-stroke" d="M20 40c40 20 40 80 10 110s10 70 50 90 70 10 90 50"/>
+          </svg>
+          <div class="content">
+            <p class="time mono">Now · Next up</p>
+            <h2>Upper body strength</h2>
+            <p>32 min · built around mild neck sensitivity · 2 new moves</p>
+            <button class="btn btn-lime">Start</button>
+          </div>
+          <svg class="mascot" viewBox="0 0 100 120">
+            <circle cx="50" cy="36" r="20" fill="#FFD7B5"/>
+            <path d="M32 34c3-14 33-14 36 0-8 5-28 5-36 0z" fill="#211f3d"/>
+            <circle cx="43" cy="38" r="2" fill="#17163a"/><circle cx="57" cy="38" r="2" fill="#17163a"/>
+            <path d="M44 46c3 3 7 3 10 0" stroke="#17163a" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <rect x="34" y="56" width="32" height="36" rx="12" fill="#D8F24C"/>
+            <text x="50" y="78" text-anchor="middle" font-size="14" font-family="Fredoka" fill="#17163a">GO</text>
+          </svg>
+        </article>
+
+        <article class="moment m2">
+          <div class="thread"></div><div class="dot" style="animation-delay:.4s"></div>
+          <div class="bg"></div><div class="veil"></div>
+          <div class="content">
+            <p class="time mono">Midday · At your desk</p>
+            <h2>Neck & shoulder reset</h2>
+            <p>3 minutes between meetings. Counts toward Gain weight recovery.</p>
+            <button class="btn btn-ink" style="background:#fff;color:var(--deep)">Start reset</button>
+          </div>
+        </article>
+
+        <article class="moment m3">
+          <div class="thread"></div><div class="dot" style="animation-delay:.8s"></div>
+          <div class="bg"></div><div class="veil"></div>
+          <div class="content">
+            <p class="time mono">Later · Keep the streak soft</p>
+            <h2>Easy 20 min run</h2>
+            <p>Optional. Your 10K plan wants an easy aerobic touch.</p>
+            <button class="btn btn-ghost">Preview</button>
+          </div>
+        </article>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <span>👥 Social</span>
+      <span class="on">⌂ Home</span>
+      <span>◎ Goals</span>
+      <span>☺ You</span>
+    </nav>
+  </div>
+</body>
+</html>

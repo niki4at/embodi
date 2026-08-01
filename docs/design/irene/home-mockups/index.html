@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SODY — Home screen mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --blue:#4A43EC; --lime:#D8F24C; --cream:#FFFCE9; --peri:#AFC8FA;
+    --lav:#D3CFFF; --olive:#90AA47; --deep:#324B3E; --ink:#17163a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Lekton',monospace;
+    background:var(--blue);
+    color:var(--cream);
+    min-height:100vh;
+    padding:48px 6vw 80px;
+  }
+  h1{
+    font-family:'Fredoka',sans-serif;
+    font-size:clamp(56px,10vw,120px);
+    color:var(--lime);
+    line-height:.9;
+    letter-spacing:-.02em;
+  }
+  .tag{
+    display:inline-block;
+    letter-spacing:.28em;
+    text-transform:uppercase;
+    font-weight:700;
+    font-size:12px;
+    margin:18px 0 10px;
+    color:var(--peri);
+  }
+  .lead{
+    max-width:56ch;
+    font-size:17px;
+    line-height:1.55;
+    margin-bottom:40px;
+    color:#e8e6ff;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:22px;
+  }
+  a.tile{
+    display:block;
+    text-decoration:none;
+    color:inherit;
+    background:rgba(255,255,255,.08);
+    border:2px solid rgba(255,252,233,.35);
+    border-radius:28px;
+    padding:22px;
+    transition:transform .25s ease, background .25s ease, border-color .25s ease;
+    position:relative;
+    overflow:hidden;
+    min-height:190px;
+  }
+  a.tile:hover{
+    transform:translateY(-6px) rotate(-.4deg);
+    background:rgba(216,242,76,.15);
+    border-color:var(--lime);
+  }
+  a.tile .num{
+    font-family:'Fredoka',sans-serif;
+    font-size:13px;
+    letter-spacing:.16em;
+    color:var(--lime);
+    margin-bottom:10px;
+  }
+  a.tile h2{
+    font-family:'Fredoka',sans-serif;
+    font-size:26px;
+    line-height:1.1;
+    margin-bottom:10px;
+  }
+  a.tile p{font-size:13.5px;line-height:1.45;opacity:.85}
+  .blob{
+    position:absolute;
+    width:120px;height:120px;
+    border-radius:60% 40% 55% 45%;
+    background:var(--lime);
+    opacity:.12;
+    right:-30px;bottom:-40px;
+    animation:drift 7s ease-in-out infinite alternate;
+  }
+  @keyframes drift{
+    from{transform:translate(0,0) rotate(0)}
+    to{transform:translate(-12px,-18px) rotate(18deg)}
+  }
+  footer{margin-top:56px;font-size:13px;color:var(--peri)}
+</style>
+</head>
+<body>
+  <p class="tag">Sody · Home exploration</p>
+  <h1>HOME<br>MOCKUPS</h1>
+  <p class="lead">
+    Fifteen flowing, image-led takes on Home — no card stacks. Built from the Sody brand sheet:
+    bubble display type, Lekton accents, lime + periwinkle + cream, photo overlays, and a living coach presence.
+    Open any phone frame to explore.
+  </p>
+
+  <div class="grid">
+    <a class="tile" href="01-photo-river.html"><div class="blob"></div><div class="num">01</div><h2>Photo river</h2><p>Full-bleed hero photo with the next workout floating on the image. Goals dissolve into the scroll.</p></a>
+    <a class="tile" href="02-coach-presence.html"><div class="blob"></div><div class="num">02</div><h2>Coach presence</h2><p>Animated coach character greets Irene and points at today's session. Soft morphing blobs, no boxes.</p></a>
+    <a class="tile" href="03-day-ribbon.html"><div class="blob"></div><div class="num">03</div><h2>Day ribbon</h2><p>A continuous vertical ribbon of the day — morning, desk hours, evening — with photos stitching sections.</p></a>
+    <a class="tile" href="04-liquid-goals.html"><div class="blob"></div><div class="num">04</div><h2>Liquid goals</h2><p>Goals as breathing liquid orbs. Progress fills like water. Next workout sits inside the strongest orb.</p></a>
+    <a class="tile" href="05-editorial.html"><div class="blob"></div><div class="num">05</div><h2>Editorial</h2><p>Magazine energy: oversized type, cropped photography, handwritten line overlays from the brand sheet.</p></a>
+    <a class="tile" href="06-parallax-stage.html"><div class="blob"></div><div class="num">06</div><h2>Parallax stage</h2><p>Immersive next-up stage with layered parallax photography and a sticky Start action.</p></a>
+    <a class="tile" href="07-desk-companion.html"><div class="blob"></div><div class="num">07</div><h2>Desk companion</h2><p>For Dana at work: a soft character peeks in during desk hours with a 3-min reset woven into the flow.</p></a>
+    <a class="tile" href="08-night-pulse.html"><div class="blob"></div><div class="num">08</div><h2>Night pulse</h2><p>Dark-mode home that still feels alive — neon lime accents, pulsing streaks, photo silhouettes.</p></a>
+    <a class="tile" href="09-energy-weather.html"><div class="blob"></div><div class="num">09</div><h2>Energy weather</h2><p>Today's body state as weather. Atmosphere shifts with energy; the coach adapts the scene.</p></a>
+    <a class="tile" href="10-story-strip.html"><div class="blob"></div><div class="num">10</div><h2>Story strip</h2><p>Horizontal story moments for next-up, goals, desk, and week — swipeable, cinematic, image-first.</p></a>
+    <a class="tile" href="11-body-map-flow.html"><div class="blob"></div><div class="num">11</div><h2>Body map flow</h2><p>A living body illustration anchors the screen. Focus areas glow; next session maps onto the figure.</p></a>
+    <a class="tile" href="12-celebration-loop.html"><div class="blob"></div><div class="num">12</div><h2>Celebration loop</h2><p>Home after a completed session — confetti character, week pulse, and a soft invitation to start again.</p></a>
+    <a class="tile" href="13-social-pulse.html"><div class="blob"></div><div class="num">13</div><h2>Social pulse</h2><p>Friends' movement rings above a cinematic next-up — progress without ranking.</p></a>
+    <a class="tile" href="14-sound-waves.html"><div class="blob"></div><div class="num">14</div><h2>Sound waves</h2><p>Sound + Body made literal: waveforms, equalizer motion, loud SODY type.</p></a>
+    <a class="tile" href="15-flare-care.html"><div class="blob"></div><div class="num">15</div><h2>Flare care</h2><p>Soft home for flare-up / luteal days — caring character, gentler next session.</p></a>
+  </div>
+
+  <footer>
+    Fonts: Fredoka (Val stand-in) · Lekton · Photos via Unsplash · Brand: Keep your body sound
+  </footer>
+</body>
+</html>

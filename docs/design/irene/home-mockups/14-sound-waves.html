@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>14 · Sound waves — Sody Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .screen{
+    min-height:100%;
+    background:#17163a;
+    color:#fff;
+    padding:58px 0 120px;
+    position:relative;overflow:hidden;
+  }
+  .wave-bg{
+    position:absolute;left:-20%;right:-20%;bottom:18%;
+    height:220px;opacity:.9;
+  }
+  .wave-bg path{
+    fill:none;stroke:var(--lime);stroke-width:3;stroke-linecap:round;
+    animation:waveMove 4s ease-in-out infinite;
+  }
+  .wave-bg path:nth-child(2){stroke:var(--peri);animation-delay:-1s;opacity:.7}
+  .wave-bg path:nth-child(3){stroke:#fff;animation-delay:-2s;opacity:.35}
+  @keyframes waveMove{
+    0%,100%{transform:translateY(0)}
+    50%{transform:translateY(-12px)}
+  }
+  .photo{
+    margin:20px 20px 0;height:280px;border-radius:0 0 50% 50% / 0 0 28% 28%;
+    overflow:hidden;position:relative;z-index:2;
+    background:
+      linear-gradient(180deg,transparent 30%, rgba(23,22,58,.85)),
+      url('https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80') center/cover;
+  }
+  .hdr{padding:0 22px;position:relative;z-index:2}
+  .brand{
+    font-family:'Fredoka';font-size:48px;color:var(--lime);line-height:.85;
+  }
+  .brand small{
+    display:block;font-family:'Lekton';font-size:11px;letter-spacing:.32em;
+    color:var(--peri);margin-top:8px;
+  }
+  .copy{
+    position:relative;z-index:3;padding:24px 22px 0;
+  }
+  .copy h2{font-family:'Fredoka';font-size:36px;line-height:.95;margin:8px 0 10px}
+  .eq{
+    display:flex;align-items:flex-end;gap:5px;height:42px;margin:14px 0 18px;
+  }
+  .eq span{
+    flex:1;background:var(--lime);border-radius:99px;
+    animation:eq 1s ease-in-out infinite;
+    transform-origin:bottom;
+  }
+  .eq span:nth-child(odd){animation-duration:1.2s}
+  .eq span:nth-child(3n){animation-duration:.8s;background:var(--peri)}
+  @keyframes eq{
+    0%,100%{height:30%}
+    50%{height:100%}
+  }
+  .actions{display:flex;gap:10px}
+  .side{
+    margin-top:28px;display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;
+  }
+  .side div{
+    min-width:140px;padding:14px 0;border-top:2px solid rgba(255,255,255,.25);
+  }
+  .side strong{display:block;font-family:'Fredoka';font-size:18px}
+  .side span{font-size:11px;opacity:.7}
+  .blob-char{
+    position:absolute;right:8px;top:210px;width:100px;z-index:4;
+    animation:floaty 3.4s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+  <div class="page-meta">
+    <a href="index.html">← All mockups</a>
+    <h1>14 · Sound waves</h1>
+    <p>Sound + Body literalized — waveform motion, equalizer energy, brand typography loud.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="phone-scroll">
+      <div class="screen">
+        <header class="hdr fadeup">
+          <div class="brand">SODY<small>KEEP YOUR BODY SOUND</small></div>
+        </header>
+        <div class="photo">
+          <svg class="blob-char" viewBox="0 0 120 140">
+            <ellipse cx="60" cy="80" rx="40" ry="48" fill="#D8F24C"/>
+            <circle cx="48" cy="70" r="4" fill="#17163a"/><circle cx="74" cy="70" r="4" fill="#17163a"/>
+            <path d="M50 86c6 8 14 8 20 0" stroke="#17163a" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M20 60c10-30 30-34 40-20M100 60c-10-30-30-34-40-20" stroke="#4A43EC" stroke-width="6" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <svg class="wave-bg" viewBox="0 0 400 200" preserveAspectRatio="none">
+          <path d="M0 100c40-40 80 40 120 0s80 40 120 0 80 40 120 0 40-20 40-20"/>
+          <path d="M0 120c40-30 80 30 120 0s80 30 120 0 80 30 120 0 40-10 40-10"/>
+          <path d="M0 140c40-20 80 20 120 0s80 20 120 0 80 20 120 0 40-8 40-8"/>
+        </svg>
+        <section class="copy fadeup d2">
+          <p class="mono" style="font-size:11px;color:var(--lime)">Now playing · your session</p>
+          <h2>Upper body strength</h2>
+          <p style="opacity:.85;font-size:14px">32 min · frequency: hypertrophic · neck filter on</p>
+          <div class="eq" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="actions">
+            <button class="btn btn-lime">Play session</button>
+            <button class="btn btn-ghost">Remix today</button>
+          </div>
+          <div class="side">
+            <div><strong>Gain weight</strong><span>20% · rising tone</span></div>
+            <div><strong>10K</strong><span>25% · planning beat</span></div>
+            <div><strong>Desk reset</strong><span>3 min interlude</span></div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <span>👥 Social</span>
+      <span class="on">⌂ Home</span>
+      <span>◎ Goals</span>
+      <span>☺ You</span>
+    </nav>
+  </div>
+</body>
+</html>

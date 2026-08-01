@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>10 · Story strip — Sody Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .screen{
+    height:100%;
+    background:#17163a;
+    display:flex;flex-direction:column;
+    padding:52px 0 90px;
+    color:#fff;
+  }
+  .top{
+    padding:0 18px 12px;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .top h1{font-family:'Fredoka';font-size:24px}
+  .ask{
+    background:var(--lime);color:var(--ink);
+    border-radius:999px;padding:7px 12px;
+    font-family:'Fredoka';font-weight:700;font-size:12px;
+  }
+  .progress{
+    display:flex;gap:4px;padding:0 18px 14px;
+  }
+  .progress i{
+    flex:1;height:3px;border-radius:99px;background:rgba(255,255,255,.25);overflow:hidden;
+  }
+  .progress i b{
+    display:block;height:100%;width:0;background:var(--lime);
+  }
+  .progress i.on b{width:100%}
+  .progress i.active b{animation:load 4s linear forwards}
+  @keyframes load{from{width:0}to{width:100%}}
+  .stories{
+    flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;
+    gap:0;-webkit-overflow-scrolling:touch;
+  }
+  .stories::-webkit-scrollbar{display:none}
+  .story{
+    min-width:100%;scroll-snap-align:start;
+    position:relative;padding:20px 22px 28px;
+    display:flex;flex-direction:column;justify-content:flex-end;
+    background-size:cover;background-position:center;
+  }
+  .story::before{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(23,22,58,.15),rgba(23,22,58,.88));
+  }
+  .story > *{position:relative;z-index:2}
+  .s1{background-image:url('https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=900&q=80')}
+  .s2{background-image:url('https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80')}
+  .s3{background-image:url('https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=900&q=80')}
+  .s4{background-image:url('https://images.unsplash.com/photo-1486218119243-13883505764c?auto=format&fit=crop&w=900&q=80')}
+  .story .kicker{font-size:11px;letter-spacing:.2em;opacity:.85;margin-bottom:8px}
+  .story h2{font-family:'Fredoka';font-size:40px;line-height:.95;margin-bottom:10px;max-width:10ch}
+  .story p{font-size:14px;opacity:.9;margin-bottom:16px;max-width:28ch}
+  .char{
+    position:absolute;right:12px;top:40px;width:96px;z-index:3;
+    animation:floaty 3.2s ease-in-out infinite;
+  }
+  .hint{
+    text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    opacity:.55;padding-top:8px;
+  }
+</style>
+</head>
+<body>
+  <div class="page-meta">
+    <a href="index.html">← All mockups</a>
+    <h1>10 · Story strip</h1>
+    <p>Swipeable cinematic moments — next-up, goals, desk, week — image first.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="screen">
+      <div class="top">
+        <h1>Irene</h1>
+        <div class="ask">✦</div>
+      </div>
+      <div class="progress">
+        <i class="on"><b></b></i>
+        <i class="active"><b></b></i>
+        <i><b></b></i>
+        <i><b></b></i>
+      </div>
+      <div class="stories" id="stories">
+        <article class="story s1">
+          <svg class="char" viewBox="0 0 100 120">
+            <circle cx="50" cy="40" r="22" fill="#FFD7B5"/>
+            <path d="M30 36c5-16 35-16 40 0-10 7-30 7-40 0z" fill="#D8F24C"/>
+            <circle cx="43" cy="42" r="2.2" fill="#17163a"/><circle cx="58" cy="42" r="2.2" fill="#17163a"/>
+            <path d="M44 50c3 3 8 3 11 0" stroke="#17163a" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <rect x="34" y="62" width="32" height="34" rx="12" fill="#4A43EC"/>
+          </svg>
+          <p class="kicker mono">01 · Next up</p>
+          <h2>Upper body strength</h2>
+          <p>32 min · 6 moves · adapted for your neck</p>
+          <button class="btn btn-lime">Start</button>
+        </article>
+        <article class="story s2">
+          <p class="kicker mono">02 · Goals</p>
+          <h2>Two orbits rising</h2>
+          <p>Gain weight 20% ready · 10K 25% planning</p>
+          <button class="btn btn-ghost">Open goals</button>
+        </article>
+        <article class="story s3">
+          <p class="kicker mono">03 · Desk hours</p>
+          <h2>3-min neck reset</h2>
+          <p>Mon–Fri till 6pm · counts toward recovery</p>
+          <button class="btn btn-lime">Start reset</button>
+        </article>
+        <article class="story s4">
+          <p class="kicker mono">04 · This week</p>
+          <h2>4 sessions · 3wk streak</h2>
+          <p>Sleep dipped. Volume climbed. Soft consistency wins.</p>
+          <button class="btn btn-ghost">See insights</button>
+        </article>
+      </div>
+      <p class="hint">Swipe for more moments</p>
+      <nav class="tabbar">
+        <span>👥 Social</span>
+        <span class="on">⌂ Home</span>
+        <span>◎ Goals</span>
+        <span>☺ You</span>
+      </nav>
+    </div>
+  </div>
+  <script>
+    // auto-advance story progress visual for demo feel
+    const stories = document.getElementById('stories');
+    let idx = 0;
+    setInterval(() => {
+      idx = (idx + 1) % 4;
+      stories.scrollTo({ left: stories.clientWidth * idx, behavior: 'smooth' });
+      document.querySelectorAll('.progress i').forEach((el, i) => {
+        el.classList.toggle('on', i < idx);
+        el.classList.toggle('active', i === idx);
+      });
+    }, 4200);
+  </script>
+</body>
+</html>

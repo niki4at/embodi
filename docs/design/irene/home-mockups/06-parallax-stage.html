@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>06 · Parallax stage — Sody Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .stage{
+    position:relative;height:100%;
+    overflow:hidden;color:#fff;
+  }
+  .layer{
+    position:absolute;inset:0;
+    background-size:cover;background-position:center;
+    will-change:transform;
+  }
+  .l1{
+    background-image:url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1000&q=80');
+    transform:scale(1.15);
+    animation:pan 22s linear infinite alternate;
+  }
+  .l2{
+    background:
+      linear-gradient(180deg,rgba(23,22,58,.2) 0%, rgba(74,67,236,.35) 45%, rgba(23,22,58,.92) 100%);
+  }
+  @keyframes pan{
+    from{transform:scale(1.15) translateY(0)}
+    to{transform:scale(1.2) translateY(-4%)}
+  }
+  .top{
+    position:relative;z-index:3;
+    padding:58px 22px 0;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .top h1{font-family:'Fredoka';font-size:22px}
+  .pill{
+    background:var(--lime);color:var(--ink);
+    border-radius:999px;padding:8px 12px;
+    font-family:'Fredoka';font-weight:700;font-size:12px;
+    animation:pulse 2.6s ease-in-out infinite;
+  }
+  .center{
+    position:absolute;left:22px;right:22px;top:38%;
+    z-index:3;transform:translateY(-30%);
+  }
+  .center .eyebrow{font-size:11px;letter-spacing:.22em;opacity:.85;margin-bottom:10px}
+  .center h2{font-family:'Fredoka';font-size:48px;line-height:.92;margin-bottom:12px}
+  .center p{font-size:14px;opacity:.92;margin-bottom:8px}
+  .float-tags{
+    position:absolute;z-index:3;inset:0;pointer-events:none;
+  }
+  .float-tags span{
+    position:absolute;font-size:12px;font-weight:700;
+    background:rgba(255,255,255,.12);backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.3);
+    padding:8px 12px;border-radius:999px;
+    animation:floaty 4s ease-in-out infinite;
+  }
+  .t1{top:26%;left:18px;animation-delay:0s}
+  .t2{top:32%;right:16px;animation-delay:1s}
+  .t3{top:58%;right:24px;animation-delay:.5s}
+  .dock{
+    position:absolute;left:16px;right:16px;bottom:92px;z-index:4;
+    display:flex;gap:10px;
+  }
+  .dock .btn{flex:1}
+  .mini{
+    position:absolute;left:0;right:0;bottom:0;z-index:3;
+    padding:18px 22px 96px;
+    background:linear-gradient(180deg,transparent,rgba(14,13,36,.95));
+  }
+  .mini-row{display:flex;gap:16px;overflow-x:auto;padding-bottom:4px}
+  .mini-row::-webkit-scrollbar{display:none}
+  .mini-item{min-width:140px}
+  .mini-item strong{display:block;font-family:'Fredoka';font-size:16px}
+  .mini-item span{font-size:11px;opacity:.75}
+  .sprite{
+    position:absolute;right:10px;bottom:170px;width:86px;z-index:5;
+    animation:floaty 3.4s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+  <div class="page-meta">
+    <a href="index.html">← All mockups</a>
+    <h1>06 · Parallax stage</h1>
+    <p>One immersive stage for the next workout. Secondary actions live as floating tags.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="stage">
+      <div class="layer l1"></div>
+      <div class="layer l2"></div>
+      <div class="top">
+        <h1>Good morning, Irene</h1>
+        <div class="pill">✦ Ask</div>
+      </div>
+      <div class="float-tags">
+        <span class="t1">Gain weight · 20%</span>
+        <span class="t2">10K · planning</span>
+        <span class="t3">〰 Breather</span>
+      </div>
+      <div class="center fadeup">
+        <p class="eyebrow mono">Next up · Get stronger</p>
+        <h2>Upper body strength</h2>
+        <p>32 min · 6 moves · 2 new to you</p>
+        <p style="font-size:12px;opacity:.75">Adapted for mild neck sensitivity</p>
+      </div>
+      <svg class="sprite" viewBox="0 0 100 120">
+        <circle cx="50" cy="40" r="22" fill="#FFD7B5"/>
+        <path d="M30 38c4-16 36-16 40 0-10 6-30 6-40 0z" fill="#D8F24C"/>
+        <circle cx="42" cy="42" r="2.5" fill="#17163a"/><circle cx="58" cy="42" r="2.5" fill="#17163a"/>
+        <path d="M43 51c4 4 10 4 14 0" stroke="#17163a" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M35 62c-2 20 8 40 15 48M65 62c2 20-8 40-15 48" stroke="#AFC8FA" stroke-width="10" stroke-linecap="round"/>
+        <circle cx="50" cy="78" r="16" fill="#4A43EC"/>
+      </svg>
+      <div class="dock">
+        <button class="btn btn-lime">Start</button>
+        <button class="btn btn-ghost">Adjust for today</button>
+      </div>
+      <div class="mini">
+        <div class="mini-row">
+          <div class="mini-item"><strong>Desk reset</strong><span>3 min · after 1pm</span></div>
+          <div class="mini-item"><strong>This week</strong><span>4 sessions · 3wk streak</span></div>
+          <div class="mini-item"><strong>Log my own</strong><span>Build freeform</span></div>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <span>👥 Social</span>
+        <span class="on">⌂ Home</span>
+        <span>◎ Goals</span>
+        <span>☺ You</span>
+      </nav>
+    </div>
+  </div>
+</body>
+</html>

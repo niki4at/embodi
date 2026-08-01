@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>15 · Flare care — Sody Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .screen{
+    min-height:100%;
+    background:
+      linear-gradient(180deg,rgba(211,207,255,.95),rgba(255,252,233,.9) 40%, rgba(144,170,71,.35)),
+      url('https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=900&q=80') center/cover;
+    padding:58px 20px 120px;
+    position:relative;overflow:hidden;
+  }
+  .soft-orb{
+    position:absolute;width:260px;height:260px;border-radius:50%;
+    background:rgba(255,255,255,.45);filter:blur(10px);
+    top:120px;left:50%;transform:translateX(-50%);
+    animation:pulse 5s ease-in-out infinite;
+  }
+  .hdr{position:relative;z-index:2}
+  .badge{
+    display:inline-block;background:var(--lav);color:var(--ink);
+    border-radius:999px;padding:6px 12px;
+    font-family:'Fredoka';font-size:12px;font-weight:700;
+  }
+  .hdr h1{font-family:'Fredoka';font-size:36px;line-height:1;margin:12px 0 8px;color:var(--ink);max-width:12ch}
+  .hdr p{font-size:14px;color:#2f2c55;max-width:28ch;line-height:1.4}
+  .care-char{
+    display:block;margin:24px auto;width:160px;position:relative;z-index:2;
+    animation:floaty 4s ease-in-out infinite;
+  }
+  .panel{
+    position:relative;z-index:2;
+    margin-top:8px;color:var(--deep);
+  }
+  .panel h2{font-family:'Fredoka';font-size:28px;line-height:1.05;margin-bottom:8px}
+  .panel p{font-size:14px;margin-bottom:14px;max-width:30ch}
+  .toggle-row{
+    display:flex;align-items:center;justify-content:space-between;
+    margin:18px 0;padding:4px 0;
+  }
+  .toggle{
+    width:56px;height:32px;border-radius:999px;background:var(--olive);position:relative;
+  }
+  .toggle::after{
+    content:'';position:absolute;top:3px;right:3px;width:26px;height:26px;
+    border-radius:50%;background:#fff;
+    box-shadow:0 2px 6px rgba(0,0,0,.2);
+  }
+  .cycle{
+    font-size:13px;margin-top:8px;color:#3d4f38;
+  }
+</style>
+</head>
+<body>
+  <div class="page-meta">
+    <a href="index.html">← All mockups</a>
+    <h1>15 · Flare care</h1>
+    <p>Gentler home for flare-up / luteal days — soft motion, caring character, still one next step.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="phone-scroll">
+      <div class="screen">
+        <div class="soft-orb"></div>
+        <header class="hdr fadeup">
+          <span class="badge">Flare-up mode on</span>
+          <h1>We ease off flagged regions</h1>
+          <p>Coach rebuilt today around comfort. Strength still counts when it's kind.</p>
+        </header>
+
+        <svg class="care-char" viewBox="0 0 180 200">
+          <ellipse cx="90" cy="120" rx="55" ry="60" fill="#fff"/>
+          <circle cx="90" cy="70" r="34" fill="#FFD7B5"/>
+          <path d="M60 62c8-26 52-26 60 0-14 10-46 10-60 0z" fill="#D3CFFF"/>
+          <circle cx="78" cy="72" r="3.5" fill="#17163a"/><circle cx="104" cy="72" r="3.5" fill="#17163a"/>
+          <path d="M80 86c6 6 14 6 20 0" stroke="#17163a" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <path d="M50 120c-20 8-28 28-12 40" stroke="#FFD7B5" stroke-width="12" fill="none" stroke-linecap="round"/>
+          <path d="M130 120c20 8 28 28 12 40" stroke="#FFD7B5" stroke-width="12" fill="none" stroke-linecap="round"/>
+          <text x="90" y="135" text-anchor="middle" font-family="Fredoka" font-size="14" fill="#4A43EC">soft</text>
+        </svg>
+
+        <section class="panel fadeup d2">
+          <p class="mono" style="font-size:11px;color:var(--blue)">Next up · adapted</p>
+          <h2>Mobility flow · 18 min</h2>
+          <p>Replaces upper-body load. Hips and breath first. No flagged neck work.</p>
+          <button class="btn btn-ink">Start gently</button>
+          <div class="toggle-row">
+            <div>
+              <strong style="font-family:'Fredoka'">Flare-up mode</strong>
+              <div style="font-size:12px;opacity:.75">Easing flagged regions</div>
+            </div>
+            <div class="toggle" aria-label="Flare up on"></div>
+          </div>
+          <p class="cycle">Luteal phase · day 21 — volume softens automatically.</p>
+        </section>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <span>👥 Social</span>
+      <span class="on">⌂ Home</span>
+      <span>◎ Goals</span>
+      <span>☺ You</span>
+    </nav>
+  </div>
+</body>
+</html>

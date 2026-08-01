@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>04 · Liquid goals — Sody Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .screen{
+    min-height:100%;
+    background:linear-gradient(180deg,#4A43EC 0%, #AFC8FA 42%, #FFFCE9 100%);
+    padding:58px 18px 120px;
+    position:relative;overflow:hidden;
+  }
+  .hdr{color:#fff;margin-bottom:18px}
+  .hdr h1{font-family:'Fredoka';font-size:34px;line-height:1}
+  .orb-wrap{position:relative;height:360px;margin:10px 0 20px}
+  .orb{
+    position:absolute;border-radius:50%;
+    overflow:hidden;color:#fff;
+    box-shadow:0 20px 40px rgba(23,22,58,.25);
+    animation:floaty 5s ease-in-out infinite;
+  }
+  .orb .fill{
+    position:absolute;left:0;right:0;bottom:0;
+    background:linear-gradient(180deg,rgba(216,242,76,.95),rgba(144,170,71,.95));
+    animation:rise 2.2s ease both;
+  }
+  @keyframes rise{from{height:0}to{height:var(--h)}}
+  .orb .photo{
+    position:absolute;inset:0;
+    background-size:cover;background-position:center;
+    opacity:.35;mix-blend-mode:soft-light;
+  }
+  .orb .label{
+    position:relative;z-index:2;height:100%;
+    display:flex;flex-direction:column;justify-content:flex-end;
+    padding:18px;font-family:'Fredoka';
+  }
+  .orb .label small{font-family:'Lekton';letter-spacing:.14em;text-transform:uppercase;font-size:10px;opacity:.85}
+  .orb .label strong{font-size:22px;line-height:1.05;margin:4px 0}
+  .orb .label em{font-style:normal;font-size:13px;opacity:.9}
+  .o1{width:230px;height:230px;left:10px;top:20px;background:#2f2a78;animation-delay:0s}
+  .o2{width:160px;height:160px;right:6px;top:170px;background:#324B3E;animation-delay:-1.4s}
+  .o3{
+    width:120px;height:120px;left:40px;bottom:0;
+    background:#17163a;animation-delay:-.7s;
+    display:grid;place-items:center;font-family:'Fredoka';font-size:14px;text-align:center;padding:12px;
+  }
+  .hero-copy{color:var(--ink);margin-top:8px}
+  .hero-copy h2{font-family:'Fredoka';font-size:30px;line-height:1.05;margin:6px 0 10px}
+  .hero-copy p{font-size:14px;max-width:30ch;margin-bottom:14px}
+  .creature{
+    position:absolute;right:-6px;top:40px;width:100px;z-index:5;
+    animation:floaty 3s ease-in-out infinite;
+  }
+  .ask{
+    display:inline-flex;gap:6px;align-items:center;
+    background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.45);
+    color:#fff;border-radius:999px;padding:8px 12px;
+    font-family:'Fredoka';font-weight:700;font-size:12px;margin-top:10px;
+  }
+</style>
+</head>
+<body>
+  <div class="page-meta">
+    <a href="index.html">← All mockups</a>
+    <h1>04 · Liquid goals</h1>
+    <p>Goals as living liquid orbs. Progress rises like tide — the next workout lives inside.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="phone-scroll">
+      <div class="screen">
+        <header class="hdr fadeup">
+          <p class="mono" style="font-size:11px;opacity:.85">Good morning</p>
+          <h1>Irene's orbit</h1>
+          <div class="ask">✦ Ask coach anything</div>
+        </header>
+
+        <div class="orb-wrap">
+          <svg class="creature" viewBox="0 0 120 140">
+            <!-- little blob coach -->
+            <ellipse cx="60" cy="70" rx="40" ry="48" fill="#D8F24C"/>
+            <circle cx="48" cy="62" r="4" fill="#17163a"/><circle cx="72" cy="62" r="4" fill="#17163a"/>
+            <path d="M50 78c6 8 14 8 20 0" stroke="#17163a" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <circle cx="28" cy="48" r="10" fill="#D8F24C"/><circle cx="92" cy="48" r="10" fill="#D8F24C"/>
+            <text x="60" y="108" text-anchor="middle" font-size="11" font-family="Lekton" font-weight="700" fill="#17163a">SODY</text>
+          </svg>
+
+          <div class="orb o1">
+            <div class="photo" style="background-image:url('https://images.unsplash.com/photo-1581009146145-b5ef050c149a?auto=format&fit=crop&w=700&q=80')"></div>
+            <div class="fill" style="--h:20%"></div>
+            <div class="label">
+              <small>Next up inside</small>
+              <strong>Upper body strength</strong>
+              <em>Gain weight · 20% · Start →</em>
+            </div>
+          </div>
+          <div class="orb o2">
+            <div class="photo" style="background-image:url('https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=600&q=80')"></div>
+            <div class="fill" style="--h:25%;animation-delay:.25s"></div>
+            <div class="label">
+              <small>Planning</small>
+              <strong>Run a 10K</strong>
+              <em>25%</em>
+            </div>
+          </div>
+          <div class="orb o3">〰<br>Breather</div>
+        </div>
+
+        <div class="hero-copy fadeup d2">
+          <p class="mono" style="font-size:11px;color:var(--blue)">At your desk soon</p>
+          <h2>A 3-min reset is waiting</h2>
+          <p>When the clock hits work hours, this softens into your midday companion.</p>
+          <button class="btn btn-ink">Log my own</button>
+        </div>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <span>👥 Social</span>
+      <span class="on">⌂ Home</span>
+      <span>◎ Goals</span>
+      <span>☺ You</span>
+    </nav>
+  </div>
+</body>
+</html>

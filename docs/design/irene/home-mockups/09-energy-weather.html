@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>09 · Energy weather — Sody Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .screen{
+    min-height:100%;
+    background:linear-gradient(165deg,#AFC8FA 0%, #FFFCE9 40%, #D8F24C 100%);
+    padding:58px 20px 120px;
+    position:relative;overflow:hidden;
+  }
+  .clouds{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .cloud{
+    position:absolute;background:rgba(255,255,255,.55);
+    border-radius:999px;filter:blur(.2px);
+    animation:driftCloud 18s linear infinite;
+  }
+  .cloud:before,.cloud:after{
+    content:'';position:absolute;background:inherit;border-radius:50%;
+  }
+  .c1{width:120px;height:40px;top:90px;left:-140px;animation-duration:22s}
+  .c1:before{width:50px;height:50px;top:-24px;left:18px}
+  .c1:after{width:60px;height:60px;top:-30px;left:50px}
+  .c2{width:160px;height:46px;top:160px;left:-200px;animation-duration:28s;animation-delay:-8s;opacity:.7}
+  .c2:before{width:60px;height:60px;top:-28px;left:24px}
+  .c2:after{width:70px;height:70px;top:-34px;left:70px}
+  @keyframes driftCloud{
+    from{transform:translateX(0)}
+    to{transform:translateX(520px)}
+  }
+  .sun{
+    position:absolute;right:24px;top:70px;width:74px;height:74px;
+    border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,#D8F24C 45%,#90AA47);
+    animation:pulse 3s ease-in-out infinite;
+    box-shadow:0 0 60px rgba(216,242,76,.55);
+  }
+  .hdr{position:relative;z-index:2}
+  .hdr .mono{font-size:11px;color:var(--deep)}
+  .hdr h1{font-family:'Fredoka';font-size:38px;line-height:1;margin:8px 0;color:var(--ink);max-width:12ch}
+  .weather-chip{
+    display:inline-flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,.65);backdrop-filter:blur(8px);
+    border-radius:999px;padding:8px 14px;
+    font-family:'Fredoka';font-size:13px;color:var(--ink);
+  }
+  .photo-arc{
+    margin:28px auto 0;width:100%;height:240px;position:relative;z-index:2;
+    border-radius:50% 50% 28% 28% / 60% 60% 40% 40%;
+    overflow:hidden;
+    background:
+      linear-gradient(180deg,rgba(74,67,236,.15),rgba(23,22,58,.55)),
+      url('https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80') center/cover;
+    box-shadow:0 24px 40px rgba(50,75,62,.2);
+  }
+  .photo-arc .cap{
+    position:absolute;left:18px;right:18px;bottom:18px;color:#fff;
+  }
+  .photo-arc h2{font-family:'Fredoka';font-size:30px;line-height:1}
+  .actions{margin-top:18px;display:flex;gap:10px;position:relative;z-index:2}
+  .note{
+    margin-top:22px;position:relative;z-index:2;
+    font-size:14px;max-width:32ch;line-height:1.45;color:var(--deep);
+  }
+  .mascot{
+    position:absolute;left:10px;bottom:110px;width:90px;z-index:4;
+    animation:floaty 3.6s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+  <div class="page-meta">
+    <a href="index.html">← All mockups</a>
+    <h1>09 · Energy weather</h1>
+    <p>Today's body state as weather. Atmosphere shifts with energy; the coach adapts the scene.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="phone-scroll">
+      <div class="screen">
+        <div class="clouds"><div class="cloud c1"></div><div class="cloud c2"></div></div>
+        <div class="sun" aria-hidden="true"></div>
+        <header class="hdr fadeup">
+          <p class="mono">Body forecast · Irene</p>
+          <h1>Bright with a soft neck breeze</h1>
+          <div class="weather-chip">⚡ Energy 7/10 · 😴 Sleep 6.1h</div>
+        </header>
+
+        <div class="photo-arc fadeup d2">
+          <div class="cap">
+            <p class="mono" style="font-size:10px;opacity:.85">Next up</p>
+            <h2>Upper body strength</h2>
+            <p style="font-size:12px;opacity:.9">32 min · cloud cover on overhead press</p>
+          </div>
+        </div>
+
+        <div class="actions fadeup d3">
+          <button class="btn btn-ink">Start under clear skies</button>
+        </div>
+        <p class="note">Coach swapped heavy presses for supported variations because sleep dipped. Goals still rising: Gain weight 20% · 10K 25%.</p>
+
+        <svg class="mascot" viewBox="0 0 120 140">
+          <ellipse cx="60" cy="90" rx="38" ry="42" fill="#fff"/>
+          <circle cx="60" cy="55" r="28" fill="#FFD7B5"/>
+          <path d="M38 50c6-20 40-20 46 0" fill="#4A43EC"/>
+          <circle cx="50" cy="56" r="3" fill="#17163a"/><circle cx="72" cy="56" r="3" fill="#17163a"/>
+          <path d="M52 68c5 5 11 5 16 0" stroke="#17163a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M30 40c-10-16 8-28 18-14M90 40c10-16-8-28-18-14" stroke="#90AA47" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <text x="60" y="105" text-anchor="middle" font-family="Fredoka" font-size="12" fill="#4A43EC">fair</text>
+        </svg>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <span>👥 Social</span>
+      <span class="on">⌂ Home</span>
+      <span>◎ Goals</span>
+      <span>☺ You</span>
+    </nav>
+  </div>
+</body>
+</html>

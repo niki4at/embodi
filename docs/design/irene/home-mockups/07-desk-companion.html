@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>07 · Desk companion — Sody Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .screen{
+    min-height:100%;
+    background:
+      linear-gradient(180deg,rgba(255,252,233,.92) 0%, rgba(255,252,233,.7) 30%, rgba(50,75,62,.55) 100%),
+      url('https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=900&q=80') center top/cover;
+    padding:58px 20px 120px;
+    position:relative;overflow:hidden;
+  }
+  .hi{color:var(--deep)}
+  .hi h1{font-family:'Fredoka';font-size:36px;line-height:1;margin:6px 0 8px;color:var(--ink)}
+  .hi p{font-size:14px;max-width:26ch;color:#2a4036}
+  .peek{
+    position:absolute;right:-10px;top:120px;width:170px;
+    animation:peek 3.8s ease-in-out infinite;
+    filter:drop-shadow(0 16px 20px rgba(0,0,0,.2));
+    z-index:4;
+  }
+  @keyframes peek{
+    0%,100%{transform:translate(18px,0) rotate(6deg)}
+    50%{transform:translate(0,-8px) rotate(0deg)}
+  }
+  .speech{
+    position:absolute;right:120px;top:150px;z-index:5;
+    background:#fff;border-radius:18px 18px 4px 18px;
+    padding:12px 14px;max-width:140px;
+    font-family:'Fredoka';font-size:13px;line-height:1.25;
+    animation:fadeup .6s ease both .3s;
+    box-shadow:0 12px 28px rgba(23,22,58,.15);
+  }
+  .block{
+    margin-top:200px;color:#fff;position:relative;z-index:2;
+  }
+  .block h2{font-family:'Fredoka';font-size:40px;line-height:.95;margin:8px 0 10px}
+  .block p{font-size:14px;opacity:.92;max-width:28ch;margin-bottom:16px}
+  .soft{
+    margin-top:28px;padding-top:22px;
+    border-top:1.5px solid rgba(255,255,255,.3);
+  }
+  .soft h3{font-family:'Fredoka';font-size:22px;color:#fff;margin-bottom:6px}
+  .soft p{color:rgba(255,255,255,.85);font-size:13px;margin-bottom:12px}
+  .pills{display:flex;gap:8px;flex-wrap:wrap}
+  .pills span{
+    background:rgba(255,252,233,.15);border:1px solid rgba(255,252,233,.35);
+    color:#fff;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:700;
+  }
+  .clock{
+    display:inline-block;margin-top:10px;
+    font-family:'Fredoka';font-size:12px;letter-spacing:.08em;
+    background:var(--lime);color:var(--ink);padding:6px 10px;border-radius:999px;
+  }
+</style>
+</head>
+<body>
+  <div class="page-meta">
+    <a href="index.html">← All mockups</a>
+    <h1>07 · Desk companion</h1>
+    <p>Dana's home during work hours — a character peeks in with a tiny reset.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="phone-scroll">
+      <div class="screen">
+        <header class="hi fadeup">
+          <p class="mono" style="font-size:11px">Mon–Fri · till 6pm</p>
+          <h1>Still at the desk?</h1>
+          <p>Your shoulders have been up by your ears for 47 minutes.</p>
+          <div class="clock">AT YOUR DESK MODE</div>
+        </header>
+
+        <div class="speech">Psst — 3 minutes. Then back to deep work.</div>
+        <svg class="peek" viewBox="0 0 200 220">
+          <!-- character peeking from right -->
+          <ellipse cx="120" cy="120" rx="70" ry="80" fill="#D8F24C"/>
+          <circle cx="100" cy="90" r="36" fill="#FFD7B5"/>
+          <path d="M70 82c8-28 60-28 68 0-16 12-52 12-68 0z" fill="#4A43EC"/>
+          <circle cx="88" cy="92" r="4" fill="#17163a"/><circle cx="112" cy="92" r="4" fill="#17163a"/>
+          <path d="M90 108c8 8 16 8 24 0" stroke="#17163a" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <ellipse cx="78" cy="104" rx="7" ry="4" fill="#FF8BA0" opacity=".7"/>
+          <ellipse cx="122" cy="104" rx="7" ry="4" fill="#FF8BA0" opacity=".7"/>
+          <path d="M60 140c-30 10-40 40-20 60" stroke="#FFD7B5" stroke-width="14" fill="none" stroke-linecap="round"/>
+          <text x="120" y="165" text-anchor="middle" font-family="Fredoka" font-size="16" fill="#17163a">hey</text>
+        </svg>
+
+        <section class="block fadeup d2">
+          <p class="mono" style="font-size:11px;opacity:.8">Suggested now</p>
+          <h2>Neck & shoulder reset</h2>
+          <p>3 min · no mat · counts toward recovery for Gain weight</p>
+          <button class="btn btn-lime">Start reset</button>
+          <button class="btn btn-ghost" style="margin-left:8px">Snooze 30m</button>
+
+          <div class="soft">
+            <h3>Still queued: Upper body</h3>
+            <p>32 min after work · adjusted for desk tension</p>
+            <div class="pills">
+              <span>Start later</span>
+              <span>〰 Breather</span>
+              <span>+ Log my own</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <span>👥 Social</span>
+      <span class="on">⌂ Home</span>
+      <span>◎ Goals</span>
+      <span>☺ You</span>
+    </nav>
+  </div>
+</body>
+</html>

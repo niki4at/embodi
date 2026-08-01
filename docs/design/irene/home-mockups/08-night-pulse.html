@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>08 · Night pulse — Sody Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .screen{
+    min-height:100%;
+    background:#0b0a1a;
+    color:#f4f1ff;
+    padding:58px 20px 120px;
+    position:relative;overflow:hidden;
+  }
+  .glow{
+    position:absolute;width:280px;height:280px;border-radius:50%;
+    filter:blur(40px);opacity:.55;animation:pulse 4s ease-in-out infinite;
+  }
+  .g1{background:var(--blue);top:-60px;right:-80px}
+  .g2{background:rgba(216,242,76,.45);bottom:180px;left:-100px;animation-delay:-1.5s}
+  .hdr h1{font-family:'Fredoka';font-size:34px;line-height:1;margin:6px 0 4px}
+  .ask{
+    display:inline-flex;margin-top:12px;
+    background:var(--lime);color:var(--ink);
+    border-radius:999px;padding:9px 14px;
+    font-family:'Fredoka';font-weight:700;font-size:12px;
+  }
+  .silhouette{
+    margin:28px -20px 0;position:relative;height:260px;
+    background:
+      linear-gradient(180deg,transparent 10%, #0b0a1a 95%),
+      url('https://images.unsplash.com/photo-1518310383802-640c2de311b2?auto=format&fit=crop&w=900&q=80') center/cover;
+    mask-image:linear-gradient(180deg,#000 55%, transparent 100%);
+  }
+  .silhouette .line{
+    position:absolute;inset:0;opacity:.7;
+  }
+  .copy{position:relative;z-index:2;margin-top:-40px}
+  .copy .label{color:var(--lime);font-size:11px;letter-spacing:.2em}
+  .copy h2{font-family:'Fredoka';font-size:40px;line-height:.95;margin:8px 0 10px}
+  .pulse-bars{
+    display:flex;gap:6px;align-items:flex-end;height:36px;margin:18px 0;
+  }
+  .pulse-bars i{
+    flex:1;border-radius:6px 6px 0 0;background:var(--lime);
+    animation:bar 1.2s ease-in-out infinite;
+    opacity:.85;
+  }
+  .pulse-bars i:nth-child(1){height:40%;animation-delay:0s}
+  .pulse-bars i:nth-child(2){height:70%;animation-delay:.1s}
+  .pulse-bars i:nth-child(3){height:55%;animation-delay:.2s}
+  .pulse-bars i:nth-child(4){height:90%;animation-delay:.3s}
+  .pulse-bars i:nth-child(5){height:60%;animation-delay:.4s}
+  .pulse-bars i:nth-child(6){height:75%;animation-delay:.5s}
+  @keyframes bar{
+    0%,100%{transform:scaleY(.7);opacity:.55}
+    50%{transform:scaleY(1);opacity:1}
+  }
+  .row{display:flex;gap:10px;margin-top:8px}
+  .foot{
+    margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:14px;
+  }
+  .foot div{font-size:13px}
+  .foot strong{display:block;font-family:'Fredoka';font-size:22px;color:var(--lime)}
+  .creature{
+    position:absolute;right:12px;bottom:130px;width:78px;z-index:5;
+    animation:floaty 3s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+  <div class="page-meta">
+    <a href="index.html">← All mockups</a>
+    <h1>08 · Night pulse</h1>
+    <p>Dark mode that still feels alive — neon lime, photo silhouette, pulsing week energy.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="phone-scroll">
+      <div class="screen">
+        <div class="glow g1"></div><div class="glow g2"></div>
+        <header class="hdr fadeup">
+          <p class="mono" style="font-size:11px;color:var(--peri)">Good evening</p>
+          <h1>Irene, your body<br>still has one gear.</h1>
+          <div class="ask">✦ Night coach</div>
+        </header>
+        <div class="silhouette">
+          <svg class="line" viewBox="0 0 390 260" preserveAspectRatio="none">
+            <path class="squiggle-stroke" d="M30 40c90 20 80 100 40 140s50 70 140 60"/>
+          </svg>
+        </div>
+        <div class="copy fadeup d2">
+          <p class="label mono">Next up</p>
+          <h2>Upper body strength</h2>
+          <p style="opacity:.8;font-size:14px">32 min · low lights · neck-friendly</p>
+          <div class="pulse-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="row">
+            <button class="btn btn-lime">Start</button>
+            <button class="btn btn-ghost">Adjust</button>
+          </div>
+          <div class="foot">
+            <div><strong>4</strong>sessions this week</div>
+            <div><strong>3wk</strong>soft streak</div>
+            <div><strong>20%</strong>gain weight</div>
+            <div><strong>3m</strong>desk reset ready</div>
+          </div>
+        </div>
+        <svg class="creature" viewBox="0 0 100 120">
+          <ellipse cx="50" cy="70" rx="34" ry="40" fill="#4A43EC"/>
+          <circle cx="50" cy="48" r="22" fill="#FFD7B5"/>
+          <circle cx="43" cy="48" r="2.5" fill="#17163a"/><circle cx="58" cy="48" r="2.5" fill="#17163a"/>
+          <path d="M44 56c4 4 8 4 12 0" stroke="#17163a" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <circle cx="50" cy="18" r="6" fill="#D8F24C"/>
+          <text x="50" y="96" text-anchor="middle" fill="#D8F24C" font-size="10" font-family="Fredoka">✦</text>
+        </svg>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <span>👥 Social</span>
+      <span class="on">⌂ Home</span>
+      <span>◎ Goals</span>
+      <span>☺ You</span>
+    </nav>
+  </div>
+</body>
+</html>

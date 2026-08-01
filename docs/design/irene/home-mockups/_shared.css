@@ -1,0 +1,130 @@
+/* Shared phone chrome for Sody home mockups */
+:root{
+  --blue:#4A43EC;
+  --lime:#D8F24C;
+  --cream:#FFFCE9;
+  --peri:#AFC8FA;
+  --lav:#D3CFFF;
+  --olive:#90AA47;
+  --deep:#324B3E;
+  --ink:#17163a;
+  --pink:#FF8BA0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Lekton',monospace;
+  background:#0e0d24;
+  color:var(--ink);
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  padding:28px 16px 60px;
+  gap:18px;
+}
+.page-meta{
+  width:min(390px,100%);
+  color:var(--cream);
+  font-size:12.5px;
+  letter-spacing:.06em;
+}
+.page-meta a{color:var(--lime);font-weight:700}
+.page-meta h1{
+  font-family:'Fredoka',sans-serif;
+  font-size:28px;
+  letter-spacing:-.02em;
+  margin:4px 0 6px;
+  color:var(--lime);
+}
+.phone{
+  width:min(390px,100%);
+  height:min(844px,92vh);
+  border-radius:44px;
+  overflow:hidden;
+  position:relative;
+  border:3px solid #2a2848;
+  box-shadow:0 40px 80px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.08);
+  background:var(--cream);
+}
+.phone-scroll{
+  height:100%;
+  overflow-y:auto;
+  overflow-x:hidden;
+  scroll-behavior:smooth;
+  -webkit-overflow-scrolling:touch;
+}
+.phone-scroll::-webkit-scrollbar{width:0}
+.status{
+  position:sticky;top:0;z-index:40;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 22px 8px;
+  font-family:'Fredoka',sans-serif;
+  font-size:13px;font-weight:600;
+  color:#fff;
+  mix-blend-mode:difference;
+  pointer-events:none;
+}
+.island{
+  width:96px;height:28px;border-radius:20px;background:#111;margin:0 auto;
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:50;
+}
+.tabbar{
+  position:absolute;left:16px;right:16px;bottom:14px;z-index:45;
+  height:64px;border-radius:28px;
+  background:rgba(23,22,58,.88);
+  backdrop-filter:blur(16px);
+  display:flex;align-items:center;justify-content:space-around;
+  color:#cfcbe8;font-size:10px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.tabbar .on{color:var(--lime)}
+.tabbar span{display:flex;flex-direction:column;align-items:center;gap:3px}
+.tabbar svg{width:22px;height:22px}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  font-family:'Fredoka',sans-serif;font-weight:700;border:none;cursor:pointer;
+  border-radius:999px;padding:14px 22px;font-size:16px;
+  transition:transform .2s ease, filter .2s ease;
+}
+.btn:active{transform:scale(.97)}
+.btn-lime{background:var(--lime);color:var(--ink)}
+.btn-ink{background:var(--ink);color:var(--cream)}
+.btn-ghost{
+  background:transparent;color:#fff;
+  border:2px solid rgba(255,255,255,.65);
+}
+.squiggle-stroke{
+  fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;
+  stroke-dasharray:420;stroke-dashoffset:420;
+  animation:draw 3.2s ease forwards infinite alternate;
+}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes floaty{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-10px)}
+}
+@keyframes pulse{
+  0%,100%{transform:scale(1);opacity:.9}
+  50%{transform:scale(1.06);opacity:1}
+}
+@keyframes shimmer{
+  0%{background-position:0% 50%}
+  100%{background-position:100% 50%}
+}
+@keyframes blob{
+  0%,100%{border-radius:58% 42% 48% 52% / 52% 40% 60% 48%}
+  50%{border-radius:42% 58% 55% 45% / 45% 55% 45% 55%}
+}
+@keyframes fadeup{
+  from{opacity:0;transform:translateY(18px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.fadeup{animation:fadeup .7s ease both}
+.fadeup.d1{animation-delay:.1s}
+.fadeup.d2{animation-delay:.22s}
+.fadeup.d3{animation-delay:.34s}
+.fadeup.d4{animation-delay:.46s}
+.mono{font-family:'Lekton',monospace;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.display{font-family:'Fredoka',sans-serif;font-weight:700;letter-spacing:-.02em}

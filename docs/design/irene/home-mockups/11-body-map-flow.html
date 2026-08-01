@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>11 · Body map flow — Sody Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .screen{
+    min-height:100%;
+    background:
+      linear-gradient(180deg,#FFFCE9 0%, #D3CFFF 55%, #4A43EC 100%);
+    padding:56px 18px 120px;
+    position:relative;overflow:hidden;
+  }
+  .hdr h1{font-family:'Fredoka';font-size:32px;line-height:1;color:var(--ink);margin:6px 0}
+  .hdr p{font-size:13px;color:#3a3760;max-width:28ch}
+  .figure-wrap{
+    margin:18px auto 0;position:relative;
+    width:260px;height:420px;
+  }
+  .photo{
+    position:absolute;inset:20px 40px 40px;
+    border-radius:120px;
+    background:
+      linear-gradient(180deg,rgba(255,252,233,.1),rgba(23,22,58,.35)),
+      url('https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=700&q=80') center top/cover;
+    filter:grayscale(.15) contrast(1.05);
+  }
+  .glow-zone{
+    position:absolute;border-radius:50%;
+    mix-blend-mode:screen;
+    animation:pulse 2.8s ease-in-out infinite;
+  }
+  .z-shoulders{width:120px;height:50px;left:70px;top:110px;background:rgba(216,242,76,.55)}
+  .z-arms{width:36px;height:90px;right:48px;top:150px;background:rgba(175,200,250,.65);animation-delay:.4s}
+  .z-core{width:70px;height:70px;left:95px;top:200px;background:rgba(74,67,236,.35);animation-delay:.8s}
+  .callout{
+    position:absolute;background:#fff;color:var(--ink);
+    border-radius:16px;padding:10px 12px;
+    font-family:'Fredoka';font-size:12px;line-height:1.25;
+    box-shadow:0 10px 24px rgba(23,22,58,.18);
+    max-width:110px;
+    animation:fadeup .6s ease both;
+  }
+  .c1{left:-6px;top:96px}.c2{right:-8px;top:170px}.c3{left:10px;bottom:70px}
+  .bottom{
+    margin-top:8px;color:#fff;position:relative;z-index:2;
+  }
+  .bottom h2{font-family:'Fredoka';font-size:28px;line-height:1;margin:6px 0 8px}
+  .bottom p{font-size:13px;opacity:.9;margin-bottom:14px}
+  .ask{
+    position:absolute;top:56px;right:16px;
+    width:48px;height:48px;border-radius:50%;
+    background:var(--lime);color:var(--ink);
+    display:grid;place-items:center;
+    font-family:'Fredoka';font-weight:700;font-size:18px;
+    animation:pulse 2.4s ease-in-out infinite;
+  }
+  .squiggle{
+    position:absolute;inset:0;pointer-events:none;opacity:.7;
+  }
+</style>
+</head>
+<body>
+  <div class="page-meta">
+    <a href="index.html">← All mockups</a>
+    <h1>11 · Body map flow</h1>
+    <p>A living body figure anchors Home. Focus zones glow; the session maps onto you.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="phone-scroll">
+      <div class="screen">
+        <div class="ask">✦</div>
+        <header class="hdr fadeup">
+          <p class="mono" style="font-size:11px;color:var(--blue)">Mapped to Irene</p>
+          <h1>Today trains the upper map</h1>
+          <p>Shoulders protected. Arms get the work. Neck stays quiet.</p>
+        </header>
+
+        <div class="figure-wrap">
+          <div class="photo"></div>
+          <div class="glow-zone z-shoulders"></div>
+          <div class="glow-zone z-arms"></div>
+          <div class="glow-zone z-core"></div>
+          <svg class="squiggle" viewBox="0 0 260 420" fill="none">
+            <path class="squiggle-stroke" d="M40 80c40 30 30 90 10 130s40 90 90 100" stroke="#fff"/>
+          </svg>
+          <div class="callout c1">easy on neck</div>
+          <div class="callout c2" style="animation-delay:.15s">arms · focus</div>
+          <div class="callout c3" style="animation-delay:.3s">core braces</div>
+        </div>
+
+        <section class="bottom fadeup d2">
+          <p class="mono" style="font-size:11px;opacity:.8">Next up · 32 min</p>
+          <h2>Upper body strength</h2>
+          <p>6 moves · 2 new · Gain weight goal</p>
+          <button class="btn btn-lime">Start on this map</button>
+          <button class="btn btn-ghost" style="margin-left:8px">Adjust</button>
+        </section>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <span>👥 Social</span>
+      <span class="on">⌂ Home</span>
+      <span>◎ Goals</span>
+      <span>☺ You</span>
+    </nav>
+  </div>
+</body>
+</html>

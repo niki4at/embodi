@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>12 · Celebration loop — Sody Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .screen{
+    min-height:100%;
+    background:
+      radial-gradient(circle at 50% 20%, rgba(216,242,76,.55), transparent 40%),
+      linear-gradient(180deg,#4A43EC 0%, #17163a 55%, #0e0d24 100%);
+    color:#fff;
+    padding:58px 20px 120px;
+    position:relative;overflow:hidden;
+  }
+  .confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+  .confetti i{
+    position:absolute;top:-20px;width:8px;height:14px;border-radius:2px;
+    animation:fall 4.5s linear infinite;
+    opacity:.85;
+  }
+  @keyframes fall{
+    to{transform:translateY(110vh) rotate(520deg);opacity:.2}
+  }
+  .hdr{text-align:center;position:relative;z-index:2}
+  .hdr .mono{font-size:11px;color:var(--lime)}
+  .hdr h1{font-family:'Fredoka';font-size:40px;line-height:.95;margin:10px 0}
+  .hdr p{font-size:14px;opacity:.85}
+  .hero-char{
+    display:block;margin:18px auto 8px;width:180px;
+    animation:bounce 1.8s ease-in-out infinite;
+    filter:drop-shadow(0 18px 24px rgba(0,0,0,.35));
+    position:relative;z-index:2;
+  }
+  @keyframes bounce{
+    0%,100%{transform:translateY(0)}
+    40%{transform:translateY(-14px)}
+    60%{transform:translateY(-6px)}
+  }
+  .done{
+    position:relative;z-index:2;
+    margin:10px 0 18px;
+    border-radius:40% 60% 50% 50% / 50% 40% 60% 50%;
+    overflow:hidden;height:160px;
+    background:
+      linear-gradient(180deg,rgba(23,22,58,.2),rgba(23,22,58,.7)),
+      url('https://images.unsplash.com/photo-1517963879433-6ad2b056d712?auto=format&fit=crop&w=900&q=80') center/cover;
+    animation:blob 9s ease-in-out infinite;
+  }
+  .done .cap{
+    position:absolute;left:16px;bottom:14px;
+    font-family:'Fredoka';font-size:18px;
+  }
+  .stats{
+    display:flex;justify-content:space-between;gap:8px;
+    position:relative;z-index:2;margin:18px 0;
+  }
+  .stats div{text-align:center;flex:1}
+  .stats strong{display:block;font-family:'Fredoka';font-size:26px;color:var(--lime)}
+  .stats span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;opacity:.7}
+  .next{
+    position:relative;z-index:2;
+    background:rgba(255,252,233,.08);
+    border:1.5px solid rgba(255,252,233,.2);
+    border-radius:28px;padding:18px;
+  }
+  .next h3{font-family:'Fredoka';font-size:22px;margin:6px 0 8px}
+  .next p{font-size:13px;opacity:.85;margin-bottom:12px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+  <div class="page-meta">
+    <a href="index.html">← All mockups</a>
+    <h1>12 · Celebration loop</h1>
+    <p>Home after finishing — character celebrates, then gently offers the next move.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="phone-scroll">
+      <div class="screen">
+        <div class="confetti" id="confetti"></div>
+        <header class="hdr fadeup">
+          <p class="mono">Session complete</p>
+          <h1>You kept your body sound</h1>
+          <p>Upper body · 31 min · 2 PRs whispered</p>
+        </header>
+
+        <svg class="hero-char" viewBox="0 0 200 220">
+          <ellipse cx="100" cy="200" rx="50" ry="10" fill="rgba(0,0,0,.25)"/>
+          <circle cx="100" cy="70" r="36" fill="#FFD7B5"/>
+          <path d="M68 62c8-30 56-30 64 0-16 12-48 12-64 0z" fill="#D8F24C"/>
+          <circle cx="86" cy="72" r="4" fill="#17163a"/><circle cx="116" cy="72" r="4" fill="#17163a"/>
+          <path d="M88 88c8 10 18 10 26 0" stroke="#17163a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          <path d="M70 110c-8 30 8 60 30 70M130 110c8 30-8 60-30 70" stroke="#AFC8FA" stroke-width="16" stroke-linecap="round"/>
+          <circle cx="100" cy="130" r="28" fill="#4A43EC"/>
+          <!-- arms up -->
+          <path d="M72 120c-28-30-20-60-6-70" stroke="#FFD7B5" stroke-width="12" fill="none" stroke-linecap="round"/>
+          <path d="M128 120c28-30 20-60 6-70" stroke="#FFD7B5" stroke-width="12" fill="none" stroke-linecap="round"/>
+          <text x="100" y="138" text-anchor="middle" fill="#D8F24C" font-family="Fredoka" font-size="16">✦</text>
+        </svg>
+
+        <div class="done"><div class="cap">Today's work · saved</div></div>
+
+        <div class="stats fadeup d2">
+          <div><strong>5</strong><span>Sessions</span></div>
+          <div><strong>6.4t</strong><span>Volume</span></div>
+          <div><strong>3wk</strong><span>Streak</span></div>
+        </div>
+
+        <section class="next fadeup d3">
+          <p class="mono" style="font-size:11px;color:var(--lime)">Still room today</p>
+          <h3>Reuse today's check-in?</h3>
+          <p>Or take a 3-min desk reset / easy run if you want something softer.</p>
+          <div class="row">
+            <button class="btn btn-lime">Start another</button>
+            <button class="btn btn-ghost">Fresh check-in</button>
+          </div>
+        </section>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <span>👥 Social</span>
+      <span class="on">⌂ Home</span>
+      <span>◎ Goals</span>
+      <span>☺ You</span>
+    </nav>
+  </div>
+  <script>
+    const box = document.getElementById('confetti');
+    const colors = ['#D8F24C','#AFC8FA','#FF8BA0','#ffffff','#4A43EC'];
+    for (let i = 0; i < 28; i++) {
+      const el = document.createElement('i');
+      el.style.left = Math.random() * 100 + '%';
+      el.style.background = colors[i % colors.length];
+      el.style.animationDelay = (Math.random() * 4) + 's';
+      el.style.animationDuration = (3.5 + Math.random() * 2.5) + 's';
+      el.style.transform = `rotate(${Math.random()*180}deg)`;
+      box.appendChild(el);
+    }
+  </script>
+</body>
+</html>

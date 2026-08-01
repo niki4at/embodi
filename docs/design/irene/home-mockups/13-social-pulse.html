@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>13 · Social pulse — Sody Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .screen{
+    min-height:100%;
+    background:var(--cream);
+    padding:56px 0 120px;
+    position:relative;
+  }
+  .hdr{padding:0 20px 12px}
+  .hdr h1{font-family:'Fredoka';font-size:34px;color:var(--ink);line-height:1}
+  .friends{
+    display:flex;gap:12px;padding:8px 20px 18px;overflow-x:auto;
+  }
+  .friends::-webkit-scrollbar{display:none}
+  .friend{text-align:center;min-width:64px}
+  .friend .ring{
+    width:64px;height:64px;border-radius:50%;padding:3px;
+    background:conic-gradient(var(--lime), var(--blue), var(--lav), var(--lime));
+    animation:spin 6s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .friend .ring i{
+    display:block;width:100%;height:100%;border-radius:50%;
+    background-size:cover;background-position:center;
+    border:3px solid var(--cream);
+  }
+  .friend span{display:block;margin-top:6px;font-size:11px;font-weight:700}
+  .hero{
+    margin:0 0 0;
+    min-height:380px;position:relative;color:#fff;
+    background:
+      linear-gradient(180deg,rgba(74,67,236,.25),rgba(23,22,58,.9)),
+      url('https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=1000&q=80') center/cover;
+    padding:40px 22px 28px;
+    display:flex;flex-direction:column;justify-content:flex-end;
+  }
+  .hero h2{font-family:'Fredoka';font-size:42px;line-height:.95;margin:8px 0 10px}
+  .together{
+    padding:24px 20px;
+    background:linear-gradient(120deg,var(--peri),var(--lav));
+    color:var(--ink);
+  }
+  .together h3{font-family:'Fredoka';font-size:24px;margin:6px 0 8px}
+  .avatars{display:flex;margin:12px 0}
+  .avatars span{
+    width:36px;height:36px;border-radius:50%;margin-left:-8px;
+    border:2px solid #fff;background-size:cover;display:inline-block;
+  }
+  .mascot{
+    position:absolute;right:10px;top:70px;width:88px;z-index:3;
+    animation:floaty 3s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+  <div class="page-meta">
+    <a href="index.html">← All mockups</a>
+    <h1>13 · Social pulse</h1>
+    <p>Home that breathes with friends — stories of movement, then your next session.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="phone-scroll">
+      <div class="screen">
+        <header class="hdr fadeup">
+          <p class="mono" style="font-size:11px;color:var(--blue)">Good morning</p>
+          <h1>Irene + crew</h1>
+        </header>
+        <div class="friends">
+          <div class="friend"><div class="ring"><i style="background-image:url('https://images.unsplash.com/photo-1548690312-e3b507d8c110?auto=format&fit=crop&w=200&q=80')"></i></div><span>You</span></div>
+          <div class="friend"><div class="ring" style="animation-delay:-1s"><i style="background-image:url('https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80')"></i></div><span>Maya</span></div>
+          <div class="friend"><div class="ring" style="animation-delay:-2s"><i style="background-image:url('https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80')"></i></div><span>Jon</span></div>
+          <div class="friend"><div class="ring" style="animation-delay:-3s"><i style="background-image:url('https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80')"></i></div><span>Ava</span></div>
+        </div>
+
+        <section class="hero">
+          <svg class="mascot" viewBox="0 0 100 120">
+            <circle cx="50" cy="40" r="22" fill="#FFD7B5"/>
+            <path d="M30 36c5-16 35-16 40 0" fill="#D8F24C"/>
+            <circle cx="43" cy="42" r="2" fill="#17163a"/><circle cx="58" cy="42" r="2" fill="#17163a"/>
+            <path d="M44 50c4 3 8 3 12 0" stroke="#17163a" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <rect x="34" y="62" width="32" height="34" rx="12" fill="#fff"/>
+            <text x="50" y="84" text-anchor="middle" font-size="11" font-family="Fredoka" fill="#4A43EC">go</text>
+          </svg>
+          <p class="mono" style="font-size:11px;opacity:.85">Your next up</p>
+          <h2>Upper body strength</h2>
+          <p style="margin-bottom:14px;opacity:.9">32 min · Maya finished hers 20m ago</p>
+          <button class="btn btn-lime">Start</button>
+        </section>
+
+        <section class="together">
+          <p class="mono" style="font-size:11px">Shared goal</p>
+          <h3>Run a 10K together</h3>
+          <p style="font-size:13px">Group progress 25% — nobody ranked, everyone moving.</p>
+          <div class="avatars">
+            <span style="background-image:url('https://images.unsplash.com/photo-1548690312-e3b507d8c110?auto=format&fit=crop&w=100&q=80')"></span>
+            <span style="background-image:url('https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&q=80')"></span>
+            <span style="background-image:url('https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=100&q=80')"></span>
+          </div>
+        </section>
+      </div>
+    </div>
+    <nav class="tabbar">
+      <span>👥 Social</span>
+      <span class="on">⌂ Home</span>
+      <span>◎ Goals</span>
+      <span>☺ You</span>
+    </nav>
+  </div>
+</body>
+</html>
