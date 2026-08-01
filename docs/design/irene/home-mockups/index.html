@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Eight editorial mobile home-screen concepts for Sody, an adaptive fitness coach."
+    >
+    <title>Sody home concepts</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fredoka:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="styles.css">
+    <script src="gallery.js" defer></script>
+  </head>
+  <body data-motion="running">
+    <a class="skip-link" href="#gallery-stage">Skip to concepts</a>
+
+    <header class="gallery-header">
+      <div class="wordmark">
+        <span aria-hidden="true">S</span>
+        <span>Sody</span>
+      </div>
+      <div class="gallery-heading">
+        <p class="eyebrow">Home studies · 01—08</p>
+        <h1>How should today’s movement feel?</h1>
+        <p>
+          Eight image-led directions for an adaptive coach that meets the body
+          where it is.
+        </p>
+      </div>
+    </header>
+
+    <nav class="concept-selector" aria-label="Choose a home-screen concept">
+      <div class="selector-list" role="tablist">
+        <button
+          id="tab-cinematic"
+          type="button"
+          class="selector-button"
+          data-concept-target="cinematic"
+          role="tab"
+          aria-selected="true"
+          aria-controls="concept-cinematic"
+        >
+          <span>01</span> Cinematic
+        </button>
+        <button
+          id="tab-editorial"
+          type="button"
+          class="selector-button"
+          data-concept-target="editorial"
+          role="tab"
+          aria-selected="false"
+          aria-controls="concept-editorial"
+        >
+          <span>02</span> Editorial
+        </button>
+        <button
+          id="tab-coach"
+          type="button"
+          class="selector-button"
+          data-concept-target="coach"
+          role="tab"
+          aria-selected="false"
+          aria-controls="concept-coach"
+        >
+          <span>03</span> Coach
+        </button>
+        <button
+          id="tab-body-type"
+          type="button"
+          class="selector-button"
+          data-concept-target="body-type"
+          role="tab"
+          aria-selected="false"
+          aria-controls="concept-body-type"
+        >
+          <span>04</span> Body type
+        </button>
+        <button
+          id="tab-kinetic"
+          type="button"
+          class="selector-button"
+          data-concept-target="kinetic"
+          role="tab"
+          aria-selected="false"
+          aria-controls="concept-kinetic"
+        >
+          <span>05</span> Kinetic
+        </button>
+        <button
+          id="tab-quiet"
+          type="button"
+          class="selector-button"
+          data-concept-target="quiet"
+          role="tab"
+          aria-selected="false"
+          aria-controls="concept-quiet"
+        >
+          <span>06</span> Quiet
+        </button>
+        <button
+          id="tab-electric"
+          type="button"
+          class="selector-button"
+          data-concept-target="electric"
+          role="tab"
+          aria-selected="false"
+          aria-controls="concept-electric"
+        >
+          <span>07</span> Electric
+        </button>
+        <button
+          id="tab-afterglow"
+          type="button"
+          class="selector-button"
+          data-concept-target="afterglow"
+          role="tab"
+          aria-selected="false"
+          aria-controls="concept-afterglow"
+        >
+          <span>08</span> Afterglow
+        </button>
+      </div>
+      <div class="gallery-controls" role="group" aria-label="Gallery controls">
+        <button type="button" class="step-button" data-gallery-previous>
+          <span aria-hidden="true">←</span> Previous
+        </button>
+        <button
+          type="button"
+          class="motion-button"
+          data-motion-toggle
+          aria-pressed="false"
+          aria-label="Pause gallery animations"
+        >
+          Pause motion
+        </button>
+        <button type="button" class="step-button" data-gallery-next>
+          Next <span aria-hidden="true">→</span>
+        </button>
+      </div>
+      <p
+        class="visually-hidden"
+        data-gallery-live
+        aria-live="polite"
+        aria-atomic="true"
+      ></p>
+    </nav>
+
+    <main class="gallery-stage" id="gallery-stage" tabindex="-1">
+      <article
+        class="concept"
+        id="concept-cinematic"
+        data-concept="cinematic"
+        role="tabpanel"
+        aria-labelledby="tab-cinematic concept-title-cinematic"
+        tabindex="0"
+      >
+        <aside class="concept-notes">
+          <p class="concept-number">01 / 08</p>
+          <h2 id="concept-title-cinematic">Cinematic start</h2>
+          <p>
+            The workout reads like a film title over a full-body portrait.
+            One bright action carries the page; today’s adaptation stays close
+            enough to build trust without slowing momentum.
+          </p>
+          <dl class="palette-notes">
+            <div><dt>Energy</dt><dd>Confident · human · immediate</dd></div>
+            <div><dt>Palette</dt><dd>Cream, ink, lime, royal blue</dd></div>
+          </dl>
+        </aside>
+        <section
+          class="phone-scene cinematic-scene"
+          aria-label="Cinematic start home screen"
+        >
+          <div class="phone-status phone-status-light">
+            <span>9:41</span>
+            <span>Sat · 18°</span>
+          </div>
+          <div class="scene-brand">
+            <span class="mini-wordmark">sody</span>
+            <span class="profile-mark" aria-hidden="true">M</span>
+          </div>
+          <div class="cinematic-greeting">
+            <p class="scene-kicker">Good morning, Maya</p>
+            <h3>Your body said strong. We listened.</h3>
+          </div>
+          <figure class="image-frame cinematic-image">
+            <img
+              data-remote-image
+              src="https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&amp;fit=crop&amp;w=900&amp;q=85"
+              alt="Athlete holding a strong lunge in a sunlit studio"
+              width="900"
+              height="1200"
+              decoding="async"
+              loading="eager"
+              fetchpriority="high"
+            >
+          </figure>
+          <svg
+            class="scribble cinematic-scribble"
+            viewBox="0 0 360 260"
+            fill="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              class="scribble-path"
+              d="M20 210C65 250 142 231 156 167C169 108 97 93 83 145C65 210 213 228 290 140C315 111 329 73 332 30"
+            />
+            <path class="scribble-arrow" d="M315 47L333 28L341 53" />
+          </svg>
+          <div class="cinematic-workout">
+            <p class="scene-kicker">Next up · Rebuild 5K</p>
+            <h3>Lower-body lift</h3>
+            <dl class="workout-facts" role="group" aria-label="Workout facts">
+              <div>
+                <dt>Time</dt>
+                <dd>32 min</dd>
+              </div>
+              <div>
+                <dt>Focus</dt>
+                <dd>Glutes + balance</dd>
+              </div>
+              <div>
+                <dt>Today</dt>
+                <dd>Energy 4/5</dd>
+              </div>
+            </dl>
+            <button type="button" class="primary-action">
+              Start today’s lift <span aria-hidden="true">↗</span>
+            </button>
+            <p class="coach-whisper">
+              Sody softened the jumps after you logged a tender left knee.
+            </p>
+          </div>
+        </section>
+      </article>
+
+      <article
+        class="concept"
+        id="concept-editorial"
+        data-concept="editorial"
+        role="tabpanel"
+        aria-labelledby="tab-editorial concept-title-editorial"
+        tabindex="0"
+        hidden
+      >
+        <aside class="concept-notes">
+          <p class="concept-number">02 / 08</p>
+          <h2 id="concept-title-editorial">Editorial flow</h2>
+          <p>
+            Magazine-scale type and an offset crop create pace before the user
+            moves. Compact captions make the screen feel curated rather than
+            measured, while the queued run remains unmistakable.
+          </p>
+          <dl class="palette-notes">
+            <div><dt>Energy</dt><dd>Fresh · directional · cultured</dd></div>
+            <div><dt>Palette</dt><dd>Royal blue, cream, lavender, ink</dd></div>
+          </dl>
+        </aside>
+        <section
+          class="phone-scene editorial-scene"
+          aria-label="Editorial flow home screen"
+        >
+          <div class="phone-status phone-status-light">
+            <span>9:41</span>
+            <span>Saturday</span>
+          </div>
+          <div class="editorial-masthead">
+            <span class="mini-wordmark">sody</span>
+            <p>Issue 26 · your week in motion</p>
+          </div>
+          <div class="editorial-title">
+            <p class="scene-kicker">Morning, Maya</p>
+            <h3>Make room<br>to move.</h3>
+          </div>
+          <figure class="image-frame editorial-image">
+            <img
+              data-remote-image
+              src="https://images.unsplash.com/photo-1549576490-b0b4831ef60a?auto=format&amp;fit=crop&amp;w=900&amp;q=85"
+              alt="Runner stretching outdoors against a warm concrete wall"
+              width="900"
+              height="1200"
+              decoding="async"
+              loading="lazy"
+            >
+          </figure>
+          <div class="editorial-caption">
+            <span>Today’s edit</span>
+            <span>Desk reset → easy run</span>
+          </div>
+          <svg
+            class="scribble editorial-scribble"
+            viewBox="0 0 330 180"
+            fill="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              class="scribble-path"
+              d="M14 102C71 63 125 146 179 103C221 70 245 36 316 35"
+            />
+            <path class="scribble-arrow" d="M299 22L317 35L300 50" />
+          </svg>
+          <div class="editorial-session">
+            <p class="scene-kicker">Queued for your 5K goal</p>
+            <h3>Easy miles + strides</h3>
+            <p class="session-summary">
+              28 minutes · conversational pace · 4 relaxed strides
+            </p>
+            <button type="button" class="primary-action">
+              Begin the run <span aria-hidden="true">→</span>
+            </button>
+            <p class="open-context">
+              Slept 7h 42m <span aria-hidden="true">·</span> No pain logged
+            </p>
+          </div>
+        </section>
+      </article>
+
+      <article
+        class="concept"
+        id="concept-coach"
+        data-concept="coach"
+        role="tabpanel"
+        aria-labelledby="tab-coach concept-title-coach"
+        tabindex="0"
+        hidden
+      >
+        <aside class="concept-notes">
+          <p class="concept-number">03 / 08</p>
+          <h2 id="concept-title-coach">Coach in motion</h2>
+          <p>
+            The hand-drawn orbit turns adaptation into a visible gesture. A
+            plain-language swap explains how Sody protected the shoulder while
+            preserving the day’s training intent.
+          </p>
+          <dl class="palette-notes">
+            <div><dt>Energy</dt><dd>Attentive · active · reassuring</dd></div>
+            <div><dt>Palette</dt><dd>Deep green, lime, lavender, cream</dd></div>
+          </dl>
+        </aside>
+        <section
+          class="phone-scene coach-scene"
+          aria-label="Coach in motion home screen"
+        >
+          <div class="phone-status phone-status-light">
+            <span>9:41</span>
+            <span>Ready when you are</span>
+          </div>
+          <div class="coach-topline">
+            <span class="mini-wordmark">sody</span>
+            <p>Coach is tuned in</p>
+          </div>
+          <figure class="image-frame coach-image">
+            <img
+              data-remote-image
+              src="https://images.unsplash.com/photo-1594737625785-a6cbdabd333c?auto=format&amp;fit=crop&amp;w=900&amp;q=85"
+              alt="Woman training with dumbbells in a bright gym"
+              width="900"
+              height="1200"
+              decoding="async"
+              loading="lazy"
+            >
+          </figure>
+          <svg
+            class="scribble coach-orbit"
+            viewBox="0 0 390 430"
+            fill="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              class="scribble-path"
+              d="M54 76C160 6 341 69 331 202C322 329 143 388 52 282C-10 210 17 124 107 116C187 109 241 190 203 254"
+            />
+            <path class="scribble-arrow" d="M187 237L202 257L223 240" />
+          </svg>
+          <div class="coach-annotation">
+            <p>“I swapped overhead presses for landmine presses.”</p>
+            <span>Shoulder-friendly · same strength goal</span>
+          </div>
+          <div class="coach-session">
+            <p class="scene-kicker">Built from today’s check-in</p>
+            <h3>Push + pull, your way</h3>
+            <div
+              class="training-sequence"
+              role="group"
+              aria-label="Workout sequence"
+            >
+              <span>Warm up 5</span>
+              <span>Strength 24</span>
+              <span>Reset 4</span>
+            </div>
+            <button type="button" class="primary-action">
+              Train with Sody <span aria-hidden="true">↗</span>
+            </button>
+          </div>
+        </section>
+      </article>
+
+      <article
+        class="concept"
+        id="concept-body-type"
+        data-concept="body-type"
+        role="tabpanel"
+        aria-labelledby="tab-body-type concept-title-body-type"
+        tabindex="0"
+        hidden
+      >
+        <aside class="concept-notes">
+          <p class="concept-number">04 / 08</p>
+          <h2 id="concept-title-body-type">Body typography</h2>
+          <p>
+            The athlete and the word “move” become one image, making the body
+            the message rather than a metric. Workout detail follows an open
+            curve that feels physical and unboxed.
+          </p>
+          <dl class="palette-notes">
+            <div><dt>Energy</dt><dd>Expressive · tactile · optimistic</dd></div>
+            <div><dt>Palette</dt><dd>Lavender, ink, olive, cream</dd></div>
+          </dl>
+        </aside>
+        <section
+          class="phone-scene body-type-scene"
+          aria-label="Body typography home screen"
+        >
+          <div class="phone-status">
+            <span>9:41</span>
+            <span>Sat 1 Aug</span>
+          </div>
+          <div class="body-type-topline">
+            <span class="mini-wordmark">sody</span>
+            <p>Maya · feeling steady</p>
+          </div>
+          <div class="body-word" aria-hidden="true">
+            <span>M</span><span>O</span><span>V</span><span>E</span>
+          </div>
+          <figure class="image-frame body-type-image">
+            <img
+              data-remote-image
+              src="https://images.unsplash.com/photo-1524863479829-916d8e77f114?auto=format&amp;fit=crop&amp;w=900&amp;q=85"
+              alt="Athlete reaching upward during a mobility flow"
+              width="900"
+              height="1200"
+              decoding="async"
+              loading="lazy"
+            >
+          </figure>
+          <svg
+            class="scribble body-type-curve"
+            viewBox="0 0 380 210"
+            fill="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              class="scribble-path"
+              d="M15 172C95 64 256 43 364 123"
+            />
+            <text class="curve-copy">
+              <textPath href="#body-type-baseline">
+                hips · spine · breath · twenty-four easy minutes
+              </textPath>
+            </text>
+            <path
+              id="body-type-baseline"
+              class="invisible-path"
+              d="M30 163C107 75 252 58 352 126"
+            />
+          </svg>
+          <div class="body-type-session">
+            <p class="scene-kicker">Mobility · recovery day</p>
+            <h3>Open hips, easy spine</h3>
+            <p>
+              A gentle flow for the stiffness you noticed after yesterday’s
+              long run.
+            </p>
+            <button type="button" class="primary-action">
+              Start the flow <span aria-hidden="true">→</span>
+            </button>
+          </div>
+        </section>
+      </article>
+
+      <article
+        class="concept"
+        id="concept-kinetic"
+        data-concept="kinetic"
+        role="tabpanel"
+        aria-labelledby="tab-kinetic concept-title-kinetic"
+        tabindex="0"
+        hidden
+      >
+        <aside class="concept-notes">
+          <p class="concept-number">05 / 08</p>
+          <h2 id="concept-title-kinetic">Kinetic path</h2>
+          <p>
+            One continuous route connects the body check, preparation, and
+            workout. The line communicates cause and effect without breaking
+            the experience into separate panels.
+          </p>
+          <dl class="palette-notes">
+            <div><dt>Energy</dt><dd>Guided · playful · progressive</dd></div>
+            <div><dt>Palette</dt><dd>Royal blue, lime, cream, ink</dd></div>
+          </dl>
+        </aside>
+        <section
+          class="phone-scene kinetic-scene"
+          aria-label="Kinetic path home screen"
+        >
+          <div class="phone-status phone-status-light">
+            <span>9:41</span>
+            <span>3-day rhythm</span>
+          </div>
+          <div class="kinetic-heading">
+            <span class="mini-wordmark">sody</span>
+            <p class="scene-kicker">Hey Maya, here’s the route</p>
+            <h3>From stiff<br>to switched on.</h3>
+          </div>
+          <figure class="image-frame kinetic-image">
+            <img
+              data-remote-image
+              src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&amp;fit=crop&amp;w=900&amp;q=85"
+              alt="Athlete moving through a focused strength workout"
+              width="900"
+              height="1200"
+              decoding="async"
+              loading="lazy"
+            >
+          </figure>
+          <svg
+            class="scribble kinetic-route"
+            viewBox="0 0 390 760"
+            fill="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              class="route-path"
+              d="M44 60C159 40 326 102 287 211C250 316 86 249 93 366C99 467 310 416 319 533C327 628 207 641 177 718"
+            />
+            <circle class="route-stop" cx="44" cy="60" r="7" />
+            <circle class="route-stop" cx="93" cy="366" r="7" />
+            <circle class="route-stop" cx="177" cy="718" r="7" />
+          </svg>
+          <div class="path-label path-label-one">
+            <span>01</span>
+            <p>Energy 3/5 · back a little tight</p>
+          </div>
+          <div class="path-label path-label-two">
+            <span>02</span>
+            <p>Prime hips + core · 7 min</p>
+          </div>
+          <div class="kinetic-session">
+            <p class="scene-kicker">03 · Today’s destination</p>
+            <h3>Full-body foundations</h3>
+            <p>36 min · home · dumbbells + mat</p>
+            <button type="button" class="primary-action">
+              Follow the session <span aria-hidden="true">↓</span>
+            </button>
+          </div>
+        </section>
+      </article>
+
+      <article
+        class="concept"
+        id="concept-quiet"
+        data-concept="quiet"
+        role="tabpanel"
+        aria-labelledby="tab-quiet concept-title-quiet"
+        tabindex="0"
+        hidden
+      >
+        <aside class="concept-notes">
+          <p class="concept-number">06 / 08</p>
+          <h2 id="concept-title-quiet">Quiet strength</h2>
+          <p>
+            Generous space and a close, still crop make recovery feel
+            intentional rather than secondary. Copy removes guilt and gives a
+            lower-energy user one manageable next step.
+          </p>
+          <dl class="palette-notes">
+            <div><dt>Energy</dt><dd>Calm · kind · grounded</dd></div>
+            <div><dt>Palette</dt><dd>Cream, deep green, olive, lavender</dd></div>
+          </dl>
+        </aside>
+        <section
+          class="phone-scene quiet-scene"
+          aria-label="Quiet strength home screen"
+        >
+          <div class="phone-status">
+            <span>9:41</span>
+            <span>Quiet mode</span>
+          </div>
+          <div class="quiet-topline">
+            <span class="mini-wordmark">sody</span>
+            <p>Saturday · take the softer route</p>
+          </div>
+          <div class="quiet-greeting">
+            <p class="scene-kicker">Morning, Maya</p>
+            <h3>Low energy<br>still counts.</h3>
+            <p>
+              You slept lightly, so today is about leaving your body better
+              than you found it.
+            </p>
+          </div>
+          <figure class="image-frame quiet-image">
+            <img
+              data-remote-image
+              src="https://images.unsplash.com/photo-1538805060514-97d9cc17730c?auto=format&amp;fit=crop&amp;w=900&amp;q=85"
+              alt="Runner pausing calmly beside a quiet outdoor path"
+              width="900"
+              height="1200"
+              decoding="async"
+              loading="lazy"
+            >
+          </figure>
+          <svg
+            class="scribble quiet-breath"
+            viewBox="0 0 350 170"
+            fill="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              class="scribble-path"
+              d="M10 87C55 40 88 136 133 87C176 40 214 134 258 87C292 51 318 73 340 87"
+            />
+          </svg>
+          <div class="quiet-session">
+            <div
+              class="quiet-duration"
+              role="group"
+              aria-label="18 minute session"
+            >
+              <span>18</span>
+              <span>gentle<br>minutes</span>
+            </div>
+            <h3>Restore + breathe</h3>
+            <p>Floor mobility · slow core · long exhale</p>
+            <button type="button" class="primary-action">
+              Begin gently <span aria-hidden="true">→</span>
+            </button>
+            <p class="open-context">No streak pressure. Just today.</p>
+          </div>
+        </section>
+      </article>
+
+      <article
+        class="concept"
+        id="concept-electric"
+        data-concept="electric"
+        role="tabpanel"
+        aria-labelledby="tab-electric concept-title-electric"
+        tabindex="0"
+        hidden
+      >
+        <aside class="concept-notes">
+          <p class="concept-number">07 / 08</p>
+          <h2 id="concept-title-electric">Electric rhythm</h2>
+          <p>
+            Split color, a cropped action shot, and oversized progress type
+            turn a strength day into an event. The hierarchy stays disciplined:
+            one session, one action, then a terse phase rhythm.
+          </p>
+          <dl class="palette-notes">
+            <div><dt>Energy</dt><dd>Charged · focused · rhythmic</dd></div>
+            <div><dt>Palette</dt><dd>Ink, royal blue, lime, cream</dd></div>
+          </dl>
+        </aside>
+        <section
+          class="phone-scene electric-scene"
+          aria-label="Electric rhythm home screen"
+        >
+          <div class="phone-status phone-status-light">
+            <span>9:41</span>
+            <span>Gym · 11:30</span>
+          </div>
+          <div class="electric-topline">
+            <span class="mini-wordmark">sody</span>
+            <p>Strength block · week 4</p>
+          </div>
+          <div
+            class="electric-count"
+            role="group"
+            aria-label="Workout 3 of 4 this week"
+          >
+            <span>03</span>
+            <span>/04</span>
+          </div>
+          <div class="electric-title">
+            <p class="scene-kicker">Maya, you’re primed</p>
+            <h3>Pull<br>power.</h3>
+          </div>
+          <figure class="image-frame electric-image">
+            <img
+              data-remote-image
+              src="https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&amp;fit=crop&amp;w=900&amp;q=85"
+              alt="Athlete training his back with a cable machine in a gym"
+              width="900"
+              height="1200"
+              decoding="async"
+              loading="lazy"
+            >
+          </figure>
+          <svg
+            class="scribble electric-bolt"
+            viewBox="0 0 180 310"
+            fill="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              class="scribble-path"
+              d="M111 8L31 151L92 140L53 298L157 112L94 124L111 8Z"
+            />
+          </svg>
+          <div class="electric-session">
+            <p class="scene-kicker">Upper-body strength · 42 min</p>
+            <h3>Back + biceps</h3>
+            <p>6 movements · last pull: 52 kg</p>
+            <button type="button" class="primary-action">
+              Start strong <span aria-hidden="true">↗</span>
+            </button>
+            <div
+              class="electric-rhythm"
+              role="group"
+              aria-label="Workout phases"
+            >
+              <span>Prime</span><span>Pull</span><span>Carry</span><span>Reset</span>
+            </div>
+          </div>
+        </section>
+      </article>
+
+      <article
+        class="concept"
+        id="concept-afterglow"
+        data-concept="afterglow"
+        role="tabpanel"
+        aria-labelledby="tab-afterglow concept-title-afterglow"
+        tabindex="0"
+        hidden
+      >
+        <aside class="concept-notes">
+          <p class="concept-number">08 / 08</p>
+          <h2 id="concept-title-afterglow">Afterglow</h2>
+          <p>
+            The completed state celebrates consistency without confetti or
+            pressure. A dark evening palette holds the accomplishment, while
+            the only next action offers recovery—not another hard session.
+          </p>
+          <dl class="palette-notes">
+            <div><dt>Energy</dt><dd>Warm · reflective · earned</dd></div>
+            <div><dt>Palette</dt><dd>Ink, deep green, lavender, lime</dd></div>
+          </dl>
+        </aside>
+        <section
+          class="phone-scene afterglow-scene"
+          aria-label="Afterglow completed-today home screen"
+        >
+          <div class="phone-status phone-status-dark">
+            <span>18:24</span>
+            <span>Session complete</span>
+          </div>
+          <div class="afterglow-topline">
+            <span class="mini-wordmark">sody</span>
+            <p>Saturday evening</p>
+          </div>
+          <figure class="image-frame afterglow-image">
+            <img
+              data-remote-image
+              src="https://images.unsplash.com/photo-1599058917212-d750089bc07e?auto=format&amp;fit=crop&amp;w=900&amp;q=85"
+              alt="Athlete cooling down after an evening training session"
+              width="900"
+              height="1200"
+              decoding="async"
+              loading="lazy"
+            >
+          </figure>
+          <svg
+            class="scribble afterglow-halo"
+            viewBox="0 0 380 360"
+            fill="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              class="scribble-path"
+              d="M190 15C300 14 362 94 346 192C329 295 235 353 134 329C36 306-8 206 29 113C57 44 117 15 190 15Z"
+            />
+            <path
+              class="scribble-path scribble-path-inner"
+              d="M185 51C260 42 319 102 314 178C310 261 235 310 158 295C81 280 38 205 61 132C79 78 128 57 185 51Z"
+            />
+          </svg>
+          <div class="afterglow-copy">
+            <p class="scene-kicker">You moved today</p>
+            <h3>That’s 38 minutes<br>in the body bank.</h3>
+            <p>
+              Lower-body lift complete. Your steady split squats were today’s
+              quiet win.
+            </p>
+          </div>
+          <dl class="afterglow-stats" role="group" aria-label="Workout statistics">
+            <div><dt>Sets</dt><dd>17</dd></div>
+            <div><dt>Volume</dt><dd>3,240 kg</dd></div>
+            <div><dt>Feeling</dt><dd>Strong</dd></div>
+          </dl>
+          <div class="afterglow-next">
+            <p class="scene-kicker">One more kind thing</p>
+            <h3>Six-minute unwind</h3>
+            <button type="button" class="primary-action">
+              Take the cooldown <span aria-hidden="true">→</span>
+            </button>
+            <p class="open-context">Or close Sody. You’ve done enough.</p>
+          </div>
+        </section>
+      </article>
+    </main>
+
+    <footer class="gallery-footer">
+      <section class="photo-credits" aria-labelledby="photo-credits-title">
+        <div>
+          <p class="eyebrow">Image sources</p>
+          <h2 id="photo-credits-title">Editorial photography via Unsplash</h2>
+        </div>
+        <ol>
+          <li>
+            <a
+              href="https://images.unsplash.com/photo-1518611012118-696072aa579a"
+              rel="noreferrer"
+            >Cinematic</a>
+          </li>
+          <li>
+            <a
+              href="https://images.unsplash.com/photo-1549576490-b0b4831ef60a"
+              rel="noreferrer"
+            >Editorial</a>
+          </li>
+          <li>
+            <a
+              href="https://images.unsplash.com/photo-1594737625785-a6cbdabd333c"
+              rel="noreferrer"
+            >Coach</a>
+          </li>
+          <li>
+            <a
+              href="https://images.unsplash.com/photo-1524863479829-916d8e77f114"
+              rel="noreferrer"
+            >Body type</a>
+          </li>
+          <li>
+            <a
+              href="https://images.unsplash.com/photo-1517836357463-d25dfeac3438"
+              rel="noreferrer"
+            >Kinetic</a>
+          </li>
+          <li>
+            <a
+              href="https://images.unsplash.com/photo-1538805060514-97d9cc17730c"
+              rel="noreferrer"
+            >Quiet</a>
+          </li>
+          <li>
+            <a
+              href="https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e"
+              rel="noreferrer"
+            >Electric</a>
+          </li>
+          <li>
+            <a
+              href="https://images.unsplash.com/photo-1599058917212-d750089bc07e"
+              rel="noreferrer"
+            >Afterglow</a>
+          </li>
+        </ol>
+      </section>
+      <p class="footer-mark">Sody · keep your body sound</p>
+    </footer>
+  </body>
+</html>
