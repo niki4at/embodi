@@ -26,6 +26,21 @@ function attachFile(cardId, filePath, name) {
     `https://api.trello.com/1/cards/${cardId}/attachments?${auth}`], { stdio: 'pipe' });
 }
 
+// The HTML brief references images by relative path; a Trello download loses them.
+// Produce a standalone copy with every local image inlined as a data URI.
+function buildStandaloneBrief() {
+  const dir = path.join(ROOT, 'docs', 'design', 'irene');
+  const html = fs.readFileSync(path.join(dir, 'sody-design-brief.html'), 'utf8')
+    .replace(/src="(assets\/[^"]+)"/g, (m, rel) => {
+      const file = path.join(dir, ...rel.split('/'));
+      if (!fs.existsSync(file)) return m;
+      return `src="data:image/png;base64,${fs.readFileSync(file).toString('base64')}"`;
+    });
+  const out = path.join(ROOT, 'docs', 'design', 'irene', 'sody-design-brief.standalone.html');
+  fs.writeFileSync(out, html);
+  return out;
+}
+
 // Convert markdown tables (unsupported by Trello) into bold-bullet lists.
 function detable(md) {
   return md.split('\n').filter((l) => !/^\|[\s-|]+\|$/.test(l)).map((l) => {
@@ -77,7 +92,7 @@ cards.push({
   ].join('\n'),
   attachments: [
     ['docs/design/irene/assets/sody-brand.png', 'Sody brand baseline'],
-    ['docs/design/irene/sody-design-brief.html', 'Sody design brief (open in browser)'],
+    ['docs/design/irene/sody-design-brief.standalone.html', 'Sody design brief (download & open in browser)'],
     ['docs/design/irene/sody-user-stories.md', 'Master user stories doc (markdown)'],
   ],
 });
@@ -112,6 +127,7 @@ cards.push({
 });
 
 (async () => {
+  buildStandaloneBrief();
   // Archive previously auto-published cards so re-runs don't duplicate.
   const existing = await api('GET', `/lists/${LIST_ID}/cards`);
   for (const c of existing) {
