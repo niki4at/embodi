@@ -25,9 +25,18 @@ export const getOpenAIModel = () => {
 }
 
 /**
- * Responses API: minimal reasoning for lowest latency (GPT-5 family and other reasoning models).
+ * Responses API: fastest / cheapest GPT-5.x settings.
+ * - reasoning.effort `none`: skip reasoning tokens (lowest latency)
+ * - text.verbosity `low`: shorter final answers (fewer output tokens)
+ * Callers that set their own `text` (e.g. json_schema) must merge
+ * `openAITextLowVerbosity` into that object.
  * @see https://platform.openai.com/docs/guides/reasoning
  */
+export const openAITextLowVerbosity = {
+  verbosity: 'low' as const,
+}
+
 export const openAIResponsesLowLatency = {
   reasoning: { effort: 'none' } satisfies Reasoning,
+  text: openAITextLowVerbosity,
 }
