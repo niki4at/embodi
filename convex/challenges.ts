@@ -13,7 +13,12 @@ import {
   query,
   type QueryCtx,
 } from './_generated/server'
-import { getOpenAI, getOpenAIModel, openAIResponsesLowLatency } from './openai'
+import {
+  getOpenAI,
+  getOpenAIModel,
+  openAIResponsesLowLatency,
+  openAITextLowVerbosity,
+} from './openai'
 
 const metricArg = v.object({
   kind: v.union(
@@ -56,7 +61,10 @@ type ProgramResponse = {
 }
 
 type ProgramRequestParams = ResponseCreateParamsNonStreaming & {
-  text: { format: ResponseFormatTextJSONSchemaConfig }
+  text: {
+    format: ResponseFormatTextJSONSchemaConfig
+    verbosity?: 'low' | 'medium' | 'high' | null
+  }
 }
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
@@ -298,6 +306,7 @@ Rules:
         model,
         ...openAIResponsesLowLatency,
         text: {
+          ...openAITextLowVerbosity,
           format: {
             type: 'json_schema',
             name: 'challenge_program',

@@ -11,7 +11,12 @@ import {
   query,
   type ActionCtx,
 } from './_generated/server'
-import { getOpenAI, getOpenAIModel } from './openai'
+import {
+  getOpenAI,
+  getOpenAIModel,
+  openAIResponsesLowLatency,
+  openAITextLowVerbosity,
+} from './openai'
 
 /* -----------------------------------------------------------------------
  * Types & constants
@@ -1062,7 +1067,9 @@ function buildUserPrompt(ctx: UserContext): string {
 function buildResponsesRequestBody(model: string, ctx: UserContext) {
   return {
     model,
+    ...openAIResponsesLowLatency,
     text: {
+      ...openAITextLowVerbosity,
       format: {
         type: 'json_schema',
         name: 'weekly_insight',

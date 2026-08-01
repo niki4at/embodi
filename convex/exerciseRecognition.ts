@@ -6,7 +6,12 @@ import type {
 
 import { internal } from './_generated/api'
 import { action, mutation } from './_generated/server'
-import { getOpenAI, getOpenAIModel, openAIResponsesLowLatency } from './openai'
+import {
+  getOpenAI,
+  getOpenAIModel,
+  openAIResponsesLowLatency,
+  openAITextLowVerbosity,
+} from './openai'
 
 // Body groups / modalities the picker understands. Kept in sync with the
 // unions in `convex/exercises.ts` so a suggested custom exercise can be saved
@@ -28,7 +33,10 @@ const BODY_GROUPS = [
 const MODALITIES = ['strength', 'mobility', 'cardio', 'recovery'] as const
 
 type ResponseParams = ResponseCreateParamsNonStreaming & {
-  text: { format: ResponseFormatTextJSONSchemaConfig }
+  text: {
+    format: ResponseFormatTextJSONSchemaConfig
+    verbosity?: 'low' | 'medium' | 'high' | null
+  }
 }
 
 // Compact catalog entry the client passes in. Sending it from the client
@@ -160,6 +168,7 @@ Rules:
         model,
         ...openAIResponsesLowLatency,
         text: {
+          ...openAITextLowVerbosity,
           format: {
             type: 'json_schema',
             name: 'exercise_recognition',
@@ -342,6 +351,7 @@ export const recognizeInventoryFromImage = action({
       model,
       ...openAIResponsesLowLatency,
       text: {
+        ...openAITextLowVerbosity,
         format: {
           type: 'json_schema',
           name: 'inventory_recognition',

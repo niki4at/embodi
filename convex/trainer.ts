@@ -21,7 +21,12 @@ import {
   type Citation as CitationSource,
   type CitationsProfile,
 } from './citations'
-import { getOpenAI, getOpenAIModel, openAIResponsesLowLatency } from './openai'
+import {
+  getOpenAI,
+  getOpenAIModel,
+  openAIResponsesLowLatency,
+  openAITextLowVerbosity,
+} from './openai'
 import { formatCheckinForPrompt, type CheckinData } from './checkin'
 import { formatFlareForPrompt } from './flareUp'
 import {
@@ -87,6 +92,7 @@ type CoachComment = {
 type PlanResponseParams = ResponseCreateParamsNonStreaming & {
   text: {
     format: ResponseFormatTextJSONSchemaConfig
+    verbosity?: 'low' | 'medium' | 'high' | null
   }
 }
 
@@ -1217,6 +1223,7 @@ Rules:
       model,
       ...openAIResponsesLowLatency,
       text: {
+        ...openAITextLowVerbosity,
         format: {
           type: 'json_schema',
           name: 'exercise_alternatives',
@@ -2201,6 +2208,7 @@ Plans must account for sex, age, injuries, conditions, medications, and lifestyl
       model,
       ...openAIResponsesLowLatency,
       text: {
+        ...openAITextLowVerbosity,
         format: {
           type: 'json_schema',
           name: 'personalized_plan',

@@ -4,7 +4,12 @@ import type {
     ResponseFormatTextJSONSchemaConfig,
 } from 'openai/resources/responses/responses'
 import { action } from './_generated/server'
-import { getOpenAI, getOpenAIModel, openAIResponsesLowLatency } from './openai'
+import {
+  getOpenAI,
+  getOpenAIModel,
+  openAIResponsesLowLatency,
+  openAITextLowVerbosity,
+} from './openai'
 
 export type Citation = {
   id: string
@@ -132,6 +137,7 @@ export async function searchCitationsForProfile(profile: CitationsProfile) {
 type JsonSchemaResponseParams = {
   text: {
     format: ResponseFormatTextJSONSchemaConfig
+    verbosity?: 'low' | 'medium' | 'high' | null
   }
 }
 
@@ -149,6 +155,7 @@ export async function distillCitationsForProfile(
     model,
     ...openAIResponsesLowLatency,
     text: {
+      ...openAITextLowVerbosity,
       format: {
         type: 'json_schema',
         name: 'health_facts',
@@ -372,6 +379,7 @@ async function fetchOpenAICitations(
       ...openAIResponsesLowLatency,
       tools: [{ type: 'web_search' as const }],
       text: {
+        ...openAITextLowVerbosity,
         format: {
           type: 'json_schema',
           name: 'citation_results',
