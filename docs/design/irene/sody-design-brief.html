@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SODY — Redesign brief for Irene</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --blue:#4A43EC; --lime:#D8F24C; --cream:#FFFCE9; --peri:#AFC8FA;
+    --lav:#D3CFFF; --olive:#90AA47; --deep:#324B3E; --ink:#17163a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Lekton',monospace;background:var(--cream);color:var(--ink);line-height:1.55}
+  h1,h2,h3,.display{font-family:'Fredoka',sans-serif}
+  section{min-height:60vh;padding:72px 8vw;border-bottom:6px solid var(--ink)}
+  .tag{display:inline-block;font-family:'Lekton',monospace;font-weight:700;letter-spacing:.22em;text-transform:uppercase;font-size:12px;padding:6px 14px;border:2px solid currentColor;border-radius:999px;margin-bottom:22px}
+  h2{font-size:clamp(30px,4.4vw,54px);font-weight:700;margin-bottom:18px;letter-spacing:-.01em}
+  p.lead{font-size:clamp(16px,1.6vw,20px);max-width:62ch}
+  .grid{display:grid;gap:18px;margin-top:34px}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .card{background:#fff;border:3px solid var(--ink);border-radius:22px;padding:22px;box-shadow:6px 6px 0 var(--ink)}
+  .card h3{font-size:19px;margin-bottom:8px}
+  .card p{font-size:14.5px}
+  .num{font-family:'Fredoka';font-weight:700;font-size:13px;color:var(--blue);letter-spacing:.14em;text-transform:uppercase;display:block;margin-bottom:6px}
+  /* cover */
+  .cover{background:var(--blue);color:var(--cream);display:flex;flex-direction:column;justify-content:center;min-height:92vh;position:relative;overflow:hidden}
+  .cover h1{font-size:clamp(72px,16vw,220px);font-weight:700;line-height:.92;color:var(--lime);letter-spacing:-.02em}
+  .cover .sub{font-family:'Lekton';font-weight:700;letter-spacing:.5em;text-transform:uppercase;margin-top:26px;font-size:clamp(12px,1.6vw,18px)}
+  .cover .meta{margin-top:56px;font-size:15px;color:var(--peri)}
+  .squiggle{position:absolute;right:-60px;bottom:-40px;width:420px;opacity:.5}
+  .pill{display:inline-block;background:var(--lime);color:var(--ink);font-weight:700;border-radius:999px;padding:10px 22px;font-family:'Fredoka',sans-serif;font-size:15px}
+  /* alt sections */
+  .on-lime{background:var(--lime)}
+  .on-peri{background:var(--peri)}
+  .on-lav{background:var(--lav)}
+  .on-deep{background:var(--deep);color:var(--cream)}
+  .on-deep .card{background:#3e5a4b;border-color:var(--cream);box-shadow:6px 6px 0 rgba(0,0,0,.35);color:var(--cream)}
+  .on-deep .num{color:var(--lime)}
+  /* loop */
+  .loop{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px;align-items:center}
+  .loop .step{background:#fff;border:3px solid var(--ink);border-radius:16px;padding:12px 18px;font-weight:700;font-family:'Fredoka';font-size:15px;box-shadow:4px 4px 0 var(--ink)}
+  .loop .arrow{font-size:22px;font-weight:700}
+  /* epics table */
+  table{width:100%;border-collapse:collapse;margin-top:30px;background:#fff;border:3px solid var(--ink);border-radius:18px;overflow:hidden}
+  th,td{padding:12px 16px;text-align:left;border-bottom:2px solid #eceadf;font-size:14.5px;vertical-align:top}
+  th{font-family:'Fredoka';background:var(--ink);color:var(--lime);font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+  tr:last-child td{border-bottom:none}
+  td b{font-family:'Fredoka'}
+  /* swatches */
+  .swatches{display:flex;flex-wrap:wrap;gap:14px;margin-top:26px}
+  .sw{width:150px;border:3px solid var(--ink);border-radius:16px;overflow:hidden;background:#fff;box-shadow:5px 5px 0 var(--ink)}
+  .sw .chip{height:82px}
+  .sw p{font-size:12.5px;font-weight:700;padding:8px 10px}
+  /* gallery */
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:30px}
+  .gallery figure{background:#fff;border:3px solid var(--ink);border-radius:16px;overflow:hidden;box-shadow:5px 5px 0 var(--ink)}
+  .gallery img{width:100%;display:block}
+  .gallery figcaption{font-size:12px;padding:8px 10px;font-weight:700}
+  .warn{background:#fff;border:3px dashed var(--ink);border-radius:16px;padding:16px 20px;margin-top:26px;font-weight:700;max-width:70ch}
+  ul.tight{margin:20px 0 0 20px;max-width:70ch}
+  ul.tight li{margin-bottom:10px;font-size:15px}
+  .brandimg{max-width:420px;width:100%;border:3px solid var(--ink);border-radius:20px;box-shadow:8px 8px 0 var(--ink)}
+  a{color:var(--blue);font-weight:700}
+  .on-deep a{color:var(--lime)}
+  footer{padding:60px 8vw;background:var(--ink);color:var(--cream);font-size:14px}
+  nav{position:sticky;top:0;background:var(--ink);z-index:10;display:flex;gap:4px;overflow-x:auto;padding:10px 8vw}
+  nav a{color:var(--cream);text-decoration:none;font-size:12.5px;font-weight:700;padding:7px 13px;border-radius:999px;white-space:nowrap}
+  nav a:hover{background:var(--blue)}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#cover">Sody</a><a href="#what">What it is</a><a href="#loop">The loop</a><a href="#people">People</a>
+  <a href="#principles">Principles</a><a href="#map">App map</a><a href="#epics">Epics</a><a href="#jewels">Crown jewels</a>
+  <a href="#old">Old design</a><a href="#brand">Brand</a><a href="#states">States</a><a href="#work">How we work</a>
+</nav>
+
+<section class="cover" id="cover">
+  <span class="pill">Frontend redesign brief · for Irene · July 2026</span>
+  <h1>SODY</h1>
+  <div class="sub">Keep your body sound</div>
+  <p class="meta">Embodi is becoming Sody. You're redesigning the whole app, screen by screen, from scratch.<br>
+  This brief + the user-stories backlog tell you <b>what</b> it must do. The <b>how</b> is yours.</p>
+  <svg class="squiggle" viewBox="0 0 200 200" fill="none"><path d="M20 160 C 60 40, 120 40, 110 100 C 100 160, 40 160, 80 90 C 120 20, 180 60, 170 140" stroke="#AFC8FA" stroke-width="14" stroke-linecap="round"/></svg>
+</section>
+
+<section id="what">
+  <span class="tag">01 · What is Sody</span>
+  <h2>An AI coach that adapts to the body you have today</h2>
+  <p class="lead">Sody (Sound + Body) is an intelligent fitness coach for everyday people — including people with aches, chronic conditions, desk jobs, and rough days. Built on the principle that fitness should adapt to physical limits, Sody dynamically modifies every session so users build strength without risking injury. It generalizes beyond gym lifting to <b>any</b> physical activity, and it's social: friends back each other, share goals, and move together.</p>
+  <div class="grid g3">
+    <div class="card"><span class="num">Position</span><h3>Safety-first coaching</h3><p>Not a logger with an AI sticker. The coach listens (pain, energy, sleep, cycle, flare-ups) before it prescribes.</p></div>
+    <div class="card"><span class="num">Unit of intent</span><h3>Goals</h3><p>Everything orbits a goal: solo or shared, each keeps exactly one workout queued next. No "what now?".</p></div>
+    <div class="card"><span class="num">Philosophy</span><h3>Everything counts</h3><p>A gym session, a run, a 3-minute desk stretch, a breathing break — all attributable to your goal.</p></div>
+  </div>
+</section>
+
+<section class="on-lime" id="loop">
+  <span class="tag">02 · The core loop</span>
+  <h2>One loop to design around</h2>
+  <p class="lead">If the loop feels effortless, the app wins. Most of your design energy should go here.</p>
+  <div class="loop">
+    <div class="step">Set a goal</div><span class="arrow">→</span>
+    <div class="step">Coach queues next workout</div><span class="arrow">→</span>
+    <div class="step">"How are you today?"</div><span class="arrow">→</span>
+    <div class="step">Plan adapts</div><span class="arrow">→</span>
+    <div class="step">Train &amp; log fast</div><span class="arrow">→</span>
+    <div class="step">Recap · PRs · coach note</div><span class="arrow">→</span>
+    <div class="step">Share / attribute to goal</div><span class="arrow">↻</span>
+  </div>
+  <div class="warn">Entry rules we protect: queued goal workouts start straight from Home with a lightweight "Adjust for today" (energy · pain · time). Everything else that generates a session goes through the daily check-in. Deliberate repeats (own routines, "Try this workout") skip both.</div>
+</section>
+
+<section id="people">
+  <span class="tag">03 · Who it's for</span>
+  <h2>Five people to keep taped to your monitor</h2>
+  <div class="grid g3">
+    <div class="card"><span class="num">Persona 1</span><h3>Desk-bound Dana</h3><p>28–45 · sits 8h/day · neck &amp; lower-back aches. Wants 15-minute sessions and desk micro-breaks. Allergic to gym-bro energy.</p></div>
+    <div class="card"><span class="num">Persona 2</span><h3>Chronic-condition Chris</h3><p>25–60 · scoliosis / chronic pain. Needs the coach to genuinely respect pain regions and flare-ups. Health privacy is sacred.</p></div>
+    <div class="card"><span class="num">Persona 3</span><h3>Everyday-gym Emma</h3><p>20–35 · trains 3–4×/week. Wants progressive overload, PRs, Hevy-speed logging, and sharing with friends.</p></div>
+    <div class="card"><span class="num">Persona 4</span><h3>Event-chaser Eli</h3><p>25–45 · marathon/Hyrox with friends. Wants a shared goal, countdown, group progress — progress, not ranking.</p></div>
+    <div class="card"><span class="num">Persona 5</span><h3>Restart Rita</h3><p>30–55 · fell off for months. Needs kind comebacks, weekly (forgiving) streaks, zero guilt.</p></div>
+  </div>
+</section>
+
+<section class="on-peri" id="principles">
+  <span class="tag">04 · Principles &amp; your license to be critical</span>
+  <h2>What we believe — challenge all of it</h2>
+  <div class="grid g2">
+    <div class="card"><h3>Principles</h3><ul class="tight">
+      <li><b>Today beats the plan.</b> Sessions are built on today's check-in, not stale data.</li>
+      <li><b>One next thing.</b> Home leads with a single hero action.</li>
+      <li><b>Everything counts.</b> Any movement can serve a goal.</li>
+      <li><b>Progress, not ranking.</b> Groups lift each other, never shame.</li>
+      <li><b>Health data is sacred.</b> Never on public surfaces.</li>
+      <li><b>The coach shows its work.</b> Reasons + research citations.</li>
+      <li><b>Logging faster than a notes app.</b> One tap, one swipe.</li>
+      <li><b>Light + dark, every screen, day one.</b></li>
+    </ul></div>
+    <div class="card"><h3>Things we already suspect are wrong</h3><ul class="tight">
+      <li>Live session feels cramped — "too zoomed in", uncomfortable at first glance.</li>
+      <li>Check-in may be one step too long.</li>
+      <li>Home sections (next-up, desk, insights) compete for attention.</li>
+      <li>Pain body-map is coarse: whole muscle groups, not specific spots.</li>
+      <li>Empty states are copy-heavy; icons inconsistent across platforms.</li>
+      <li>The AI coach appears in 13 places with no unified identity.</li>
+    </ul><p style="margin-top:14px"><b>You will find more. Kill our darlings — with a reason.</b></p></div>
+  </div>
+</section>
+
+<section id="map">
+  <span class="tag">05 · App map (current IA — restructure if you see better)</span>
+  <h2>Four tabs, ~40 screens</h2>
+  <table>
+    <tr><th>Area</th><th>Screens &amp; surfaces</th></tr>
+    <tr><td><b>Tabs</b></td><td>Social · Home · Goals · Profile (floating bar; hidden in auth/onboarding &amp; full-screen flows)</td></tr>
+    <tr><td><b>Auth &amp; onboarding</b></td><td>Welcome · sign in/up · email OTP · SSO (Apple/Google/Facebook) · 4-step onboarding (you → first goal → health → lifestyle) · AI profile Q&amp;A</td></tr>
+    <tr><td><b>Home</b></td><td>Greeting · Next-up hero · other goals row · quick actions (Log my own / Breather) · today's context · desk section (work hours only) · This Week AI board · flare-up &amp; cycle chips</td></tr>
+    <tr><td><b>Training</b></td><td>Check-in (4 steps + body map) · Adjust-for-today · Session ready (phases, reorder, citations) · Live session (sets, swipes, rest timer) · Recap · Build-your-own · Breather</td></tr>
+    <tr><td><b>Goals</b></td><td>List · create (7 categories + event presets) · detail (program timeline, next workout, members, activity, log progress) · join by code/link</td></tr>
+    <tr><td><b>Library</b></td><td>~123 exercises · body-part picker · search · custom exercises · camera equipment scan · exercise detail (GIF, records, history, coach chat)</td></tr>
+    <tr><td><b>Social</b></td><td>Feed · reactions/comments/reposts · Try this workout · leaderboard · trending · people-to-back · search · notifications inbox · share composer · public profiles · block/report</td></tr>
+    <tr><td><b>Progress</b></td><td>Profile hub · heatmap (4 metrics, 24 months) · Journey (15 achievements + PRs) · history · routines · weekly streak sheet</td></tr>
+    <tr><td><b>Health</b></td><td>Health context (private) · flare-up mode · cycle log &amp; phases · posture survey · training setup (equipment, places, weekly rhythm)</td></tr>
+    <tr><td><b>Settings</b></td><td>Grouped index · privacy (per-section toggles + post audience) · notifications · theme/units/motion/text-size · data &amp; AI (export, clear memory, deactivate) · account (sign out, delete)</td></tr>
+  </table>
+</section>
+
+<section class="on-lav" id="epics">
+  <span class="tag">06 · The backlog</span>
+  <h2>15 epics · 100+ user stories</h2>
+  <p class="lead">Full stories with acceptance criteria live in <b>docs/design/irene/sody-user-stories.md</b> and as one Trello card per epic in the <b>"user stories irene"</b> list. Suggested order below.</p>
+  <table>
+    <tr><th>#</th><th>Epic</th><th>What it covers</th></tr>
+    <tr><td><b>1</b></td><td><b>Brand shell &amp; theming</b></td><td>Design system, tab shell, dark/light, accessibility, state library</td></tr>
+    <tr><td><b>3</b></td><td><b>Home: Next up &amp; today</b></td><td>Hero card, session states, desk section, This Week AI board, quick actions</td></tr>
+    <tr><td><b>4</b></td><td><b>Check-in &amp; Adjust</b></td><td>Energy/sleep/pain body map/stress/type/time · Home-or-Gym suggestion · lightweight adjust</td></tr>
+    <tr><td><b>5</b></td><td><b>Session ready</b></td><td>Phase plan review, reasoning strip, remove/replace/reorder, citations</td></tr>
+    <tr><td><b>6</b></td><td><b>Live session</b></td><td>The money screen: set logging, swipe clone/delete, tick-to-green, rest timer pill, coach comments</td></tr>
+    <tr><td><b>7</b></td><td><b>Recap &amp; share</b></td><td>Stats, PRs, AI note, goal attribution, save-as-routine, share composer</td></tr>
+    <tr><td><b>8</b></td><td><b>Goals</b></td><td>Solo + shared, invites, program timeline, members board, progress logging</td></tr>
+    <tr><td><b>9</b></td><td><b>Library &amp; builder</b></td><td>Catalog, custom exercises, camera scan, builder, exercise detail + coach chat</td></tr>
+    <tr><td><b>10</b></td><td><b>Social</b></td><td>Feed, backing graph, try-workout, discover strips, inbox, safety</td></tr>
+    <tr><td><b>11</b></td><td><b>Profile &amp; journey</b></td><td>Progress hub, heatmap, weekly streaks, achievements, PRs, history, routines</td></tr>
+    <tr><td><b>2</b></td><td><b>Auth &amp; onboarding</b></td><td>Welcome → first goal → health context → first plan in &lt;3 min</td></tr>
+    <tr><td><b>12</b></td><td><b>Health layer</b></td><td>Flare-ups, cycle, desk breaks, breather, training setup</td></tr>
+    <tr><td><b>13</b></td><td><b>Settings &amp; privacy</b></td><td>Grouped settings, privacy previews, notifications, data &amp; account</td></tr>
+    <tr><td><b>14</b></td><td><b>The coach, unified</b></td><td>One personality across 13 AI surfaces; waiting &amp; failure states; trust</td></tr>
+    <tr><td><b>15</b></td><td><b>Design-ahead</b></td><td>Planned-sessions calendar, predicted soreness, weather, group live sessions, partner matching, Spotify, wearables</td></tr>
+  </table>
+</section>
+
+<section class="on-deep" id="jewels">
+  <span class="tag">07 · Crown jewels</span>
+  <h2>The things no other fitness app does — make them shine</h2>
+  <div class="grid g3">
+    <div class="card"><span class="num">Jewel</span><h3>Adjust for today</h3><p>Queued plan retuned to energy, pain, and time in seconds — with the reason stated in one line.</p></div>
+    <div class="card"><span class="num">Jewel</span><h3>Flare-up mode</h3><p>One toggle: the coach eases off flagged regions everywhere until you're ready.</p></div>
+    <div class="card"><span class="num">Jewel</span><h3>Cycle-aware coaching</h3><p>Opt-in, private, phase-aware suggestions with kind language.</p></div>
+    <div class="card"><span class="num">Jewel</span><h3>Desk micro-sessions</h3><p>2–5 minute chair/standing resets matched to your trouble spots, work-hours only.</p></div>
+    <div class="card"><span class="num">Jewel</span><h3>Progress, not ranking</h3><p>Shared goals where the group advances together and each member's plan adapts personally.</p></div>
+    <div class="card"><span class="num">Jewel</span><h3>Evidence on tap</h3><p>Research citations behind the plan. The coach shows its work.</p></div>
+  </div>
+</section>
+
+<section id="old">
+  <span class="tag">08 · The old design (context, not direction)</span>
+  <h2>What exists today — study it, then surpass it</h2>
+  <div class="warn">⚠️ Everything below is the OLD Embodi look and internal prototypes. It shows the features and interaction ideas we validated — the visual language is yours to replace entirely. Full gallery: <b>assets/research/</b>.</div>
+  <div class="gallery">
+    <figure><img src="assets/research/session_is_ready_renovated_6a419fbf194f701b7babc9e7.png" alt=""><figcaption>Session ready — removable phase timeline</figcaption></figure>
+    <figure><img src="assets/research/Potential_to_discuss__check_images_6a419aa2a7f783e52fbf69c4.png" alt=""><figcaption>Check-in pain body map (needs finer targeting)</figcaption></figure>
+    <figure><img src="assets/research/Potential_to_discuss__check_images_6a419ac322a106bd6ade9b07.png" alt=""><figcaption>Predicted soreness concept (design-ahead)</figcaption></figure>
+    <figure><img src="assets/research/New_features_on_home_page_6a419d1627dac139d63aa696.png" alt=""><figcaption>This Week AI board</figcaption></figure>
+    <figure><img src="assets/research/New_features_on_home_page_6a419d955e233264efaeaf05.png" alt=""><figcaption>Desk section + breather</figcaption></figure>
+    <figure><img src="assets/research/challenges_pt_1_no_space_for_all_code_6a4190c2a1e415e46cd948ad.png" alt=""><figcaption>Shared goal — progress, not ranking</figcaption></figure>
+    <figure><img src="assets/research/home_or_gym_workout_6a418bca6d2cadbcd8f3d470.png" alt=""><figcaption>Home-or-Gym suggestion with saved equipment</figcaption></figure>
+    <figure><img src="assets/research/posting_a_workout_after_completing_sessi_6a419575c955df78ba11c377.png" alt=""><figcaption>Share composer (Spotify = design-ahead)</figcaption></figure>
+    <figure><img src="assets/research/profile___settings_pt_1_6a4198ada564a4ae0fecb374.png" alt=""><figcaption>Profile hub</figcaption></figure>
+    <figure><img src="assets/research/add_a_calendar_option_where_people_can_a_6a4c2546305664c6b8b8ba30.png" alt=""><figcaption>Planned-sessions calendar (design-ahead)</figcaption></figure>
+    <figure><img src="assets/research/flare_up_option__also_wiht_the_option_to_6a417dac727174f8e30f9188.png" alt=""><figcaption>Flare-up mode on Home</figcaption></figure>
+    <figure><img src="assets/research/another_one__6a419b08bc36c588ece512e8.png" alt=""><figcaption>Weather-aware banner (design-ahead)</figcaption></figure>
+  </div>
+</section>
+
+<section class="on-lime" id="brand">
+  <span class="tag">09 · Brand baseline</span>
+  <h2>Your starting point — evolve it</h2>
+  <div class="grid g2">
+    <div>
+      <img class="brandimg" src="assets/sody-brand.png" alt="Sody brand sheet">
+    </div>
+    <div>
+      <div class="card"><h3>From the sheet</h3><ul class="tight">
+        <li><b>Logotype:</b> bold, bubbly, rounded — playful confidence.</li>
+        <li><b>Fonts:</b> Val Bold (display) · Lekton Bold (secondary).</li>
+        <li><b>Elements:</b> squiggle line work; photography with hand-drawn overlays ("honor your body", "root yourself in presence", "learn to listen").</li>
+        <li><b>Voice:</b> warm, body-positive, evidence-aware. The coach listens first.</li>
+      </ul></div>
+      <div class="swatches">
+        <div class="sw"><div class="chip" style="background:#FFFCE9"></div><p>#FFFCE9</p></div>
+        <div class="sw"><div class="chip" style="background:#D3CFFF"></div><p>#D3CFFF</p></div>
+        <div class="sw"><div class="chip" style="background:#90AA47"></div><p>#90AA47</p></div>
+        <div class="sw"><div class="chip" style="background:#324B3E"></div><p>#324B3E</p></div>
+        <div class="sw"><div class="chip" style="background:#4A43EC"></div><p>Royal blue (from artwork)</p></div>
+        <div class="sw"><div class="chip" style="background:#D8F24C"></div><p>Lime (from artwork)</p></div>
+      </div>
+      <div class="warn" style="margin-top:20px">Note: the sheet's hex labels and visible swatches don't fully agree — please reconcile and own the final palette. You'll also need: dark-mode ramps, semantic colors (success/pain/warning), data-viz ramps (heatmap!), and 7 goal-category tints.</div>
+    </div>
+  </div>
+</section>
+
+<section id="states">
+  <span class="tag">10 · Non-negotiable states</span>
+  <h2>Every screen ships with all of these</h2>
+  <div class="grid g3">
+    <div class="card"><h3>Both themes</h3><p>Light + dark variants, every screen. Theme = System/Light/Dark.</p></div>
+    <div class="card"><h3>Loading</h3><p>Skeleton-first on primary surfaces; the AI "thinking" state is a feature (10–30s waits must feel alive).</p></div>
+    <div class="card"><h3>Empty</h3><p>Copy-led with exactly one CTA. New users see these first — they are the app.</p></div>
+    <div class="card"><h3>Error &amp; recovery</h3><p>Every AI failure has retry / fallback; never a dead end.</p></div>
+    <div class="card"><h3>Accessibility</h3><p>OS text-size compliance without clipping; reduce-motion variants of every celebration.</p></div>
+    <div class="card"><h3>Privacy</h3><p>Health data never public. Streak hidden everywhere public when weekly-activity is off.</p></div>
+  </div>
+</section>
+
+<section class="on-peri" id="work">
+  <span class="tag">11 · How we work</span>
+  <h2>Working agreement</h2>
+  <div class="grid g2">
+    <div class="card"><h3>Where things live</h3><ul class="tight">
+      <li><b>Backlog:</b> Trello list <b>"user stories irene"</b> on the <a href="https://trello.com/b/o2oRLfWu/embody">Embody board</a> — one card per epic. Comment, reorder, split.</li>
+      <li><b>Master doc:</b> <code>docs/design/irene/sody-user-stories.md</code> (versioned; we sync Trello decisions back in).</li>
+      <li><b>This brief:</b> <code>docs/design/irene/sody-design-brief.html</code>.</li>
+      <li><b>Old-design gallery:</b> <code>docs/design/irene/assets/research/</code>.</li>
+    </ul></div>
+    <div class="card"><h3>Process</h3><ul class="tight">
+      <li>Design epic-by-epic (suggested order in the backlog). Flows over screens: happy path + states.</li>
+      <li>We review against acceptance criteria; you flag anything the backend must change — <b>backend adapts to your design later, not the other way around</b>.</li>
+      <li>Be brutal about the old UX. Every criticism with a proposed alternative is a gift.</li>
+      <li>Out of scope: backend/data model, marketing site, the BKOINZ Trello list (marketing ops).</li>
+    </ul></div>
+  </div>
+</section>
+
+<footer>
+  <b style="font-family:'Fredoka';font-size:22px;color:var(--lime)">SODY</b> · keep your body sound · brief v1 · July 31, 2026 · questions → Nick
+</footer>
+
+</body>
+</html>
