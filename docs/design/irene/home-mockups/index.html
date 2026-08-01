@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sody Home Redesign — Mockup Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --blue:#4A43EC; --lime:#D8F24C; --cream:#FFFCE9; --peri:#AFC8FA;
+    --lav:#D3CFFF; --deep:#324B3E; --ink:#17163a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--ink);color:var(--cream);font-family:'Lekton',monospace;padding:60px 5vw 90px}
+  h1,h2,h3{font-family:'Fredoka',sans-serif}
+  .mono{font-weight:700;letter-spacing:.22em;text-transform:uppercase;font-size:11px}
+  header .mono{color:var(--lime)}
+  h1{font-size:clamp(38px,6vw,72px);font-weight:700;line-height:.98;margin-top:14px}
+  h1 em{font-style:normal;color:var(--lime)}
+  header p{margin-top:16px;max-width:64ch;font-size:15px;color:#b6b3dd;line-height:1.6}
+  header p b{color:var(--cream)}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+  .legend span{border:1.5px solid rgba(255,252,233,.3);border-radius:999px;padding:7px 14px;font-size:11.5px;font-weight:700;letter-spacing:.08em}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:34px;margin-top:56px}
+  .cardm{background:#201f4d;border-radius:26px;overflow:hidden;border:1.5px solid rgba(255,252,233,.12);transition:transform .25s,border-color .25s;display:flex;flex-direction:column}
+  .cardm:hover{transform:translateY(-6px);border-color:var(--lime)}
+  .frame{height:520px;overflow:hidden;position:relative;background:#0e0d24}
+  .frame iframe{width:200%;height:200%;transform:scale(.5);transform-origin:top left;border:0;pointer-events:none}
+  .frame a.hit{position:absolute;inset:0;z-index:2}
+  .meta{padding:20px 22px 24px}
+  .meta .num{color:var(--lime);font-weight:700;font-size:11px;letter-spacing:.2em}
+  .meta h2{font-size:22px;font-weight:600;margin-top:6px}
+  .meta p{font-size:13px;color:#b6b3dd;margin-top:8px;line-height:1.55}
+  .meta .open{display:inline-block;margin-top:14px;font-family:'Fredoka';font-weight:600;font-size:13.5px;color:var(--ink);background:var(--lime);border-radius:999px;padding:9px 18px;text-decoration:none}
+  footer{margin-top:70px;font-size:13px;color:#8f8cb8;max-width:70ch;line-height:1.7}
+  footer b{color:var(--cream)}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mono">Sody · home screen exploration · no cards allowed</span>
+  <h1>Six ways home<br>could feel <em>alive.</em></h1>
+  <p>Same content as the current concept — greeting, one next session, two goals, quick actions, the desk reset,
+  the week story, cycle + flare-up — but reflowed as <b>full-bleed color chapters, type, characters, and photography</b>
+  instead of a stack of boxes. Every mockup is animated; open one and scroll. Palette and Fredoka/Lekton type come
+  straight from the Sody brand sheet.</p>
+  <div class="legend">
+    <span style="background:#4A43EC">Sody blue</span>
+    <span style="background:#D8F24C;color:#17163a">Lime</span>
+    <span style="background:#FFFCE9;color:#17163a">Cream</span>
+    <span style="background:#D3CFFF;color:#17163a">Lavender</span>
+    <span style="background:#AFC8FA;color:#17163a">Periwinkle</span>
+    <span style="background:#324B3E">Deep green</span>
+  </div>
+</header>
+
+<div class="grid">
+  <div class="cardm">
+    <div class="frame"><a class="hit" href="01-morning-flow.html"></a><iframe src="01-morning-flow.html" loading="lazy" title="Morning Flow"></iframe></div>
+    <div class="meta">
+      <span class="num">01 — MORNING FLOW</span>
+      <h2>The river</h2>
+      <p>One animated squiggle flows through the whole page and ties every section together. Blob mascot "Dot" blinks in the hero; goals are ribbons, the week is a deep-green editorial band.</p>
+      <a class="open" href="01-morning-flow.html">Open mockup →</a>
+    </div>
+  </div>
+
+  <div class="cardm">
+    <div class="frame"><a class="hit" href="02-editorial-bold.html"></a><iframe src="02-editorial-bold.html" loading="lazy" title="Editorial Bold"></iframe></div>
+    <div class="meta">
+      <span class="num">02 — EDITORIAL BOLD</span>
+      <h2>The daily issue</h2>
+      <p>Home as a magazine front page: marquee ticker of your vitals, arch-masked duotone photo, a spinning stamp, goals as a typographic table of contents with animated donuts.</p>
+      <a class="open" href="02-editorial-bold.html">Open mockup →</a>
+    </div>
+  </div>
+
+  <div class="cardm">
+    <div class="frame"><a class="hit" href="03-soft-garden.html"></a><iframe src="03-soft-garden.html" loading="lazy" title="Soft Garden"></iframe></div>
+    <div class="meta">
+      <span class="num">03 — SOFT GARDEN</span>
+      <h2>Grow something</h2>
+      <p>The gentlest read of the day: a vine timeline, sprouting goal plants, a rippling breather pond, and week stats that literally bloom as flowers. For low-energy mornings.</p>
+      <a class="open" href="03-soft-garden.html">Open mockup →</a>
+    </div>
+  </div>
+
+  <div class="cardm">
+    <div class="frame"><a class="hit" href="04-sticker-club.html"></a><iframe src="04-sticker-club.html" loading="lazy" title="Sticker Club"></iframe></div>
+    <div class="meta">
+      <span class="num">04 — STICKER CLUB</span>
+      <h2>The scrapbook</h2>
+      <p>Loudest and most character-driven: three hopping mascot buddies, a taped polaroid session, goal stickers, stat badges that pop in, and a "private pocket" for cycle + flare-up.</p>
+      <a class="open" href="04-sticker-club.html">Open mockup →</a>
+    </div>
+  </div>
+
+  <div class="cardm">
+    <div class="frame"><a class="hit" href="05-night-glow.html"></a><iframe src="05-night-glow.html" loading="lazy" title="Night Glow"></iframe></div>
+    <div class="meta">
+      <span class="num">05 — NIGHT GLOW</span>
+      <h2>After dark</h2>
+      <p>The dark-mode answer: aurora blobs and twinkling stars, the session as a glowing moon with an animated progress ring, goals as constellations, cycle as a real moon phase.</p>
+      <a class="open" href="05-night-glow.html">Open mockup →</a>
+    </div>
+  </div>
+
+  <div class="cardm">
+    <div class="frame"><a class="hit" href="06-day-journey.html"></a><iframe src="06-day-journey.html" loading="lazy" title="Day Journey"></iframe></div>
+    <div class="meta">
+      <span class="num">06 — DAY JOURNEY</span>
+      <h2>Five chapters</h2>
+      <p>The most radical: home is a snap-scrolling story — wake, the session, the long game, the anytime shelf, zoom out. Goal characters run along curved trails; bars build on scroll.</p>
+      <a class="open" href="06-day-journey.html">Open mockup →</a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <b>How to review:</b> open each mockup at phone width (they render inside a fixed 400px device frame) and scroll top to bottom.
+  Photography is hot-linked from Unsplash for exploration only — production would use owned art direction with the same
+  blend-mode treatment. All six share one information architecture, so the winning visual language can be mixed
+  (e.g. Garden's vine + Editorial's ticker) before translating into React Native.
+</footer>
+
+</body>
+</html>

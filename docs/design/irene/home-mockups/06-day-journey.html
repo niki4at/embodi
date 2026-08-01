@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sody Home — 06 Day Journey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --blue:#4A43EC; --lime:#D8F24C; --cream:#FFFCE9; --peri:#AFC8FA;
+    --lav:#D3CFFF; --deep:#324B3E; --ink:#17163a; --coral:#F0A48A;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0e0d24;font-family:'Lekton',monospace;display:flex;justify-content:center;padding:26px 0;color:var(--ink)}
+  .phone{width:400px;max-width:100vw;background:var(--cream);border-radius:44px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.55);position:relative}
+  .screen{height:840px;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;scroll-snap-type:y proximity}
+  .screen::-webkit-scrollbar{display:none}
+  h1,h2,h3,.f{font-family:'Fredoka',sans-serif}
+  .mono{font-family:'Lekton',monospace;font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:10.5px}
+  .chapter{min-height:840px;scroll-snap-align:start;position:relative;display:flex;flex-direction:column;justify-content:center;padding:70px 30px;overflow:hidden}
+  .chapnum{position:absolute;top:56px;left:30px;display:flex;align-items:center;gap:10px}
+  .chapnum b{font-family:'Fredoka';font-size:13px;font-weight:700;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2.5px solid currentColor}
+  .scrollhint{position:absolute;bottom:88px;left:50%;transform:translateX(-50%);font-size:20px;animation:hintdown 2s ease-in-out infinite;opacity:.6}
+  @keyframes hintdown{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,10px)}}
+  .reveal{opacity:0;transform:translateY(30px);transition:opacity .8s,transform .8s}
+  .reveal.in{opacity:1;transform:none}
+
+  /* CH 1 — wake (cream) */
+  .ch1{background:var(--cream)}
+  .ch1 .bigsun{position:absolute;top:-140px;right:-140px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle at 40% 40%, #fdf6bd, var(--lime));animation:sunspin 30s linear infinite;opacity:.9}
+  .ch1 .bigsun::after{content:"";position:absolute;inset:-30px;border-radius:50%;border:2px dashed rgba(23,22,58,.2)}
+  @keyframes sunspin{to{transform:rotate(360deg)}}
+  .ch1 h1{font-size:52px;font-weight:700;line-height:.98;letter-spacing:-.015em}
+  .ch1 h1 em{font-style:normal;color:var(--blue)}
+  .ch1 .sub{margin-top:16px;font-size:14px;color:#4c4968;max-width:30ch}
+  .vitals{display:flex;gap:22px;margin-top:34px}
+  .vital b{font-family:'Fredoka';font-size:22px;font-weight:700;display:block}
+  .vital span{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7b789b}
+  .vital i{font-size:11px;color:#3e8a44}.vital i.dn{color:#c2542e}
+
+  /* CH 2 — session (blue) */
+  .ch2{background:var(--blue);color:var(--cream)}
+  .ch2 .photo{position:absolute;inset:0;background:url('https://images.unsplash.com/photo-1571731956672-f2b94d7dd0cb?w=800&q=70&auto=format&fit=crop') center/cover;opacity:.28;mix-blend-mode:luminosity}
+  .ch2 .fade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(74,67,236,.4),rgba(74,67,236,.95))}
+  .ch2 > *{position:relative}
+  .ch2 .mono{color:var(--lime)}
+  .ch2 h1{font-size:46px;font-weight:700;line-height:1;margin-top:10px}
+  .ch2 .meta{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .chipm{border:1.5px solid rgba(255,252,233,.45);border-radius:999px;padding:8px 15px;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+  .chipm.hot{background:var(--lime);color:var(--ink);border-color:var(--lime)}
+  .movelist{margin-top:26px;border-top:1.5px dashed rgba(255,252,233,.3)}
+  .move{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1.5px dashed rgba(255,252,233,.3);font-size:13.5px}
+  .move .n{font-family:'Fredoka';font-weight:700;color:var(--lime);font-size:12px;width:20px}
+  .move .new{margin-left:auto;font-size:9.5px;letter-spacing:.14em;background:rgba(216,242,76,.2);color:var(--lime);padding:4px 9px;border-radius:999px;font-weight:700}
+  .ch2 .cta{display:flex;gap:12px;margin-top:28px}
+  .btn{font-family:'Fredoka';font-weight:600;font-size:16px;border:none;border-radius:999px;padding:15px 30px;cursor:pointer;transition:transform .15s}
+  .btn:active{transform:scale(.94)}
+  .btn.go{background:var(--lime);color:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.25);animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{50%{box-shadow:0 10px 44px rgba(216,242,76,.55)}}
+  .btn.ghost{background:transparent;color:var(--cream);border:2px solid rgba(255,252,233,.5)}
+
+  /* CH 3 — goals (lavender) */
+  .ch3{background:var(--lav)}
+  .ch3 .blob1{position:absolute;width:300px;height:300px;top:-80px;right:-110px;background:rgba(74,67,236,.16);border-radius:58% 42% 55% 45%/48% 60% 40% 52%;animation:morph 14s ease-in-out infinite}
+  .ch3 .blob2{position:absolute;width:240px;height:240px;bottom:-70px;left:-90px;background:rgba(216,242,76,.5);border-radius:42% 58% 45% 55%/60% 42% 58% 40%;animation:morph 16s 2s ease-in-out infinite}
+  @keyframes morph{0%,100%{border-radius:58% 42% 55% 45%/48% 60% 40% 52%}50%{border-radius:45% 55% 48% 52%/56% 44% 58% 42%}}
+  .ch3 h1{font-size:40px;font-weight:700;line-height:1;position:relative}
+  .paths{margin-top:34px;position:relative}
+  .path{position:relative;padding:22px 0}
+  .path + .path{border-top:2px dashed rgba(23,22,58,.25)}
+  .path h3{font-size:24px;font-weight:600;display:flex;align-items:center;gap:12px}
+  .path .st{font-size:11px;letter-spacing:.13em;text-transform:uppercase;font-weight:700;color:#5a5580;margin-top:4px;display:block}
+  .trail{margin-top:16px;height:44px;position:relative}
+  .trail svg{width:100%;height:100%}
+  .trail .line{stroke:rgba(23,22,58,.22);stroke-width:3;fill:none;stroke-dasharray:2 8;stroke-linecap:round}
+  .trail .done{stroke:var(--blue);stroke-width:4;fill:none;stroke-linecap:round;stroke-dasharray:300;stroke-dashoffset:300}
+  .path.p2 .done{stroke:var(--deep)}
+  .in .trail .done{animation:trailin 1.6s .3s forwards}
+  @keyframes trailin{to{stroke-dashoffset:var(--left)}}
+  .walker{position:absolute;top:-4px;left:0;width:30px;height:30px;border-radius:50%;background:var(--blue);border:3px solid var(--cream);display:flex;align-items:center;justify-content:center;font-size:12px;offset-path:path('M 6 30 C 90 6, 210 44, 334 16');offset-distance:0%;}
+  .in .walker{animation:walk 1.6s .3s forwards}
+  .path.p2 .walker{background:var(--deep)}
+  @keyframes walk{to{offset-distance:var(--pct)}}
+  .path .pctlab{position:absolute;right:0;top:20px;font-family:'Fredoka';font-weight:700;font-size:24px}
+
+  /* CH 4 — anytime (deep) */
+  .ch4{background:var(--deep);color:var(--cream)}
+  .ch4 .mono{color:var(--lime)}
+  .ch4 h1{font-size:38px;font-weight:700;line-height:1.02}
+  .anyrow{margin-top:30px;display:flex;flex-direction:column;gap:16px}
+  .any{display:flex;align-items:center;gap:16px;padding:18px 20px;border-radius:24px;background:rgba(255,252,233,.07);border:1.5px solid rgba(255,252,233,.14);cursor:pointer;transition:transform .2s,background .2s}
+  .any:hover{transform:translateX(6px);background:rgba(255,252,233,.13)}
+  .any .em{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
+  .any:nth-child(1) .em{background:var(--lime)}
+  .any:nth-child(2) .em{background:var(--peri)}
+  .any:nth-child(3) .em{background:var(--coral)}
+  .any b{font-family:'Fredoka';font-size:17px;font-weight:600;display:block}
+  .any span{font-size:11.5px;color:#a9c3b3}
+  .any .arr{margin-left:auto;color:var(--lime);font-size:18px}
+  .deskband{margin-top:26px;padding:20px 22px;border-radius:24px;background:var(--lime);color:var(--ink);position:relative;overflow:hidden}
+  .deskband .mono{color:#5c6a17}
+  .deskband b{font-family:'Fredoka';font-size:18px;display:block;margin-top:4px}
+  .deskband span{font-size:11.5px;color:#5c6a17}
+  .deskband .clock{position:absolute;right:18px;top:50%;transform:translateY(-50%);width:52px;height:52px;border-radius:50%;border:3px solid var(--ink);background:var(--cream)}
+  .deskband .clock i{position:absolute;left:50%;bottom:50%;width:3px;height:17px;background:var(--ink);transform-origin:bottom;animation:tickhand 8s linear infinite;border-radius:3px}
+  .deskband .clock u{position:absolute;left:50%;bottom:50%;width:3px;height:11px;background:var(--blue);transform-origin:bottom;transform:rotate(120deg);border-radius:3px}
+  @keyframes tickhand{to{transform:rotate(360deg)}}
+
+  /* CH 5 — week + private (peri→cream) */
+  .ch5{background:linear-gradient(180deg,var(--peri) 0%,var(--cream) 78%)}
+  .ch5 h1{font-size:36px;font-weight:700;line-height:1.02}
+  .ch5 .note{margin-top:8px;font-size:13px;color:#33406e}
+  .weekgraph{display:flex;align-items:flex-end;gap:10px;height:130px;margin-top:30px}
+  .day{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .day .bar{width:100%;border-radius:10px;background:rgba(23,22,58,.14);position:relative;overflow:hidden;flex:1;display:flex;align-items:flex-end}
+  .day .bar i{display:block;width:100%;background:var(--blue);border-radius:10px;height:var(--h);transform:scaleY(0);transform-origin:bottom}
+  .in .day .bar i{animation:barup .9s forwards cubic-bezier(.2,.9,.3,1)}
+  .day:nth-child(1) i{animation-delay:.1s}.day:nth-child(2) i{animation-delay:.2s}.day:nth-child(3) i{animation-delay:.3s}
+  .day:nth-child(4) i{animation-delay:.4s}.day:nth-child(5) i{animation-delay:.5s}.day:nth-child(6) i{animation-delay:.6s}.day:nth-child(7) i{animation-delay:.7s}
+  .day.hit i{background:var(--blue)}
+  .day.rest i{background:rgba(23,22,58,.3)}
+  .day.today i{background:var(--lime);box-shadow:0 0 0 2.5px var(--ink) inset}
+  @keyframes barup{to{transform:scaleY(1)}}
+  .day span{font-size:9.5px;letter-spacing:.1em;font-weight:700;color:#33406e}
+  .sumline{display:flex;gap:18px;margin-top:22px;flex-wrap:wrap}
+  .sumline b{font-family:'Fredoka';font-size:15px}
+  .sumline .mono{font-size:9.5px;color:#33406e;display:block}
+  .privrow{margin-top:34px;display:flex;flex-direction:column;gap:12px}
+  .priv{display:flex;align-items:center;gap:14px;padding:16px 20px;border-radius:22px;background:rgba(255,255,255,.75);backdrop-filter:blur(4px)}
+  .priv .ic{font-size:20px}
+  .priv b{font-family:'Fredoka';font-size:15px;display:block}
+  .priv span{font-size:11.5px;color:#5a5580}
+  .toggle{margin-left:auto;width:52px;height:30px;border-radius:999px;background:#e4e1d2;position:relative;cursor:pointer;transition:background .25s;flex:none}
+  .toggle i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--ink);transition:left .25s}
+  .toggle.on{background:var(--blue)}.toggle.on i{left:25px;background:var(--lime)}
+  .endnote{text-align:center;margin-top:34px;font-size:12px;color:#7b789b}
+  .endnote .heart{display:inline-block;animation:hintdown 2.4s ease-in-out infinite;font-size:18px}
+
+  .tabbar{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(23,22,58,.92);backdrop-filter:blur(8px);border-radius:999px;display:flex;gap:6px;padding:8px;z-index:10}
+  .tabbar a{color:#8f8cb8;font-family:'Fredoka';font-weight:600;font-size:13px;text-decoration:none;padding:9px 18px;border-radius:999px}
+  .tabbar a.active{background:var(--lime);color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="screen" id="scr">
+
+    <!-- CH 1 · WAKE -->
+    <section class="chapter ch1">
+      <div class="bigsun"></div>
+      <div class="chapnum"><b>1</b><span class="mono">Tuesday, 12 Aug</span></div>
+      <h1 class="reveal">Good<br>morning,<br><em>Irene.</em></h1>
+      <p class="sub reveal">Your day, arranged around how you actually feel. Scroll through it.</p>
+      <div class="vitals reveal">
+        <div class="vital"><b>6.1h <i class="dn">▼</i></b><span>Sleep</span></div>
+        <div class="vital"><b>3wk</b><span>Streak</span></div>
+        <div class="vital"><b>Day 21</b><span>Cycle ☾</span></div>
+      </div>
+      <span class="scrollhint">↓</span>
+    </section>
+
+    <!-- CH 2 · THE SESSION -->
+    <section class="chapter ch2">
+      <div class="photo"></div><div class="fade"></div>
+      <div class="chapnum"><b>2</b><span class="mono">The main event</span></div>
+      <span class="mono reveal">Next up · get stronger</span>
+      <h1 class="reveal">Upper body strength</h1>
+      <div class="meta reveal">
+        <span class="chipm hot">32 min</span><span class="chipm">6 moves</span><span class="chipm">2 new to you</span>
+      </div>
+      <div class="movelist reveal">
+        <div class="move"><span class="n">01</span>Incline push-up ramp</div>
+        <div class="move"><span class="n">02</span>Ring row <span class="new">NEW</span></div>
+        <div class="move"><span class="n">03</span>Half-kneel press <span class="new">NEW</span></div>
+        <div class="move"><span class="n">04</span>+ 3 more, revealed as you go</div>
+      </div>
+      <div class="cta reveal">
+        <button class="btn go">Start</button>
+        <button class="btn ghost">Adjust for today</button>
+      </div>
+    </section>
+
+    <!-- CH 3 · GOALS -->
+    <section class="chapter ch3">
+      <i class="blob1"></i><i class="blob2"></i>
+      <div class="chapnum"><b>3</b><span class="mono">The long game</span></div>
+      <h1 class="reveal">Two paths,<br>both moving.</h1>
+      <div class="paths">
+        <div class="path p1 reveal">
+          <h3>Gain weight</h3>
+          <span class="st">● Ready to start · first block queued</span>
+          <span class="pctlab">20%</span>
+          <div class="trail">
+            <svg viewBox="0 0 340 44" preserveAspectRatio="none">
+              <path class="line" d="M 6 30 C 90 6, 210 44, 334 16"/>
+              <path class="done" d="M 6 30 C 90 6, 210 44, 334 16" style="--left:240"/>
+            </svg>
+            <div class="walker" style="--pct:20%">🏃</div>
+          </div>
+        </div>
+        <div class="path p2 reveal">
+          <h3>Run a 10K</h3>
+          <span class="st">● Coach is planning week 4</span>
+          <span class="pctlab">25%</span>
+          <div class="trail">
+            <svg viewBox="0 0 340 44" preserveAspectRatio="none">
+              <path class="line" d="M 6 30 C 90 6, 210 44, 334 16"/>
+              <path class="done" d="M 6 30 C 90 6, 210 44, 334 16" style="--left:225"/>
+            </svg>
+            <div class="walker" style="--pct:25%">👟</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CH 4 · ANYTIME -->
+    <section class="chapter ch4">
+      <div class="chapnum"><b>4</b><span class="mono">Anytime shelf</span></div>
+      <span class="mono reveal">No plan needed</span>
+      <h1 class="reveal">Small moves<br>count too.</h1>
+      <div class="anyrow reveal">
+        <div class="any"><span class="em">✍️</span><div><b>Log my own</b><span>Did something already? Claim it.</span></div><span class="arr">→</span></div>
+        <div class="any"><span class="em">🫧</span><div><b>Take a breather</b><span>90 seconds, guided, zero equipment</span></div><span class="arr">→</span></div>
+        <div class="any"><span class="em">✦</span><div><b>Ask your AI coach</b><span>Anything — soreness, swaps, snacks</span></div><span class="arr">→</span></div>
+      </div>
+      <div class="deskband reveal">
+        <span class="mono">At your desk · Mon–Fri till 6pm</span>
+        <b>3-min neck &amp; shoulder reset</b>
+        <span>Matched to your trouble spots · no check-in</span>
+        <div class="clock"><i></i><u></u></div>
+      </div>
+    </section>
+
+    <!-- CH 5 · WEEK + PRIVATE -->
+    <section class="chapter ch5">
+      <div class="chapnum"><b>5</b><span class="mono">Zoom out</span></div>
+      <h1 class="reveal">Steadier than<br>last week.</h1>
+      <p class="note reveal">4 sessions (▲1) · 6.2t volume (▲) · sleep 6.1h (▼) · 3-week streak</p>
+      <div class="weekgraph reveal">
+        <div class="day hit"><div class="bar"><i style="--h:55%"></i></div><span>M</span></div>
+        <div class="day rest"><div class="bar"><i style="--h:16%"></i></div><span>T</span></div>
+        <div class="day hit"><div class="bar"><i style="--h:78%"></i></div><span>W</span></div>
+        <div class="day hit"><div class="bar"><i style="--h:44%"></i></div><span>T</span></div>
+        <div class="day rest"><div class="bar"><i style="--h:12%"></i></div><span>F</span></div>
+        <div class="day hit"><div class="bar"><i style="--h:88%"></i></div><span>S</span></div>
+        <div class="day today"><div class="bar"><i style="--h:34%"></i></div><span>NOW</span></div>
+      </div>
+      <div class="sumline reveal">
+        <div><b>Mobility flow</b><span class="mono">Hips tight → tonight?</span></div>
+        <div><b>Easy 20 min run</b><span class="mono">10K recovery pace</span></div>
+      </div>
+      <div class="privrow reveal">
+        <div class="priv"><span class="ic">☾</span><div><b>Luteal phase · day 21</b><span>Private — only visible to you</span></div><span style="margin-left:auto">›</span></div>
+        <div class="priv"><span class="ic">🔥</span><div><b>Flare up mode</b><span>Ease off flagged regions everywhere</span></div><div class="toggle" onclick="this.classList.toggle('on')"><i></i></div></div>
+      </div>
+      <p class="endnote reveal">That's your day. <span class="heart">🤍</span><br>Come back after the session for the recap.</p>
+      <div style="height:60px"></div>
+    </section>
+
+    <nav class="tabbar">
+      <a class="active" href="#">Home</a><a href="#">Challenges</a><a href="#">Profile</a>
+    </nav>
+  </div>
+</div>
+<script>
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) e.target.classList.add('in');
+  }), {root: document.getElementById('scr'), threshold: .25});
+  document.querySelectorAll('.reveal, .paths, .weekgraph').forEach(el => io.observe(el));
+</script>
+</body>
+</html>

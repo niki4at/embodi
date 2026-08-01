@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sody Home — 02 Editorial Bold</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --blue:#4A43EC; --lime:#D8F24C; --cream:#FFFCE9; --peri:#AFC8FA;
+    --lav:#D3CFFF; --deep:#324B3E; --ink:#17163a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0e0d24;font-family:'Lekton',monospace;display:flex;justify-content:center;padding:26px 0;color:var(--ink)}
+  .phone{width:400px;max-width:100vw;background:var(--cream);border-radius:44px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.55);position:relative}
+  .screen{height:840px;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+  h1,h2,h3,.f{font-family:'Fredoka',sans-serif}
+  .mono{font-family:'Lekton',monospace;font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:10.5px}
+
+  /* masthead */
+  .masthead{padding:56px 24px 10px;display:flex;align-items:flex-start;justify-content:space-between}
+  .masthead .brand{font-family:'Fredoka';font-weight:700;font-size:20px;letter-spacing:.04em;color:var(--blue)}
+  .avatar{width:42px;height:42px;border-radius:50%;background:var(--lav);display:flex;align-items:center;justify-content:center;font-family:'Fredoka';font-weight:700;border:2px solid var(--ink)}
+
+  /* ticker */
+  .ticker{overflow:hidden;border-top:2.5px solid var(--ink);border-bottom:2.5px solid var(--ink);margin-top:14px;background:var(--lime)}
+  .ticker .track{display:flex;gap:0;white-space:nowrap;animation:tick 18s linear infinite;padding:8px 0}
+  @keyframes tick{to{transform:translateX(-50%)}}
+  .ticker span{font-family:'Lekton';font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:0 18px}
+  .ticker b{color:var(--blue)}
+
+  /* headline issue */
+  .issue{padding:34px 24px 0}
+  .issue .kick{color:var(--blue)}
+  .issue h1{font-size:56px;line-height:.95;font-weight:700;letter-spacing:-.015em;margin-top:12px}
+  .issue h1 em{font-style:normal;color:var(--blue);position:relative;display:inline-block}
+  .issue h1 em::after{content:"";position:absolute;left:0;right:0;bottom:6px;height:12px;background:var(--lime);z-index:-1;transform:scaleX(0);transform-origin:left;animation:hl 1s .6s cubic-bezier(.2,.8,.2,1) forwards}
+  @keyframes hl{to{transform:scaleX(1)}}
+  .issue .dek{margin-top:14px;font-size:14px;max-width:34ch;color:#4c4968}
+
+  /* arch photo feature */
+  .feature{margin:30px 24px 0;position:relative}
+  .arch{width:100%;height:340px;border-radius:180px 180px 24px 24px;overflow:hidden;position:relative;border:3px solid var(--ink)}
+  .arch img{width:100%;height:100%;object-fit:cover;filter:grayscale(1) contrast(1.15) brightness(1.05);transition:transform 8s ease}
+  .arch:hover img{transform:scale(1.08)}
+  .arch::after{content:"";position:absolute;inset:0;background:var(--blue);mix-blend-mode:screen;opacity:.85}
+  .arch .grain{position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,transparent 55%,rgba(23,22,58,.35));z-index:2}
+  .feature .stamp{position:absolute;top:-26px;right:-6px;width:104px;height:104px;z-index:3;animation:spin 14s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .feature .stamp text{font-family:'Lekton';font-weight:700;font-size:11.5px;letter-spacing:.28em;text-transform:uppercase;fill:var(--ink)}
+  .feature .stamp .core{animation:none}
+  .caption{display:flex;align-items:flex-end;justify-content:space-between;margin-top:14px;gap:14px}
+  .caption h2{font-size:26px;font-weight:600;line-height:1.05}
+  .caption .mono{color:#7b789b;flex:none;padding-bottom:4px}
+  .startrow{display:flex;gap:10px;margin-top:16px}
+  .btn{font-family:'Fredoka';font-weight:600;font-size:15.5px;border-radius:999px;padding:14px 26px;cursor:pointer;border:3px solid var(--ink);transition:transform .12s,box-shadow .12s}
+  .btn:active{transform:translate(2px,2px)}
+  .btn.solid{background:var(--ink);color:var(--lime);box-shadow:5px 5px 0 var(--blue)}
+  .btn.line{background:transparent;color:var(--ink);box-shadow:5px 5px 0 var(--lav)}
+
+  /* index of goals — typographic list */
+  .toc{margin:44px 0 0;border-top:2.5px solid var(--ink)}
+  .toc .row{display:flex;align-items:center;gap:14px;padding:18px 24px;border-bottom:2.5px solid var(--ink);text-decoration:none;color:var(--ink);position:relative;overflow:hidden}
+  .toc .row::before{content:"";position:absolute;inset:0;background:var(--lav);transform:translateX(-101%);transition:transform .3s;z-index:0}
+  .toc .row:hover::before{transform:none}
+  .toc .row > *{position:relative;z-index:1}
+  .toc .idx{font-family:'Lekton';font-weight:700;font-size:12px;color:var(--blue)}
+  .toc h3{font-size:22px;font-weight:600;flex:1}
+  .toc .pct{font-family:'Fredoka';font-weight:700;font-size:22px}
+  .toc .sub{position:absolute;left:62px;bottom:6px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#7b789b;z-index:1}
+  .donut{width:40px;height:40px;transform:rotate(-90deg)}
+  .donut circle{fill:none;stroke-width:7}
+  .donut .bg{stroke:#e6e3d4}
+  .donut .fg{stroke:var(--blue);stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;animation:donut 1.4s .4s forwards cubic-bezier(.2,.8,.2,1)}
+  .toc .row:nth-child(2) .fg{stroke:var(--deep);animation-delay:.6s}
+  @keyframes donut{to{stroke-dashoffset:var(--off)}}
+
+  /* breather strip */
+  .breath{background:var(--ink);color:var(--cream);padding:40px 24px;display:flex;align-items:center;gap:20px}
+  .breath .ring{width:86px;height:86px;flex:none;border-radius:50%;border:3px solid var(--peri);display:flex;align-items:center;justify-content:center;animation:inhale 6s ease-in-out infinite}
+  .breath .ring i{width:46px;height:46px;border-radius:50%;background:var(--peri);animation:inhale 6s ease-in-out infinite reverse}
+  @keyframes inhale{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+  .breath h3{font-size:22px;font-weight:600}
+  .breath p{font-size:12.5px;color:#8f8cb8;margin-top:4px}
+  .breath .mono{color:var(--lime)}
+
+  /* desk reset photo strip */
+  .desk{position:relative;height:250px;overflow:hidden}
+  .desk img{width:100%;height:100%;object-fit:cover;filter:grayscale(1) contrast(1.1)}
+  .desk::after{content:"";position:absolute;inset:0;background:var(--lime);mix-blend-mode:multiply;opacity:.9}
+  .desk .inner{position:absolute;inset:0;padding:28px 24px;display:flex;flex-direction:column;justify-content:flex-end;z-index:2}
+  .desk .mono{color:var(--deep)}
+  .desk h2{font-size:28px;font-weight:700;color:var(--ink);margin-top:6px}
+  .desk p{font-size:12.5px;color:#3c4413}
+  .desk .go{position:absolute;right:20px;bottom:20px;width:70px;height:70px;border-radius:50%;background:var(--ink);color:var(--lime);font-family:'Fredoka';font-weight:700;display:flex;align-items:center;justify-content:center;font-size:14px;border:none;cursor:pointer;animation:wob 3.4s ease-in-out infinite}
+  @keyframes wob{0%,100%{transform:rotate(-4deg) scale(1)}50%{transform:rotate(4deg) scale(1.06)}}
+
+  /* week in numbers — giant type */
+  .numbers{padding:46px 24px 30px;background:var(--cream)}
+  .numbers .kick{color:var(--blue)}
+  .numbers h2{font-size:34px;font-weight:700;line-height:1;margin-top:10px}
+  .bigstats{margin-top:26px}
+  .bigstat{display:flex;align-items:baseline;gap:14px;padding:14px 0;border-bottom:2px dashed rgba(23,22,58,.25)}
+  .bigstat b{font-family:'Fredoka';font-weight:700;font-size:46px;letter-spacing:-.02em;min-width:120px}
+  .bigstat .lab{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#7b789b}
+  .bigstat .dir{margin-left:auto;font-family:'Fredoka';font-weight:600;font-size:13px;padding:5px 12px;border-radius:999px}
+  .dir.up{background:var(--lime)}.dir.dn{background:#f8d3c5}
+  .bigstat:nth-child(1) b{color:var(--blue)}
+  .bigstat:nth-child(3) b{color:var(--deep)}
+
+  /* coach picks */
+  .picks{padding:10px 24px 40px}
+  .picks .row{display:flex;gap:16px;align-items:center;padding:16px 0;text-decoration:none;color:var(--ink)}
+  .picks .blob{width:74px;height:74px;flex:none;overflow:hidden;border:3px solid var(--ink)}
+  .picks .row:nth-child(1) .blob{border-radius:58% 42% 55% 45%/48% 60% 40% 52%}
+  .picks .row:nth-child(2) .blob{border-radius:42% 58% 45% 55%/60% 42% 58% 40%}
+  .picks img{width:100%;height:100%;object-fit:cover}
+  .picks b{font-family:'Fredoka';font-size:17px;font-weight:600;display:block}
+  .picks span{font-size:12px;color:#7b789b}
+  .picks .arr{margin-left:auto;font-size:20px;color:var(--blue)}
+
+  /* private footer */
+  .private{background:var(--lav);padding:34px 24px 110px}
+  .private .row{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1.5px dashed rgba(23,22,58,.3)}
+  .private .row:last-child{border:none}
+  .private .ic{width:44px;height:44px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;flex:none}
+  .private b{font-family:'Fredoka';font-size:15.5px;font-weight:600;display:block}
+  .private span{font-size:11.5px;color:#5a5580}
+  .toggle{margin-left:auto;width:52px;height:30px;border-radius:999px;background:#fff;position:relative;cursor:pointer;transition:background .25s;flex:none}
+  .toggle i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--ink);transition:left .25s}
+  .toggle.on{background:var(--blue)}.toggle.on i{left:25px;background:var(--lime)}
+
+  .tabbar{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:var(--ink);border-radius:999px;display:flex;gap:6px;padding:8px;z-index:10;border:2px solid rgba(255,252,233,.15)}
+  .tabbar a{color:#8f8cb8;font-family:'Fredoka';font-weight:600;font-size:13px;text-decoration:none;padding:9px 18px;border-radius:999px}
+  .tabbar a.active{background:var(--lime);color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="screen">
+
+    <header class="masthead">
+      <div>
+        <div class="brand">SODY</div>
+        <div class="mono" style="color:#7b789b">Tue 12 Aug · Issue №148</div>
+      </div>
+      <div class="avatar">I</div>
+    </header>
+
+    <div class="ticker">
+      <div class="track">
+        <span>✦ Good morning Irene</span><span>Slept <b>6.1h</b></span><span>Streak <b>3 weeks</b></span><span>Shoulders flagged — session adapted</span><span>Luteal · day 21</span>
+        <span>✦ Good morning Irene</span><span>Slept <b>6.1h</b></span><span>Streak <b>3 weeks</b></span><span>Shoulders flagged — session adapted</span><span>Luteal · day 21</span>
+      </div>
+    </div>
+
+    <section class="issue">
+      <div class="mono kick">Today's front page</div>
+      <h1>Move like<br>you <em>mean it.</em></h1>
+      <p class="dek">One session on the docket, built around last night's sleep and your shoulder notes.</p>
+    </section>
+
+    <section class="feature">
+      <svg class="stamp" viewBox="0 0 104 104">
+        <defs><path id="circ" d="M52 10 a42 42 0 1 1 -0.01 0"/></defs>
+        <circle cx="52" cy="52" r="50" fill="var(--lime)" stroke="var(--ink)" stroke-width="3" class="core"/>
+        <text><textPath href="#circ">32 MIN · 6 MOVES · 2 NEW ·</textPath></text>
+      </svg>
+      <div class="arch">
+        <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=70&auto=format&fit=crop" alt="Upper body strength">
+        <div class="grain"></div>
+      </div>
+      <div class="caption">
+        <h2>Upper body<br>strength</h2>
+        <div class="mono">Next up ·<br>get stronger</div>
+      </div>
+      <div class="startrow">
+        <button class="btn solid">Start session</button>
+        <button class="btn line">Adjust for today</button>
+      </div>
+    </section>
+
+    <section class="toc">
+      <a class="row" href="#">
+        <svg class="donut" viewBox="0 0 40 40" style="--off:80"><circle class="bg" cx="20" cy="20" r="16"/><circle class="fg" cx="20" cy="20" r="16" pathLength="100"/></svg>
+        <span class="idx">01</span>
+        <h3>Gain weight</h3>
+        <span class="sub">Ready to start</span>
+        <span class="pct">20%</span>
+      </a>
+      <a class="row" href="#">
+        <svg class="donut" viewBox="0 0 40 40" style="--off:75"><circle class="bg" cx="20" cy="20" r="16"/><circle class="fg" cx="20" cy="20" r="16" pathLength="100"/></svg>
+        <span class="idx">02</span>
+        <h3>Run a 10K</h3>
+        <span class="sub">Coach is planning</span>
+        <span class="pct">25%</span>
+      </a>
+    </section>
+
+    <section class="breath">
+      <div class="ring"><i></i></div>
+      <div>
+        <div class="mono">Or, right now</div>
+        <h3>Take a breather</h3>
+        <p>90 seconds of box breathing — or log your own thing instead.</p>
+      </div>
+    </section>
+
+    <section class="desk">
+      <img src="https://images.unsplash.com/photo-1522898467493-49726bf28798?w=800&q=70&auto=format&fit=crop" alt="Desk stretch">
+      <div class="inner">
+        <div class="mono">At your desk · Mon–Fri, till 6pm</div>
+        <h2>3-min neck &amp; shoulder reset</h2>
+        <p>Matched to your trouble spots · no check-in</p>
+      </div>
+      <button class="go">GO</button>
+    </section>
+
+    <section class="numbers">
+      <div class="mono kick">This week · for you</div>
+      <h2>Steadier than<br>last week.</h2>
+      <div class="bigstats">
+        <div class="bigstat"><b>4</b><span class="lab">Sessions</span><span class="dir up">▲ 1</span></div>
+        <div class="bigstat"><b>6.1h</b><span class="lab">Sleep</span><span class="dir dn">▼ 0.4</span></div>
+        <div class="bigstat"><b>6.2t</b><span class="lab">Volume</span><span class="dir up">▲ 0.3</span></div>
+        <div class="bigstat"><b>3wk</b><span class="lab">Streak</span><span class="dir up">solid</span></div>
+      </div>
+    </section>
+
+    <section class="picks">
+      <a class="row" href="#">
+        <div class="blob"><img src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=300&q=60&auto=format&fit=crop" alt=""></div>
+        <div><b>Mobility flow</b><span>Your hips have been tight this week</span></div>
+        <span class="arr">→</span>
+      </a>
+      <a class="row" href="#">
+        <div class="blob"><img src="https://images.unsplash.com/photo-1502904550040-7534597429ae?w=300&q=60&auto=format&fit=crop" alt=""></div>
+        <div><b>Easy 20 min run</b><span>Recovery pace towards your 10K goal</span></div>
+        <span class="arr">→</span>
+      </a>
+    </section>
+
+    <section class="private">
+      <div class="mono" style="color:#5a5580">Just between us</div>
+      <div class="row">
+        <div class="ic">☾</div>
+        <div><b>Luteal phase · day 21</b><span>Private — only visible to you</span></div>
+        <span style="margin-left:auto;font-size:18px;color:var(--ink)">›</span>
+      </div>
+      <div class="row">
+        <div class="ic">🔥</div>
+        <div><b>Flare up mode</b><span>Ease off flagged regions everywhere</span></div>
+        <div class="toggle" onclick="this.classList.toggle('on')"><i></i></div>
+      </div>
+    </section>
+
+    <nav class="tabbar">
+      <a class="active" href="#">Home</a><a href="#">Challenges</a><a href="#">Profile</a>
+    </nav>
+  </div>
+</div>
+</body>
+</html>

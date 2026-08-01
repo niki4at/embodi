@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sody Home — 03 Soft Garden</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --blue:#4A43EC; --lime:#D8F24C; --cream:#FFFCE9; --peri:#AFC8FA;
+    --lav:#D3CFFF; --deep:#324B3E; --ink:#17163a; --olive:#90AA47;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0e0d24;font-family:'Lekton',monospace;display:flex;justify-content:center;padding:26px 0;color:var(--ink)}
+  .phone{width:400px;max-width:100vw;background:var(--cream);border-radius:44px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.55);position:relative}
+  .screen{height:840px;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;position:relative;
+    background:
+      radial-gradient(120% 60% at 80% -6%, #e7e2ff 0%, transparent 60%),
+      radial-gradient(110% 55% at -10% 26%, #f2f7d9 0%, transparent 55%),
+      radial-gradient(120% 60% at 110% 62%, #dceafc 0%, transparent 60%),
+      var(--cream)}
+  .screen::-webkit-scrollbar{display:none}
+  h1,h2,h3,.f{font-family:'Fredoka',sans-serif}
+  .mono{font-family:'Lekton',monospace;font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:10.5px;color:#8a86ad}
+
+  /* drifting seeds in the background */
+  .seed{position:absolute;border-radius:50%;pointer-events:none;opacity:.5;z-index:0}
+  .s1{width:10px;height:10px;background:var(--peri);top:180px;left:30px;animation:drift 11s ease-in-out infinite}
+  .s2{width:7px;height:7px;background:var(--olive);top:520px;right:44px;animation:drift 13s 1.5s ease-in-out infinite}
+  .s3{width:12px;height:12px;background:var(--lav);top:980px;left:52px;animation:drift 15s .8s ease-in-out infinite}
+  .s4{width:8px;height:8px;background:var(--blue);top:1440px;right:60px;animation:drift 12s 2s ease-in-out infinite;opacity:.3}
+  .s5{width:9px;height:9px;background:var(--olive);top:1900px;left:36px;animation:drift 14s 1s ease-in-out infinite}
+  @keyframes drift{0%,100%{transform:translate(0,0)}33%{transform:translate(14px,-26px)}66%{transform:translate(-10px,-8px)}}
+
+  .wrap{position:relative;z-index:1;padding:60px 28px 130px}
+
+  /* greeting */
+  .sun{width:74px;height:74px;border-radius:50%;background:radial-gradient(circle at 36% 34%, #fdf6bd, var(--lime));position:relative;animation:sunrise 1.6s cubic-bezier(.2,.8,.2,1) both, glowsun 5s 1.6s ease-in-out infinite}
+  @keyframes sunrise{from{transform:translateY(46px) scale(.6);opacity:0}to{transform:none;opacity:1}}
+  @keyframes glowsun{0%,100%{box-shadow:0 0 0 0 rgba(216,242,76,.5)}50%{box-shadow:0 0 0 26px rgba(216,242,76,0)}}
+  .sun::after{content:"◡ ◡";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:15px;letter-spacing:2px;color:var(--deep);font-weight:700}
+  .hi{margin-top:22px}
+  .hi h1{font-size:38px;font-weight:600;line-height:1.08;animation:fadeup .9s .3s both}
+  .hi h1 b{color:var(--blue);font-weight:700}
+  .hi p{margin-top:10px;font-size:13.5px;color:#5f5c7e;max-width:30ch;animation:fadeup .9s .5s both}
+  @keyframes fadeup{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+  /* today's stem: a vertical vine connecting everything */
+  .vine{position:relative;margin-top:44px}
+  .vine::before{content:"";position:absolute;left:17px;top:8px;bottom:8px;width:3px;border-radius:3px;background:linear-gradient(var(--olive), var(--peri), var(--lav))}
+  .node{position:relative;padding:0 0 44px 54px}
+  .node:last-child{padding-bottom:0}
+  .node .bud{position:absolute;left:5px;top:0;width:27px;height:27px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--lime);border:3px solid var(--cream);box-shadow:0 0 0 2.5px var(--olive)}
+  .node.later .bud{background:#fff;box-shadow:0 0 0 2.5px var(--peri)}
+  .node .mono{display:block;margin-bottom:6px}
+  .node h2{font-size:24px;font-weight:600;line-height:1.1}
+  .node .meta{font-size:12.5px;color:#5f5c7e;margin-top:5px}
+
+  /* main session node with photo bloom */
+  .bloom{margin-top:16px;position:relative;width:100%;height:210px}
+  .bloom .ph{position:absolute;inset:0;border-radius:48% 52% 55% 45%/55% 46% 54% 45%;overflow:hidden;animation:blob 12s ease-in-out infinite}
+  @keyframes blob{0%,100%{border-radius:48% 52% 55% 45%/55% 46% 54% 45%}50%{border-radius:55% 45% 46% 54%/47% 56% 44% 53%}}
+  .bloom img{width:100%;height:100%;object-fit:cover;filter:saturate(.85) brightness(1.04)}
+  .bloom .veil{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(160deg,rgba(74,67,236,.34),rgba(216,242,76,.12) 65%)}
+  .petal{position:absolute;font-size:22px;animation:drift 9s ease-in-out infinite}
+  .p1{top:-12px;right:26px}.p2{bottom:-6px;left:8px;animation-delay:1.4s}
+  .row-cta{display:flex;gap:10px;margin-top:18px}
+  .btn{font-family:'Fredoka';font-weight:600;font-size:15px;border:none;border-radius:999px;padding:14px 26px;cursor:pointer;transition:transform .15s}
+  .btn:active{transform:scale(.94)}
+  .btn.grow{background:var(--deep);color:var(--cream);box-shadow:0 10px 26px rgba(50,75,62,.35)}
+  .btn.soft{background:rgba(255,255,255,.75);color:var(--deep);border:2px solid var(--deep)}
+
+  /* goal sprouts */
+  .sprout{display:flex;align-items:center;gap:14px;margin-top:14px}
+  .pot{width:56px;height:56px;flex:none;position:relative}
+  .pot svg{width:100%;height:100%}
+  .pot .stemline{stroke:var(--olive);stroke-width:3;fill:none;stroke-linecap:round;stroke-dasharray:60;stroke-dashoffset:60;animation:growstem 1.6s .5s forwards}
+  .sprout:nth-child(3) .stemline{animation-delay:.9s}
+  @keyframes growstem{to{stroke-dashoffset:0}}
+  .pot .leaf{fill:var(--olive);opacity:0;animation:leafpop .5s 1.7s forwards}
+  .sprout:nth-child(3) .leaf{animation-delay:2.1s}
+  @keyframes leafpop{from{opacity:0;transform:scale(0)}to{opacity:1;transform:scale(1)}}
+  .sprout b{font-family:'Fredoka';font-size:16.5px;font-weight:600;display:block}
+  .sprout span{font-size:11.5px;color:#5f5c7e}
+  .sprout .pct{margin-left:auto;font-family:'Fredoka';font-weight:700;font-size:18px;color:var(--deep)}
+
+  /* breather pond */
+  .pond{margin-top:52px;background:radial-gradient(140% 120% at 50% 0%, #dfe9fb, var(--peri));border-radius:60px 60px 200px 200px/60px 60px 90px 90px;padding:36px 26px 44px;text-align:center;position:relative;overflow:hidden}
+  .ripple{position:absolute;left:50%;top:58%;width:20px;height:20px;border-radius:50%;border:2px solid rgba(74,67,236,.35);transform:translate(-50%,-50%);animation:rip 4s linear infinite}
+  .ripple:nth-child(2){animation-delay:1.3s}.ripple:nth-child(3){animation-delay:2.6s}
+  @keyframes rip{from{width:20px;height:20px;opacity:1}to{width:260px;height:260px;opacity:0}}
+  .pond h2{font-size:24px;font-weight:600;position:relative}
+  .pond p{font-size:12.5px;color:#3d4a76;margin-top:6px;position:relative}
+  .pond .duck{font-size:34px;display:inline-block;margin-top:14px;animation:floaty 5s ease-in-out infinite;position:relative}
+  @keyframes floaty{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-8px) rotate(4deg)}}
+  .pond .btn{background:var(--ink);color:var(--cream);margin-top:16px;position:relative}
+  .pond .alt{display:block;margin-top:12px;font-size:12px;color:#3d4a76;text-decoration:underline;position:relative;cursor:pointer}
+
+  /* week meadow */
+  .meadow{margin-top:52px}
+  .meadow h2{font-size:26px;font-weight:600;margin-top:8px}
+  .meadow .note{font-size:13px;color:#5f5c7e;margin-top:6px;max-width:32ch}
+  .flowers{display:flex;justify-content:space-between;align-items:flex-end;margin-top:26px;height:150px;padding:0 4px;border-bottom:3px solid var(--olive)}
+  .flower{display:flex;flex-direction:column;align-items:center;gap:6px;width:23%}
+  .flower .head{width:52px;height:52px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Fredoka';font-weight:700;font-size:14.5px;color:var(--ink);animation:bloomup .9s both cubic-bezier(.3,1.4,.5,1)}
+  .flower:nth-child(1) .head{background:var(--lime);animation-delay:.2s}
+  .flower:nth-child(2) .head{background:#f8d3c5;animation-delay:.4s}
+  .flower:nth-child(3) .head{background:var(--lav);animation-delay:.6s}
+  .flower:nth-child(4) .head{background:var(--peri);animation-delay:.8s}
+  @keyframes bloomup{from{transform:scale(0)}to{transform:scale(1)}}
+  .flower .stem{width:3px;background:var(--olive);border-radius:3px;transform-origin:bottom;animation:stemgrow 1s both}
+  .flower:nth-child(1) .stem{height:58px;animation-delay:.1s}
+  .flower:nth-child(2) .stem{height:34px;animation-delay:.3s}
+  .flower:nth-child(3) .stem{height:66px;animation-delay:.5s}
+  .flower:nth-child(4) .stem{height:48px;animation-delay:.7s}
+  @keyframes stemgrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+  .flower .lab{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#5f5c7e}
+  .flower .head small{font-size:9px;font-family:'Lekton';font-weight:700}
+
+  /* coach whisper */
+  .whisper{display:flex;gap:14px;margin-top:34px;align-items:flex-start}
+  .whisper .face{width:52px;height:52px;flex:none;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;animation:floaty 6s ease-in-out infinite}
+  .whisper .face svg{width:30px}
+  .whisper .txt{background:rgba(255,255,255,.72);border-radius:4px 22px 22px 22px;padding:14px 18px;font-size:13px;line-height:1.5;color:#413d63}
+  .whisper .txt b{font-family:'Fredoka'}
+  .whisper .links{margin-top:8px}
+  .whisper .links a{color:var(--blue);font-weight:700;font-size:12.5px}
+
+  /* private grove */
+  .grove{margin-top:46px;padding:28px;border-radius:36px;background:linear-gradient(160deg,#efeaff,#e3ddff);position:relative;overflow:hidden}
+  .grove::before{content:"☾";position:absolute;right:18px;top:14px;font-size:40px;opacity:.25}
+  .grove .row{display:flex;align-items:center;gap:12px;padding:12px 0}
+  .grove .row + .row{border-top:1.5px dashed rgba(23,22,58,.22)}
+  .grove b{font-family:'Fredoka';font-size:15px;font-weight:600;display:block}
+  .grove span{font-size:11.5px;color:#5a5580}
+  .toggle{margin-left:auto;width:52px;height:30px;border-radius:999px;background:#fff;position:relative;cursor:pointer;transition:background .25s;flex:none}
+  .toggle i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--ink);transition:left .25s}
+  .toggle.on{background:var(--blue)}.toggle.on i{left:25px;background:var(--lime)}
+
+  .tabbar{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(23,22,58,.92);backdrop-filter:blur(8px);border-radius:999px;display:flex;gap:6px;padding:8px;z-index:10}
+  .tabbar a{color:#8f8cb8;font-family:'Fredoka';font-weight:600;font-size:13px;text-decoration:none;padding:9px 18px;border-radius:999px}
+  .tabbar a.active{background:var(--lime);color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="screen">
+    <i class="seed s1"></i><i class="seed s2"></i><i class="seed s3"></i><i class="seed s4"></i><i class="seed s5"></i>
+
+    <div class="wrap">
+      <div class="sun"></div>
+      <div class="hi">
+        <h1>Morning, <b>Irene</b>.<br>Let's grow<br>something today.</h1>
+        <p>Sleep ran short (6.1h) — today leans gentle on purpose.</p>
+      </div>
+
+      <div class="vine">
+        <!-- NOW -->
+        <div class="node">
+          <span class="bud">✦</span>
+          <span class="mono">Now · get stronger</span>
+          <h2>Upper body strength</h2>
+          <div class="meta">32 min · 6 moves · 2 new to you</div>
+          <div class="bloom">
+            <div class="ph">
+              <img src="https://images.unsplash.com/photo-1518310383802-640c2de311b2?w=800&q=70&auto=format&fit=crop" alt="Strength session">
+              <div class="veil"></div>
+            </div>
+            <span class="petal p1">🌿</span><span class="petal p2">🍃</span>
+          </div>
+          <div class="row-cta">
+            <button class="btn grow">Start</button>
+            <button class="btn soft">Adjust for today</button>
+          </div>
+        </div>
+
+        <!-- GOALS -->
+        <div class="node later">
+          <span class="bud">🌱</span>
+          <span class="mono">Growing slowly</span>
+          <div class="sprout">
+            <div class="pot"><svg viewBox="0 0 56 56">
+              <path class="stemline" d="M28 50 C28 38 24 34 28 22"/>
+              <ellipse class="leaf" cx="22" cy="26" rx="7" ry="4" transform="rotate(-32 22 26)"/>
+              <path d="M16 50 h24 l-3 5 h-18 z" fill="#c98d5f"/>
+            </svg></div>
+            <div><b>Gain weight</b><span>Ready to start — first block queued</span></div>
+            <span class="pct">20%</span>
+          </div>
+          <div class="sprout">
+            <div class="pot"><svg viewBox="0 0 56 56">
+              <path class="stemline" d="M28 50 C28 40 32 34 27 24"/>
+              <ellipse class="leaf" cx="33" cy="28" rx="7" ry="4" transform="rotate(28 33 28)"/>
+              <path d="M16 50 h24 l-3 5 h-18 z" fill="#c98d5f"/>
+            </svg></div>
+            <div><b>Run a 10K</b><span>Coach is planning week 4</span></div>
+            <span class="pct">25%</span>
+          </div>
+        </div>
+
+        <!-- DESK -->
+        <div class="node later">
+          <span class="bud">🪑</span>
+          <span class="mono">At your desk · Mon–Fri, till 6pm</span>
+          <h2 style="font-size:20px">3-min neck &amp; shoulder reset</h2>
+          <div class="meta">Matched to your trouble spots · no check-in — <a href="#" style="color:var(--blue);font-weight:700">start →</a></div>
+        </div>
+      </div>
+
+      <!-- POND -->
+      <section class="pond">
+        <i class="ripple"></i><i class="ripple"></i><i class="ripple"></i>
+        <h2>Or just float a while</h2>
+        <p>90 seconds of slow breathing. The plan can wait.</p>
+        <span class="duck">🫧</span><br>
+        <button class="btn">Take a breather</button>
+        <span class="alt">…or log my own movement</span>
+      </section>
+
+      <!-- MEADOW -->
+      <section class="meadow">
+        <span class="mono">This week · for you</span>
+        <h2>Steadier than last week</h2>
+        <p class="note">Four sessions kept, even with short sleep. Quietly impressive.</p>
+        <div class="flowers">
+          <div class="flower"><div class="head">4<small>▲1</small></div><div class="stem"></div><span class="lab">Sessions</span></div>
+          <div class="flower"><div class="head">6.1h<small>▼</small></div><div class="stem"></div><span class="lab">Sleep</span></div>
+          <div class="flower"><div class="head">6.2t<small>▲</small></div><div class="stem"></div><span class="lab">Volume</span></div>
+          <div class="flower"><div class="head">3wk</div><div class="stem"></div><span class="lab">Streak</span></div>
+        </div>
+
+        <div class="whisper">
+          <div class="face"><svg viewBox="0 0 30 20"><circle cx="8" cy="8" r="4" fill="#FFFCE9"/><circle cx="22" cy="8" r="4" fill="#FFFCE9"/><path d="M9 16 Q15 20 21 16" stroke="#D8F24C" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg></div>
+          <div class="txt">
+            Your hips have been tight this week — a <b>mobility flow</b> tonight would pay off. And an <b>easy 20-min run</b> keeps the 10K on track.
+            <div class="links"><a href="#">Mobility flow →</a> &nbsp;·&nbsp; <a href="#">Easy run →</a></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- GROVE -->
+      <section class="grove">
+        <span class="mono" style="color:#5a5580">Just between us</span>
+        <div class="row">
+          <div><b>Luteal phase · day 21</b><span>Private — only visible to you</span></div>
+          <span style="margin-left:auto;font-size:17px">›</span>
+        </div>
+        <div class="row">
+          <div><b>Flare up mode</b><span>Ease off flagged regions everywhere</span></div>
+          <div class="toggle" onclick="this.classList.toggle('on')"><i></i></div>
+        </div>
+      </section>
+    </div>
+
+    <nav class="tabbar">
+      <a class="active" href="#">Home</a><a href="#">Challenges</a><a href="#">Profile</a>
+    </nav>
+  </div>
+</div>
+</body>
+</html>
