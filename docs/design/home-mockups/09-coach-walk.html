@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sody Home · 09 Coach walkthrough</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .walk {
+    background: var(--cream);
+    color: var(--ink);
+    padding-bottom: 120px;
+  }
+  .hero-blue {
+    background: var(--blue);
+    color: var(--cream);
+    padding: 54px 22px 0;
+    position: relative;
+    overflow: hidden;
+    min-height: 360px;
+  }
+  .big-char {
+    position: absolute; right: -10px; bottom: 20px;
+    width: 180px; height: 220px;
+  }
+  .big-char svg { width: 100%; height: 100%; }
+  .hello { font-size: 13px; letter-spacing: .18em; text-transform: uppercase; opacity: .7; }
+  .hero-blue h1 { font-size: 40px; color: var(--lime); margin: 6px 0 14px; }
+  .bubble {
+    background: rgba(255,252,233,.12);
+    border: 1px solid rgba(255,252,233,.22);
+    border-radius: 20px 20px 20px 4px;
+    padding: 14px 16px;
+    max-width: 220px;
+    font-size: 14px;
+    backdrop-filter: blur(6px);
+    animation: fade-up .7s ease both .2s;
+  }
+  .bubble strong { color: var(--lime); font-family: Fredoka, sans-serif; }
+  .trail { padding: 0 22px; margin-top: -28px; position: relative; z-index: 2; }
+  .step {
+    display: grid; grid-template-columns: 28px 1fr;
+    gap: 14px; margin-bottom: 8px;
+  }
+  .rail {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .rail .node {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--lime); border: 3px solid var(--cream);
+    box-shadow: 0 0 0 2px var(--blue);
+    z-index: 1;
+  }
+  .rail .line {
+    flex: 1; width: 3px; background: linear-gradient(var(--blue), var(--lav));
+    min-height: 40px;
+  }
+  .panel {
+    background: #fff;
+    border-radius: 0;
+    padding: 18px 0 22px;
+    border-bottom: 1px solid rgba(23,22,58,.08);
+  }
+  .panel .tag {
+    font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--blue); font-weight: 700; margin-bottom: 4px;
+  }
+  .panel h3 { font-size: 20px; margin-bottom: 4px; }
+  .panel p { font-size: 13px; opacity: .65; margin-bottom: 12px; }
+  .thumb {
+    height: 120px; overflow: hidden; margin: 8px 0 12px;
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .btns { display: flex; gap: 8px; }
+  .soft-cta {
+    border: none; background: var(--lav); color: var(--ink);
+    border-radius: 999px; padding: 10px 16px;
+    font-family: Fredoka, sans-serif; font-weight: 700; font-size: 14px;
+  }
+  .week {
+    margin: 20px 0 0;
+    padding: 8px 0 30px;
+  }
+  .week h3 { font-size: 22px; }
+  .spark {
+    height: 48px; margin: 12px 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 48' fill='none'%3E%3Cpath d='M0 30 C 30 10, 50 40, 80 24 S 140 0, 170 22 S 240 48, 300 18' stroke='%234A43EC' stroke-width='3'/%3E%3C/svg%3E") center/cover no-repeat;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="phone-scroll walk">
+        <div class="island"></div>
+        <header class="hero-blue">
+          <div class="hello">Good morning</div>
+          <h1>Irene</h1>
+          <div class="bubble">I’ve got your day mapped. Start with <strong>upper body</strong> — or a desk reset if meetings stack up.</div>
+          <div class="big-char" aria-hidden="true">
+            <svg viewBox="0 0 180 220" fill="none">
+              <ellipse cx="90" cy="200" rx="50" ry="10" fill="rgba(0,0,0,.15)"/>
+              <path d="M60 120 C 40 150, 50 190, 75 195 L 105 195 C 130 190, 140 150, 120 120 Z" fill="#D8F24C"/>
+              <circle cx="90" cy="78" r="42" fill="#AFC8FA"/>
+              <circle cx="90" cy="78" r="42" fill="url(#g)" opacity=".5"/>
+              <circle cx="76" cy="74" r="5" fill="#17163a"/>
+              <circle cx="104" cy="74" r="5" fill="#17163a"/>
+              <path d="M78 92 Q 90 102 102 92" stroke="#17163a" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <path d="M48 130 C 20 110, 10 70, 35 50" stroke="#D3CFFF" stroke-width="10" stroke-linecap="round" class="squiggle-path"/>
+              <path d="M132 130 C 160 110, 170 70, 145 50" stroke="#D3CFFF" stroke-width="10" stroke-linecap="round"/>
+              <defs>
+                <radialGradient id="g" cx=".35" cy=".3" r=".7">
+                  <stop stop-color="#FFFCE9"/><stop offset="1" stop-color="#4A43EC"/>
+                </radialGradient>
+              </defs>
+            </svg>
+          </div>
+        </header>
+        <div class="trail">
+          <div class="step anim-up d2">
+            <div class="rail"><div class="node"></div><div class="line"></div></div>
+            <div class="panel">
+              <div class="tag">Next up</div>
+              <h3>Upper body strength</h3>
+              <p>32 min · Get stronger · 6 moves</p>
+              <div class="thumb">
+                <img src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&q=70&auto=format&fit=crop" alt="Gym" />
+              </div>
+              <div class="btns">
+                <button class="cta cta-ink" style="padding:10px 18px;font-size:14px">Start</button>
+                <button class="soft-cta">Adjust</button>
+              </div>
+            </div>
+          </div>
+          <div class="step anim-up d3">
+            <div class="rail"><div class="node" style="background:var(--olive)"></div><div class="line"></div></div>
+            <div class="panel">
+              <div class="tag">If you’re at your desk</div>
+              <h3>Neck & shoulder reset</h3>
+              <p>3 min · no check-in</p>
+              <div class="thumb">
+                <img src="https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=800&q=70&auto=format&fit=crop" alt="Mobility" />
+              </div>
+              <button class="soft-cta">Start reset</button>
+            </div>
+          </div>
+          <div class="step anim-up d4">
+            <div class="rail"><div class="node" style="background:var(--peri)"></div></div>
+            <div class="panel">
+              <div class="tag">Quick</div>
+              <div class="btns">
+                <button class="soft-cta">＋ Log my own</button>
+                <button class="soft-cta" style="background:var(--ink);color:var(--cream)">〜 Breather</button>
+              </div>
+            </div>
+          </div>
+          <div class="week anim-up d5">
+            <h3>This week</h3>
+            <div class="spark"></div>
+            <p style="font-size:14px;opacity:.7">4 sessions · 6.1h sleep · 6.2t volume · 3wk streak</p>
+          </div>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <span><i class="dot">◎</i>Social</span>
+        <span class="active"><i class="dot">●</i>Home</span>
+        <span><i class="dot">◎</i>Goals</span>
+        <span><i class="dot">◎</i>You</span>
+      </nav>
+    </div>
+    <div class="caption">09 · Coach walk — character guides a vertical day trail</div>
+  </div>
+</div>
+</body>
+</html>

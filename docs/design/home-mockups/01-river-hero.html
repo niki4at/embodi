@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sody Home · 01 River hero</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .river { background: var(--cream); color: var(--ink); padding-bottom: 110px; }
+  .hero {
+    position: relative;
+    height: 520px;
+    overflow: hidden;
+  }
+  .hero img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transform: scale(1.08);
+    animation: ken 18s ease-in-out infinite alternate;
+  }
+  @keyframes ken {
+    from { transform: scale(1.08) translateY(0); }
+    to { transform: scale(1.16) translateY(-3%); }
+  }
+  .hero-veil {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(23,22,58,.15) 0%, rgba(23,22,58,.05) 35%, rgba(74,67,236,.55) 70%, var(--blue) 100%);
+  }
+  .hero-copy {
+    position: absolute; left: 22px; right: 22px; bottom: 48px;
+    color: var(--cream);
+  }
+  .greet { font-size: 13px; letter-spacing: .18em; text-transform: uppercase; opacity: .85; margin-bottom: 6px; }
+  .name { font-size: 42px; line-height: .95; color: var(--lime); margin-bottom: 14px; }
+  .session-kicker { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; opacity: .8; margin-bottom: 6px; }
+  .session-title { font-size: 28px; line-height: 1.05; margin-bottom: 8px; }
+  .session-meta { font-size: 13px; opacity: .85; margin-bottom: 18px; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .line-overlay {
+    position: absolute; inset: 0; pointer-events: none; opacity: .55;
+  }
+  .flow {
+    margin-top: -28px;
+    padding: 8px 22px 0;
+    position: relative;
+    z-index: 2;
+  }
+  .ask {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--lime); color: var(--ink);
+    border-radius: 999px; padding: 10px 16px;
+    font-weight: 700; font-size: 12px; letter-spacing: .12em;
+    margin-bottom: 28px;
+    animation: float 3.5s ease-in-out infinite;
+  }
+  .band {
+    padding: 22px 0 8px;
+    border: none;
+  }
+  .band h3 { font-size: 22px; margin-bottom: 6px; }
+  .band p { font-size: 14px; opacity: .75; max-width: 32ch; }
+  .goals {
+    display: grid; gap: 18px; margin: 18px 0 28px;
+  }
+  .goal {
+    display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; align-items: center;
+  }
+  .ring {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: conic-gradient(var(--blue) 20%, var(--lav) 20%);
+    display: grid; place-items: center;
+  }
+  .ring span {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--cream);
+    font-size: 10px; font-weight: 700; display: grid; place-items: center;
+  }
+  .goal b { display: block; font-family: Fredoka, sans-serif; font-size: 16px; }
+  .goal small { opacity: .6; font-size: 12px; }
+  .status-pill { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--olive); }
+  .photo-strip {
+    margin: 10px -22px 0;
+    height: 180px;
+    position: relative;
+    overflow: hidden;
+  }
+  .photo-strip img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-strip .cap {
+    position: absolute; left: 22px; bottom: 18px; color: #fff;
+  }
+  .photo-strip .cap b { font-size: 20px; display: block; }
+  .week {
+    margin-top: 28px;
+    padding-bottom: 20px;
+  }
+  .week-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+  .for-you {
+    background: var(--lime); color: var(--ink); border-radius: 999px;
+    padding: 4px 10px; font-size: 10px; font-weight: 700; letter-spacing: .14em;
+  }
+  .stats {
+    display: grid; grid-template-columns: repeat(4,1fr); gap: 8px;
+    margin: 18px 0;
+  }
+  .stats div { text-align: center; }
+  .stats strong { display: block; font-family: Fredoka, sans-serif; font-size: 22px; }
+  .stats span { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; opacity: .55; }
+  .up { color: var(--olive); font-size: 12px; }
+  .down { color: #c45; font-size: 12px; }
+  .rec { padding: 14px 0; border-top: 1px solid rgba(23,22,58,.1); }
+  .rec b { font-family: Fredoka, sans-serif; font-size: 16px; }
+  .rec p { font-size: 13px; opacity: .65; margin-top: 2px; }
+  .coach-float {
+    position: absolute; right: 18px; top: 70px; z-index: 5;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="phone-scroll river">
+        <div class="island"></div>
+        <div class="coach-float"><div class="coach-blob"><span class="mouth"></span></div></div>
+        <section class="hero">
+          <img src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=900&q=75&auto=format&fit=crop" alt="Woman in yoga pose" />
+          <div class="hero-veil"></div>
+          <svg class="line-overlay" viewBox="0 0 390 520" preserveAspectRatio="none">
+            <path class="squiggle-path" d="M-10 380 C 80 300, 120 460, 200 380 S 320 280, 420 360" stroke-width="8"/>
+          </svg>
+          <div class="hero-copy anim-up">
+            <div class="greet">Good morning</div>
+            <h1 class="name">Irene</h1>
+            <div class="session-kicker">Next up · Get stronger</div>
+            <h2 class="session-title">Upper body strength</h2>
+            <p class="session-meta">32 min · 6 moves · 2 new to you</p>
+            <div class="actions">
+              <button class="cta cta-lime">Start</button>
+              <button class="cta cta-ghost">Adjust for today</button>
+            </div>
+          </div>
+        </section>
+        <svg class="wave-divider" viewBox="0 0 390 64" preserveAspectRatio="none">
+          <path d="M0 32 C 60 0, 120 64, 195 32 S 330 0, 390 32 L390 64 L0 64 Z" fill="#FFFCE9"/>
+        </svg>
+        <div class="flow">
+          <div class="ask anim-up d2">✦ Ask your AI coach</div>
+          <div class="band anim-up d3">
+            <span class="meta-label">Your goals</span>
+            <div class="goals">
+              <div class="goal">
+                <div class="ring"><span>20%</span></div>
+                <div><b>Gain weight</b><small>Program week 2</small></div>
+                <div class="status-pill">● Ready</div>
+              </div>
+              <div class="goal">
+                <div class="ring" style="background:conic-gradient(var(--peri) 25%, var(--lav) 25%)"><span>25%</span></div>
+                <div><b>Run a 10K</b><small>Coach is planning</small></div>
+                <div class="status-pill" style="color:var(--blue)">● Planning</div>
+              </div>
+            </div>
+          </div>
+          <div class="photo-strip anim-up d4">
+            <img src="https://images.unsplash.com/photo-1552196563-55cd4e45efb3?w=900&q=75&auto=format&fit=crop" alt="Desk stretch" />
+            <div class="hero-veil" style="background:linear-gradient(90deg,rgba(50,75,62,.75),transparent 70%)"></div>
+            <div class="cap">
+              <span class="meta-label">At your desk · till 6pm</span>
+              <b>3-min neck & shoulder reset</b>
+            </div>
+          </div>
+          <div class="week anim-up d5">
+            <div class="week-head">
+              <h3>This week</h3>
+              <span class="for-you">✦ FOR YOU</span>
+            </div>
+            <p style="opacity:.7;font-size:14px">Steadier than last week — hips opening up.</p>
+            <div class="stats">
+              <div><strong>4 <span class="up">↑1</span></strong><span>Sessions</span></div>
+              <div><strong>6.1h <span class="down">↓</span></strong><span>Sleep</span></div>
+              <div><strong>6.2t <span class="up">↑</span></strong><span>Volume</span></div>
+              <div><strong>3wk</strong><span>Streak</span></div>
+            </div>
+            <div class="rec"><b>Mobility flow</b><p>Your hips have been tight this week</p></div>
+            <div class="rec"><b>Easy 20 min run</b><p>Recovery pace toward your 10K</p></div>
+          </div>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <span><i class="dot">◎</i>Social</span>
+        <span class="active"><i class="dot">●</i>Home</span>
+        <span><i class="dot">◎</i>Goals</span>
+        <span><i class="dot">◎</i>You</span>
+      </nav>
+    </div>
+    <div class="caption">01 · River hero — full-bleed photo, wave into cream</div>
+  </div>
+</div>
+</body>
+</html>

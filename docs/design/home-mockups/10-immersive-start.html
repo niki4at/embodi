@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sody Home · 10 Immersive start</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .imm {
+    background: #0a0914;
+    color: #fff;
+    min-height: 100%;
+    padding-bottom: 110px;
+  }
+  .canvas {
+    position: relative;
+    height: 620px;
+    overflow: hidden;
+  }
+  .canvas img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; object-fit: cover;
+    animation: ken 20s ease-in-out infinite alternate;
+  }
+  @keyframes ken {
+    from { transform: scale(1.05); }
+    to { transform: scale(1.18) translate(-2%, -2%); }
+  }
+  .canvas .grade {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(180deg, rgba(10,9,20,.4) 0%, transparent 35%, rgba(10,9,20,.9) 100%),
+      radial-gradient(circle at 80% 20%, rgba(216,242,76,.2), transparent 35%);
+  }
+  .brand-mark {
+    position: absolute; top: 54px; left: 22px; z-index: 3;
+    font-family: Fredoka, sans-serif; font-size: 28px; color: var(--lime);
+  }
+  .profile {
+    position: absolute; top: 54px; right: 22px; z-index: 3;
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--lav); color: var(--ink);
+    display: grid; place-items: center; font-family: Fredoka, sans-serif;
+  }
+  .lines {
+    position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  }
+  .anchor {
+    position: absolute; left: 22px; right: 22px; bottom: 40px; z-index: 3;
+  }
+  .anchor .hi {
+    font-size: 12px; letter-spacing: .2em; text-transform: uppercase; opacity: .7;
+  }
+  .anchor h1 {
+    font-size: 48px; line-height: .95; margin: 6px 0 8px;
+    max-width: 10ch;
+  }
+  .anchor .meta { opacity: .8; margin-bottom: 18px; font-size: 14px; }
+  .big-start {
+    width: 100%;
+    border: none;
+    background: var(--lime);
+    color: var(--ink);
+    font-family: Fredoka, sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    padding: 18px;
+    border-radius: 999px;
+    animation: pulse-soft 2.8s ease-in-out infinite;
+  }
+  .adjust {
+    display: block; text-align: center; margin-top: 12px;
+    color: rgba(255,255,255,.75); font-size: 13px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase;
+  }
+  .below {
+    padding: 24px 22px 40px;
+    background: var(--cream);
+    color: var(--ink);
+    margin-top: -1px;
+  }
+  .scroll-row {
+    display: flex; gap: 12px; overflow-x: auto;
+    scrollbar-width: none; margin: 14px 0 22px;
+  }
+  .scroll-row::-webkit-scrollbar { display: none; }
+  .tile {
+    min-width: 140px; height: 160px;
+    position: relative; overflow: hidden; flex-shrink: 0;
+  }
+  .tile img { width: 100%; height: 100%; object-fit: cover; }
+  .tile span {
+    position: absolute; left: 10px; right: 10px; bottom: 10px;
+    color: #fff; font-family: Fredoka, sans-serif; font-size: 14px;
+    text-shadow: 0 4px 12px rgba(0,0,0,.5);
+  }
+  .tile::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(transparent 40%, rgba(0,0,0,.65));
+  }
+  .mini-stats {
+    display: flex; justify-content: space-between;
+    font-family: Fredoka, sans-serif; font-size: 16px;
+    padding-top: 8px;
+  }
+  .coach-peek {
+    position: absolute; left: 22px; bottom: 210px; z-index: 4;
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(23,22,58,.45);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 999px;
+    padding: 8px 14px 8px 8px;
+    font-size: 12px;
+    max-width: 240px;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="phone-scroll imm">
+        <div class="island"></div>
+        <section class="canvas">
+          <img src="https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=1100&q=80&auto=format&fit=crop" alt="Athlete training" />
+          <div class="grade"></div>
+          <svg class="lines" viewBox="0 0 390 620" preserveAspectRatio="none">
+            <path class="squiggle-path" d="M-20 480 C 80 400, 140 560, 220 470 S 340 380, 420 460" stroke="#AFC8FA" stroke-width="10" opacity=".7"/>
+            <path class="squiggle-path" d="M-10 200 C 100 140, 160 260, 260 180 S 360 120, 420 200" stroke="#D8F24C" stroke-width="6" opacity=".5" style="animation-delay:.4s"/>
+          </svg>
+          <div class="brand-mark">Sody</div>
+          <div class="profile">I</div>
+          <div class="coach-peek anim-up d2">
+            <div class="coach-blob" style="width:36px;height:36px"><span class="mouth"></span></div>
+            <span>Ready when you are — shoulder-friendly presses today.</span>
+          </div>
+          <div class="anchor anim-up">
+            <div class="hi">Good morning, Irene</div>
+            <h1>Upper body strength</h1>
+            <p class="meta">32 min · 6 moves · Get stronger</p>
+            <button class="big-start">Start moving</button>
+            <a class="adjust" href="#">Adjust for today</a>
+          </div>
+        </section>
+        <section class="below">
+          <div class="meta-label">Also today</div>
+          <div class="scroll-row">
+            <div class="tile">
+              <img src="https://images.unsplash.com/photo-1552196563-55cd4e45efb3?w=500&q=70&auto=format&fit=crop" alt="Desk" />
+              <span>Desk reset</span>
+            </div>
+            <div class="tile">
+              <img src="https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=500&q=70&auto=format&fit=crop" alt="Breather" />
+              <span>Breather</span>
+            </div>
+            <div class="tile">
+              <img src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=500&q=70&auto=format&fit=crop" alt="Run" />
+              <span>Easy run</span>
+            </div>
+          </div>
+          <div class="meta-label">This week</div>
+          <div class="mini-stats">
+            <span>4 sess</span><span>6.1h</span><span>6.2t</span><span>3wk</span>
+          </div>
+        </section>
+      </div>
+      <nav class="tabbar">
+        <span><i class="dot">◎</i>Social</span>
+        <span class="active"><i class="dot">●</i>Home</span>
+        <span><i class="dot">◎</i>Goals</span>
+        <span><i class="dot">◎</i>You</span>
+      </nav>
+    </div>
+    <div class="caption">10 · Immersive start — one giant photo, one giant CTA</div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sody Home · 08 Story chapters</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .stories {
+    height: 100%;
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    background: #000;
+  }
+  .chapter {
+    height: 844px;
+    scroll-snap-align: start;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+  }
+  .chapter img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .veil {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(10,8,24,.35) 0%, rgba(10,8,24,.15) 40%, rgba(10,8,24,.82) 100%);
+  }
+  .progress {
+    position: absolute; top: 54px; left: 18px; right: 18px;
+    display: flex; gap: 4px; z-index: 5;
+  }
+  .progress i {
+    flex: 1; height: 3px; border-radius: 2px;
+    background: rgba(255,255,255,.25); overflow: hidden;
+  }
+  .progress i em {
+    display: block; height: 100%; width: 0; background: var(--lime);
+  }
+  .c1 .progress i:nth-child(1) em { width: 100%; }
+  .c2 .progress i:nth-child(1) em,
+  .c2 .progress i:nth-child(2) em { width: 100%; }
+  .c3 .progress i em { width: 100%; }
+  .content {
+    position: absolute; left: 22px; right: 22px; bottom: 100px; z-index: 3;
+  }
+  .eyebrow {
+    font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--lime); font-weight: 700; margin-bottom: 10px;
+  }
+  h1 { font-size: 42px; line-height: .98; margin-bottom: 10px; max-width: 12ch; }
+  h2 { font-size: 34px; line-height: 1.02; margin-bottom: 10px; max-width: 14ch; }
+  p { font-size: 15px; opacity: .85; margin-bottom: 18px; max-width: 30ch; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .char-corner {
+    position: absolute; right: 20px; bottom: 200px; z-index: 4;
+    animation: bob 3s ease-in-out infinite;
+  }
+  .swipe-hint {
+    position: absolute; left: 0; right: 0; bottom: 78px;
+    text-align: center; font-size: 11px; letter-spacing: .18em;
+    text-transform: uppercase; opacity: .55; z-index: 4;
+  }
+  .stat-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0 18px;
+  }
+  .stat-grid div {
+    border-top: 2px solid rgba(216,242,76,.6);
+    padding-top: 8px;
+  }
+  .stat-grid strong { font-family: Fredoka, sans-serif; font-size: 28px; display: block; }
+  .stat-grid span { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; opacity: .7; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="stories">
+        <!-- Chapter 1: Greeting + next up -->
+        <section class="chapter c1">
+          <img src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1000&q=80&auto=format&fit=crop" alt="Yoga" />
+          <div class="veil"></div>
+          <div class="progress"><i><em></em></i><i></i><i></i></div>
+          <div class="char-corner"><div class="coach-blob"><span class="mouth"></span></div></div>
+          <div class="content anim-up">
+            <div class="eyebrow">Good morning · Irene</div>
+            <h1>Upper body strength</h1>
+            <p>32 min · 6 moves · queued for Get stronger</p>
+            <div class="actions">
+              <button class="cta cta-lime">Start</button>
+              <button class="cta cta-ghost">Adjust</button>
+            </div>
+          </div>
+          <div class="swipe-hint">Swipe up</div>
+        </section>
+
+        <!-- Chapter 2: Desk + quick actions -->
+        <section class="chapter c2">
+          <img src="https://images.unsplash.com/photo-1552196563-55cd4e45efb3?w=1000&q=80&auto=format&fit=crop" alt="Stretch" />
+          <div class="veil" style="background:linear-gradient(180deg,rgba(50,75,62,.3),rgba(50,75,62,.88))"></div>
+          <div class="progress"><i><em></em></i><i><em></em></i><i></i></div>
+          <div class="content">
+            <div class="eyebrow">At your desk · till 6pm</div>
+            <h2>3-min neck & shoulder reset</h2>
+            <p>Matched to trouble spots · no check-in</p>
+            <div class="actions">
+              <button class="cta cta-lime">Start reset</button>
+              <button class="cta cta-ghost">＋ Log my own</button>
+            </div>
+          </div>
+          <div class="swipe-hint">Swipe up</div>
+        </section>
+
+        <!-- Chapter 3: Week -->
+        <section class="chapter c3">
+          <img src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1000&q=80&auto=format&fit=crop" alt="Running" />
+          <div class="veil" style="background:linear-gradient(180deg,rgba(74,67,236,.35),rgba(23,22,58,.9))"></div>
+          <div class="progress"><i><em></em></i><i><em></em></i><i><em></em></i></div>
+          <div class="content">
+            <div class="eyebrow">This week · for you</div>
+            <h2>Steadier than last week</h2>
+            <div class="stat-grid">
+              <div><strong>4</strong><span>Sessions ↑</span></div>
+              <div><strong>6.1h</strong><span>Sleep</span></div>
+              <div><strong>6.2t</strong><span>Volume</span></div>
+              <div><strong>3wk</strong><span>Streak</span></div>
+            </div>
+            <p>Try an easy 20 min run — recovery pace toward your 10K.</p>
+            <button class="cta cta-lime">See recommendations</button>
+          </div>
+        </section>
+      </div>
+      <nav class="tabbar">
+        <span><i class="dot">◎</i>Social</span>
+        <span class="active"><i class="dot">●</i>Home</span>
+        <span><i class="dot">◎</i>Goals</span>
+        <span><i class="dot">◎</i>You</span>
+      </nav>
+    </div>
+    <div class="caption">08 · Story chapters — full-bleed vertical snaps</div>
+  </div>
+</div>
+</body>
+</html>

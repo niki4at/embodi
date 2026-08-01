@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sody Home · 14 Morning ritual</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .ritual {
+    background: linear-gradient(180deg, #f7e8c8 0%, var(--cream) 35%, var(--lav) 100%);
+    color: var(--ink);
+    padding-bottom: 120px;
+    min-height: 100%;
+  }
+  .sunburst {
+    position: relative;
+    padding: 60px 22px 30px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .rays {
+    position: absolute; left: 50%; top: 40px;
+    width: 280px; height: 280px; margin-left: -140px;
+    background: conic-gradient(from 0deg, rgba(216,242,76,.35), transparent 20%, rgba(175,200,250,.4), transparent 55%, rgba(216,242,76,.3), transparent);
+    border-radius: 50%;
+    animation: spin-slow 20s linear infinite;
+    filter: blur(2px);
+  }
+  .photo-circle {
+    width: 180px; height: 180px; border-radius: 50%;
+    margin: 20px auto 16px;
+    overflow: hidden;
+    position: relative; z-index: 2;
+    box-shadow: 0 20px 50px rgba(74,67,236,.25);
+    animation: breathe 5s ease-in-out infinite;
+  }
+  .photo-circle img { width: 100%; height: 100%; object-fit: cover; }
+  .sunburst h1 { font-size: 36px; position: relative; z-index: 2; }
+  .sunburst .hi { letter-spacing: .18em; text-transform: uppercase; font-size: 12px; opacity: .65; position: relative; z-index: 2; }
+  .coach-line {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin-top: 12px; position: relative; z-index: 2;
+    font-size: 14px; opacity: .85;
+  }
+  .block {
+    padding: 8px 22px 20px;
+  }
+  .block h2 {
+    font-size: 13px; letter-spacing: .2em; text-transform: uppercase;
+    opacity: .55; margin-bottom: 10px; font-family: Lekton, monospace; font-weight: 700;
+  }
+  .session {
+    position: relative;
+    overflow: hidden;
+    min-height: 180px;
+  }
+  .session img { width: 100%; height: 180px; object-fit: cover; display: block; }
+  .session .over {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 30%, rgba(23,22,58,.82));
+    color: #fff; display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 16px;
+  }
+  .session h3 { font-size: 24px; }
+  .row-btns { display: flex; gap: 8px; margin-top: 10px; }
+  .chips {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .chips span {
+    background: rgba(255,255,255,.65);
+    border-radius: 999px; padding: 10px 14px;
+    font-family: Fredoka, sans-serif; font-size: 14px;
+  }
+  .cycle {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 0; font-size: 14px;
+  }
+  .cycle .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--lav); border: 2px solid var(--blue);
+  }
+  .week-box {
+    background: rgba(255,255,255,.5);
+    padding: 16px;
+    margin-top: 8px;
+  }
+  .week-box .grid {
+    display: grid; grid-template-columns: repeat(4,1fr);
+    text-align: center; margin-top: 10px;
+  }
+  .week-box strong { font-family: Fredoka, sans-serif; font-size: 20px; display: block; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="phone-scroll ritual">
+        <div class="island"></div>
+        <header class="sunburst">
+          <div class="rays"></div>
+          <div class="hi anim-up">Good morning</div>
+          <div class="photo-circle anim-up d1">
+            <img src="https://images.unsplash.com/photo-1518611012118-696072aa579a?w=600&q=80&auto=format&fit=crop" alt="Morning stretch" />
+          </div>
+          <h1 class="anim-up d2">Irene</h1>
+          <div class="coach-line anim-up d3">
+            <div class="coach-blob" style="width:40px;height:40px"><span class="mouth"></span></div>
+            <span>Body first. Plan second.</span>
+          </div>
+        </header>
+        <section class="block anim-up d4">
+          <h2>Your ritual</h2>
+          <div class="session">
+            <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=900&q=75&auto=format&fit=crop" alt="" />
+            <div class="over">
+              <div class="meta-label" style="color:var(--lime)">Next up · Get stronger</div>
+              <h3>Upper body strength</h3>
+              <p style="font-size:13px;opacity:.85">32 min · 6 moves</p>
+              <div class="row-btns">
+                <button class="cta cta-lime" style="padding:10px 18px;font-size:14px">Start</button>
+                <button class="cta cta-ghost" style="padding:10px 16px;font-size:14px">Adjust</button>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="block">
+          <h2>Between meetings</h2>
+          <div class="chips">
+            <span>Neck reset · 3m</span>
+            <span>〜 Breather</span>
+            <span>＋ Log my own</span>
+          </div>
+        </section>
+        <section class="block">
+          <h2>Private</h2>
+          <div class="cycle"><span class="dot"></span> Luteal phase · day 21 · only you</div>
+          <div class="week-box">
+            <div class="meta-label">This week</div>
+            <div class="grid">
+              <div><strong>4</strong><span style="font-size:10px">SESS</span></div>
+              <div><strong>6.1h</strong><span style="font-size:10px">SLEEP</span></div>
+              <div><strong>6.2t</strong><span style="font-size:10px">VOL</span></div>
+              <div><strong>3wk</strong><span style="font-size:10px">STREAK</span></div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <nav class="tabbar">
+        <span><i class="dot">◎</i>Social</span>
+        <span class="active"><i class="dot">●</i>Home</span>
+        <span><i class="dot">◎</i>Goals</span>
+        <span><i class="dot">◎</i>You</span>
+      </nav>
+    </div>
+    <div class="caption">14 · Morning ritual — soft sunrise, circular photo hero</div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sody Home · 05 Night pulse</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .night {
+    background: #0b0a16;
+    color: var(--cream);
+    padding-bottom: 120px;
+    min-height: 100%;
+  }
+  .glow-bg {
+    position: absolute; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(circle at 70% 15%, rgba(216,242,76,.22), transparent 30%),
+      radial-gradient(circle at 20% 60%, rgba(74,67,236,.35), transparent 40%);
+  }
+  .pad { padding: 54px 22px 0; position: relative; z-index: 1; }
+  .hi { font-size: 13px; letter-spacing: .2em; text-transform: uppercase; opacity: .55; }
+  h1 { font-size: 40px; color: var(--lime); margin: 4px 0 18px; }
+  .live-row {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 28px;
+  }
+  .char {
+    width: 64px; height: 64px; position: relative;
+  }
+  .char .core {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: conic-gradient(var(--lime), var(--peri), var(--blue), var(--lime));
+    animation: spin-slow 10s linear infinite;
+  }
+  .char .face {
+    position: absolute; inset: 8px;
+    background: #12101f; border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 22px;
+  }
+  .live-row p { font-size: 14px; opacity: .8; max-width: 22ch; }
+  .live-row strong { color: var(--lime); font-family: Fredoka, sans-serif; }
+  .hero-img {
+    margin: 0 -22px;
+    height: 300px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-img img {
+    width: 100%; height: 100%; object-fit: cover;
+    opacity: .85; mix-blend-mode: screen;
+    filter: saturate(1.2) contrast(1.1);
+  }
+  .hero-img::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, #0b0a16, transparent 30%, #0b0a16);
+  }
+  .overlay-copy {
+    position: absolute; left: 22px; right: 22px; bottom: 24px; z-index: 2;
+  }
+  .overlay-copy .kicker { color: var(--lime); letter-spacing: .18em; font-size: 11px; text-transform: uppercase; font-weight: 700; }
+  .overlay-copy h2 { font-size: 30px; margin: 6px 0; }
+  .overlay-copy p { opacity: .75; font-size: 13px; margin-bottom: 14px; }
+  .btns { display: flex; gap: 10px; }
+  .goals {
+    margin-top: 28px;
+  }
+  .goal {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255,252,233,.1);
+  }
+  .goal b { font-family: Fredoka, sans-serif; font-size: 18px; }
+  .goal .pct { font-size: 28px; font-family: Fredoka, sans-serif; color: var(--lime); }
+  .chips {
+    display: flex; gap: 8px; flex-wrap: wrap; margin: 22px 0;
+  }
+  .chip {
+    border: 1px solid rgba(255,252,233,.25);
+    border-radius: 999px; padding: 10px 14px;
+    font-size: 13px; font-weight: 700;
+  }
+  .chip.on { background: var(--lime); color: var(--ink); border-color: var(--lime); }
+  .week {
+    background: linear-gradient(135deg, rgba(74,67,236,.35), rgba(216,242,76,.08));
+    margin: 8px -22px 0;
+    padding: 24px 22px 40px;
+  }
+  .meters {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px;
+  }
+  .meters div {
+    padding-top: 10px;
+  }
+  .meters strong { font-family: Fredoka, sans-serif; font-size: 28px; display: block; }
+  .meters span { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; opacity: .55; }
+  .bar {
+    height: 4px; background: rgba(255,255,255,.1); margin-top: 8px; overflow: hidden;
+  }
+  .bar i {
+    display: block; height: 100%; width: 70%;
+    background: linear-gradient(90deg, var(--lime), var(--peri));
+    animation: shimmer 2.5s linear infinite; background-size: 200% 100%;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="phone-scroll night">
+        <div class="glow-bg"></div>
+        <div class="island"></div>
+        <div class="pad">
+          <div class="hi anim-up">Good morning</div>
+          <h1 class="anim-up d1">Irene</h1>
+          <div class="live-row anim-up d2">
+            <div class="char">
+              <div class="core"></div>
+              <div class="face">✦</div>
+            </div>
+            <p>Your coach is awake. <strong>Upper body</strong> is ready when you are.</p>
+          </div>
+          <div class="hero-img anim-up d3">
+            <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=900&q=75&auto=format&fit=crop" alt="Workout" />
+            <div class="overlay-copy">
+              <div class="kicker">Next up · Get stronger</div>
+              <h2>Upper body strength</h2>
+              <p>32 min · 6 moves · 2 new</p>
+              <div class="btns">
+                <button class="cta cta-lime">Start</button>
+                <button class="cta cta-ghost">Adjust</button>
+              </div>
+            </div>
+          </div>
+          <div class="goals anim-up d4">
+            <div class="goal"><div><b>Gain weight</b><div style="opacity:.5;font-size:12px">Ready to start</div></div><div class="pct">20%</div></div>
+            <div class="goal"><div><b>Run a 10K</b><div style="opacity:.5;font-size:12px">Coach planning</div></div><div class="pct">25%</div></div>
+          </div>
+          <div class="chips anim-up d5">
+            <span class="chip on">＋ Log my own</span>
+            <span class="chip">〜 Breather</span>
+            <span class="chip">Desk reset</span>
+          </div>
+        </div>
+        <section class="week">
+          <div class="meta-label" style="color:var(--lime)">This week · for you</div>
+          <p style="margin:8px 0 0;opacity:.75;font-size:14px">Steadier than last week — hips opening.</p>
+          <div class="meters">
+            <div><strong>4</strong><span>Sessions</span><div class="bar"><i></i></div></div>
+            <div><strong>6.1h</strong><span>Sleep</span><div class="bar"><i style="width:55%"></i></div></div>
+            <div><strong>6.2t</strong><span>Volume</span><div class="bar"><i style="width:80%"></i></div></div>
+            <div><strong>3wk</strong><span>Streak</span><div class="bar"><i style="width:90%"></i></div></div>
+          </div>
+        </section>
+      </div>
+      <nav class="tabbar">
+        <span><i class="dot">◎</i>Social</span>
+        <span class="active"><i class="dot">●</i>Home</span>
+        <span><i class="dot">◎</i>Goals</span>
+        <span><i class="dot">◎</i>You</span>
+      </nav>
+    </div>
+    <div class="caption">05 · Night pulse — dark mode with neon lime & living coach</div>
+  </div>
+</div>
+</body>
+</html>

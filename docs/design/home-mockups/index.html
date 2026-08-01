@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sody · Home screen mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Lekton:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --blue: #4A43EC; --lime: #D8F24C; --cream: #FFFCE9;
+    --peri: #AFC8FA; --lav: #D3CFFF; --ink: #17163a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Lekton, monospace;
+    background: var(--ink);
+    color: var(--cream);
+    line-height: 1.5;
+  }
+  header {
+    padding: 72px 8vw 40px;
+    background:
+      radial-gradient(ellipse at 10% 0%, rgba(74,67,236,.5), transparent 50%),
+      radial-gradient(ellipse at 90% 20%, rgba(216,242,76,.18), transparent 40%),
+      var(--ink);
+    border-bottom: 4px solid var(--lime);
+  }
+  .tag {
+    display: inline-block;
+    background: var(--lime); color: var(--ink);
+    font-family: Fredoka, sans-serif;
+    font-size: 13px; padding: 8px 14px; border-radius: 999px;
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-family: Fredoka, sans-serif;
+    font-size: clamp(48px, 10vw, 96px);
+    color: var(--lime); line-height: .95; margin-bottom: 12px;
+  }
+  header p { max-width: 56ch; font-size: 17px; opacity: .85; }
+  header .meta { margin-top: 22px; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--peri); }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px;
+    padding: 40px 8vw 80px;
+  }
+  a.card {
+    display: block;
+    text-decoration: none; color: inherit;
+    background: #1e1c33;
+    border: 2px solid rgba(255,252,233,.12);
+    border-radius: 20px;
+    padding: 22px;
+    transition: transform .2s ease, border-color .2s, background .2s;
+    min-height: 180px;
+    position: relative;
+    overflow: hidden;
+  }
+  a.card:hover {
+    transform: translateY(-4px);
+    border-color: var(--lime);
+    background: #252345;
+  }
+  a.card .num {
+    font-family: Fredoka, sans-serif;
+    font-size: 13px; color: var(--lime);
+    letter-spacing: .14em; text-transform: uppercase;
+  }
+  a.card h2 {
+    font-family: Fredoka, sans-serif;
+    font-size: 24px; margin: 8px 0 8px;
+  }
+  a.card p { font-size: 14px; opacity: .7; max-width: 32ch; }
+  a.card .go {
+    position: absolute; right: 18px; bottom: 18px;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--blue); color: var(--lime);
+    display: grid; place-items: center;
+    font-family: Fredoka, sans-serif; font-size: 18px;
+  }
+  .principles {
+    padding: 0 8vw 60px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+  }
+  .principles div {
+    background: rgba(255,252,233,.04);
+    border: 1px solid rgba(255,252,233,.1);
+    border-radius: 16px; padding: 16px;
+    font-size: 13px;
+  }
+  .principles b { display: block; font-family: Fredoka, sans-serif; font-size: 15px; margin-bottom: 4px; color: var(--lime); }
+  footer {
+    padding: 30px 8vw 50px;
+    font-size: 13px; opacity: .5;
+  }
+</style>
+</head>
+<body>
+<header>
+  <span class="tag">Sody redesign · Home explorations</span>
+  <h1>14 home mockups</h1>
+  <p>
+    Flowing, image-led, character-alive alternatives to the card stack.
+    Brand from the Sody sheet: cream, royal blue, acid lime, periwinkle, lavender.
+    No bordered cards in the compositions — color bands, photo planes, and motion instead.
+  </p>
+  <div class="meta">Fredoka + Lekton · Unsplash photography · open any phone frame below</div>
+</header>
+
+<section class="principles">
+  <div><b>No cards</b>Sections meet via waves, slants, and full-bleed photos.</div>
+  <div><b>Alive</b>Coach blobs, orbs, EQ bars, ken-burns, drawn squiggles.</div>
+  <div><b>Images</b>Editorial fitness photos blended into every hero.</div>
+  <div><b>One job</b>Each mockup still leads with “next up”, then context.</div>
+</section>
+
+<main class="grid">
+  <a class="card" href="01-river-hero.html">
+    <div class="num">01</div>
+    <h2>River hero</h2>
+    <p>Full-bleed yoga photo pouring into cream via a wave. Classic Sody entry.</p>
+    <span class="go">→</span>
+  </a>
+  <a class="card" href="02-orb-companion.html">
+    <div class="num">02</div>
+    <h2>Orb companion</h2>
+    <p>Living AI orb greets Irene, then a photographic next-up band.</p>
+    <span class="go">→</span>
+  </a>
+  <a class="card" href="03-ribbon-bands.html">
+    <div class="num">03</div>
+    <h2>Ribbon bands</h2>
+    <p>Slanted color rivers — blue, photo, lime marquee, cream goals.</p>
+    <span class="go">→</span>
+  </a>
+  <a class="card" href="04-editorial-magazine.html">
+    <div class="num">04</div>
+    <h2>Editorial magazine</h2>
+    <p>Brand-first masthead, poetic photo spread, duo goals column.</p>
+    <span class="go">→</span>
+  </a>
+  <a class="card" href="05-night-pulse.html">
+    <div class="num">05</div>
+    <h2>Night pulse</h2>
+    <p>Dark mode with neon lime, spinning coach core, glowing meters.</p>
+    <span class="go">→</span>
+  </a>
+  <a class="card" href="06-desk-day.html">
+    <div class="num">06</div>
+    <h2>Desk day</h2>
+    <p>Work-hours home: micro-reset is the hero, lift waits for later.</p>
+    <span class="go">→</span>
+  </a>
+  <a class="card" href="07-orbit-goals.html">
+    <div class="num">07</div>
+    <h2>Orbit goals</h2>
+    <p>Session as the sun; goals and quick actions float as planets.</p>
+    <span class="go">→</span>
+  </a>
+  <a class="card" href="08-story-chapters.html">
+    <div class="num">08</div>
+    <h2>Story chapters</h2>
+    <p>Three full-bleed vertical snaps — start, desk, week.</p>
+    <span class="go">→</span>
+  </a>
+  <a class="card" href="09-coach-walk.html">
+    <div class="num">09</div>
+    <h2>Coach walk</h2>
+    <p>Illustrated character walks you down a vertical day trail.</p>
+    <span class="go">→</span>
+  </a>
+  <a class="card" href="10-immersive-start.html">
+    <div class="num">10</div>
+    <h2>Immersive start</h2>
+    <p>One giant photo, one giant CTA, horizontal “also today” filmstrip.</p>
+    <span class="go">→</span>
+  </a>
+  <a class="card" href="11-sound-waves.html">
+    <div class="num">11</div>
+    <h2>Sound waves</h2>
+    <p>Sound + Body as a playlist: EQ hero, now-playing session, track list.</p>
+    <span class="go">→</span>
+  </a>
+  <a class="card" href="12-collage-flow.html">
+    <div class="num">12</div>
+    <h2>Collage flow</h2>
+    <p>Photographic mosaic with scrolling brand ribbon — dense but cardless.</p>
+    <span class="go">→</span>
+  </a>
+  <a class="card" href="13-parallax-layers.html">
+    <div class="num">13</div>
+    <h2>Parallax layers</h2>
+    <p>Stacked photo planes that drift; blue bridge holds the CTAs.</p>
+    <span class="go">→</span>
+  </a>
+  <a class="card" href="14-morning-ritual.html">
+    <div class="num">14</div>
+    <h2>Morning ritual</h2>
+    <p>Soft sunrise, circular photo hero, private cycle note below.</p>
+    <span class="go">→</span>
+  </a>
+</main>
+
+<footer>
+  Images via Unsplash · Brand tokens from docs/design/irene · Explorations only — not production UI
+</footer>
+</body>
+</html>

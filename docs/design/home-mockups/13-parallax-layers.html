@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sody Home · 13 Parallax layers</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .para {
+    background: var(--cream);
+    color: var(--ink);
+    padding-bottom: 120px;
+  }
+  .layer {
+    position: relative;
+    height: 280px;
+    overflow: hidden;
+    display: flex; align-items: flex-end;
+  }
+  .layer img {
+    position: absolute; inset: -10% 0;
+    width: 100%; height: 120%;
+    object-fit: cover;
+  }
+  .layer.l1 img { animation: drift 14s ease-in-out infinite alternate; }
+  .layer.l2 img { animation: drift 18s ease-in-out infinite alternate-reverse; }
+  @keyframes drift {
+    from { transform: translateY(-4%); }
+    to { transform: translateY(4%); }
+  }
+  .layer .fog {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(255,252,233,.15), rgba(23,22,58,.7));
+  }
+  .layer .txt {
+    position: relative; z-index: 2; padding: 24px 22px; color: #fff; width: 100%;
+  }
+  .intro {
+    padding: 54px 22px 20px;
+    background: var(--cream);
+    position: relative; z-index: 3;
+  }
+  .intro h1 { font-size: 40px; }
+  .intro .row { display: flex; justify-content: space-between; align-items: center; }
+  .pill-ask {
+    background: var(--lime); border-radius: 999px; padding: 8px 12px;
+    font-size: 11px; font-weight: 700; letter-spacing: .1em;
+  }
+  .bridge {
+    background: var(--blue);
+    color: var(--cream);
+    padding: 28px 22px;
+    position: relative;
+  }
+  .bridge h2 { font-size: 28px; margin-bottom: 6px; }
+  .bridge p { opacity: .8; margin-bottom: 14px; font-size: 14px; }
+  .bridge .actions { display: flex; gap: 10px; }
+  .bridge .char {
+    position: absolute; right: 16px; top: -28px;
+    animation: bob 3s ease-in-out infinite;
+  }
+  .soft {
+    padding: 24px 22px;
+  }
+  .goal-line {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0;
+  }
+  .bar {
+    flex: 1; height: 6px; background: rgba(23,22,58,.1); border-radius: 3px; overflow: hidden;
+  }
+  .bar i { display: block; height: 100%; background: var(--blue); }
+  .goal-line b { font-family: Fredoka, sans-serif; min-width: 90px; font-size: 14px; }
+  .slice {
+    display: grid; grid-template-columns: 1fr 1fr;
+    min-height: 140px;
+  }
+  .slice > div { position: relative; overflow: hidden; }
+  .slice img { width: 100%; height: 100%; object-fit: cover; min-height: 140px; }
+  .slice .label {
+    position: absolute; left: 12px; bottom: 12px; color: #fff;
+    font-family: Fredoka, sans-serif; font-size: 15px;
+  }
+  .week {
+    background: var(--lav);
+    padding: 22px;
+    margin: 0;
+  }
+  .week .nums {
+    display: flex; justify-content: space-between;
+    font-family: Fredoka, sans-serif; font-size: 20px; margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="phone-scroll para">
+        <div class="island"></div>
+        <header class="intro anim-up">
+          <div class="row">
+            <div>
+              <div class="meta-label">Good morning</div>
+              <h1>Irene</h1>
+            </div>
+            <div class="pill-ask">✦ ASK</div>
+          </div>
+        </header>
+        <section class="layer l1 anim-up d2">
+          <img src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1000&q=80&auto=format&fit=crop" alt="" />
+          <div class="fog"></div>
+          <div class="txt">
+            <div class="meta-label" style="color:var(--lime)">Queued for Get stronger</div>
+            <h2 style="font-size:30px;margin-top:4px">Upper body strength</h2>
+          </div>
+        </section>
+        <section class="bridge">
+          <div class="char"><div class="coach-blob"><span class="mouth"></span></div></div>
+          <h2>32 min · 6 moves</h2>
+          <p>2 new to you · left shoulder kept light</p>
+          <div class="actions">
+            <button class="cta cta-lime">Start</button>
+            <button class="cta cta-ghost">Adjust</button>
+          </div>
+        </section>
+        <section class="layer l2" style="height:200px">
+          <img src="https://images.unsplash.com/photo-1434682881908-b43d0467b798?w=1000&q=75&auto=format&fit=crop" alt="" />
+          <div class="fog" style="background:linear-gradient(90deg,rgba(144,170,71,.75),transparent)"></div>
+          <div class="txt">
+            <div class="meta-label">Desk hours</div>
+            <h2 style="font-size:22px">3-min neck reset</h2>
+          </div>
+        </section>
+        <section class="soft">
+          <div class="goal-line"><b>Gain weight</b><div class="bar"><i style="width:20%"></i></div><span>20%</span></div>
+          <div class="goal-line"><b>Run a 10K</b><div class="bar"><i style="width:25%;background:var(--olive)"></i></div><span>25%</span></div>
+        </section>
+        <section class="slice">
+          <div>
+            <img src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=500&q=70&auto=format&fit=crop" alt="" />
+            <div class="label">＋ Log</div>
+          </div>
+          <div>
+            <img src="https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=500&q=70&auto=format&fit=crop" alt="" />
+            <div class="label">〜 Breather</div>
+          </div>
+        </section>
+        <section class="week">
+          <div class="meta-label">This week · for you</div>
+          <p style="margin-top:6px;font-size:14px">Steadier than last week</p>
+          <div class="nums"><span>4</span><span>6.1h</span><span>6.2t</span><span>3wk</span></div>
+        </section>
+      </div>
+      <nav class="tabbar">
+        <span><i class="dot">◎</i>Social</span>
+        <span class="active"><i class="dot">●</i>Home</span>
+        <span><i class="dot">◎</i>Goals</span>
+        <span><i class="dot">◎</i>You</span>
+      </nav>
+    </div>
+    <div class="caption">13 · Parallax layers — stacked photo planes that drift</div>
+  </div>
+</div>
+</body>
+</html>

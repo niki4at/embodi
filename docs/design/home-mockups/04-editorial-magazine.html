@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sody Home · 04 Editorial magazine</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .mag {
+    background: var(--cream);
+    color: var(--ink);
+    padding-bottom: 120px;
+  }
+  .mast {
+    padding: 52px 22px 18px;
+    display: flex; justify-content: space-between; align-items: flex-end;
+  }
+  .brand {
+    font-size: 48px; line-height: .85; color: var(--blue);
+  }
+  .brand em { color: var(--lime); font-style: normal; }
+  .who { text-align: right; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+  .who b { display: block; font-family: Fredoka, sans-serif; font-size: 22px; letter-spacing: 0; text-transform: none; margin-top: 4px; }
+  .spread {
+    position: relative;
+    height: 420px;
+    margin: 0;
+    overflow: hidden;
+  }
+  .spread img {
+    width: 100%; height: 100%; object-fit: cover;
+    filter: contrast(1.05) saturate(.95);
+  }
+  .poem {
+    position: absolute; left: 22px; bottom: 36px;
+    color: #fff;
+    max-width: 18ch;
+  }
+  .poem .line {
+    font-family: Fredoka, sans-serif;
+    font-size: 34px;
+    line-height: 1.02;
+    text-shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  .poem .sub {
+    margin-top: 10px;
+    font-size: 12px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    opacity: .85;
+  }
+  .ink-scribble {
+    position: absolute; right: -20px; top: 40px;
+    width: 180px; opacity: .7; pointer-events: none;
+  }
+  .chapter {
+    padding: 28px 22px 8px;
+  }
+  .chapter .num {
+    font-size: 11px; letter-spacing: .24em; text-transform: uppercase;
+    color: var(--blue); font-weight: 700;
+  }
+  .chapter h2 {
+    font-size: 30px; margin: 6px 0 8px; max-width: 14ch;
+  }
+  .chapter p { font-size: 14px; opacity: .7; margin-bottom: 16px; }
+  .row-cta { display: flex; gap: 10px; align-items: center; }
+  .ghost-ink {
+    background: transparent; border: 1.5px solid var(--ink);
+    color: var(--ink); border-radius: 999px; padding: 12px 18px;
+    font-family: Fredoka, sans-serif; font-weight: 700;
+  }
+  .duo {
+    display: grid; grid-template-columns: 1.1fr .9fr;
+    min-height: 200px;
+    margin-top: 18px;
+  }
+  .duo .pic { overflow: hidden; }
+  .duo .pic img { width: 100%; height: 100%; object-fit: cover; min-height: 200px; }
+  .duo .copy {
+    background: var(--blue);
+    color: var(--cream);
+    padding: 20px 16px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .duo .copy h3 { font-size: 20px; margin-bottom: 6px; }
+  .strip-stats {
+    display: grid; grid-template-columns: repeat(4,1fr);
+    text-align: center;
+    padding: 24px 10px;
+    background: var(--lav);
+  }
+  .strip-stats strong {
+    display: block; font-family: Fredoka, sans-serif; font-size: 22px;
+  }
+  .strip-stats span {
+    font-size: 10px; letter-spacing: .1em; text-transform: uppercase; opacity: .65;
+  }
+  .list-flow { padding: 8px 22px 24px; }
+  .list-flow article {
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(23,22,58,.12);
+  }
+  .list-flow b { font-family: Fredoka, sans-serif; font-size: 17px; }
+  .list-flow p { font-size: 13px; opacity: .6; margin-top: 2px; }
+  .float-char {
+    position: absolute; left: 16px; top: 16px;
+    z-index: 3;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="phone-scroll mag">
+        <div class="island"></div>
+        <header class="mast anim-up">
+          <div class="brand">So<em>dy</em></div>
+          <div class="who">Good morning<b>Irene</b></div>
+        </header>
+        <section class="spread">
+          <img src="https://images.unsplash.com/photo-1518611012118-696072aa579a?w=900&q=75&auto=format&fit=crop" alt="Stretching athlete" />
+          <svg class="ink-scribble" viewBox="0 0 200 200" fill="none">
+            <path class="squiggle-path" d="M20 140 C 60 40, 140 40, 120 100 S 40 160, 100 80 S 180 40, 170 140" stroke="#D8F24C" stroke-width="12"/>
+          </svg>
+          <div class="float-char"><div class="coach-blob" style="width:56px;height:56px"><span class="mouth"></span></div></div>
+          <div class="poem anim-up d2">
+            <div class="line">Honor your body today</div>
+            <div class="sub">Next · Upper body strength · 32 min</div>
+          </div>
+        </section>
+        <section class="chapter anim-up d3">
+          <div class="num">01 · Queued for Get stronger</div>
+          <h2>Upper body strength</h2>
+          <p>6 moves · 2 new to you · built around mild shoulder care</p>
+          <div class="row-cta">
+            <button class="cta cta-ink">Start</button>
+            <button class="ghost-ink">Adjust for today</button>
+          </div>
+        </section>
+        <div class="duo anim-up d4">
+          <div class="pic">
+            <img src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=700&q=70&auto=format&fit=crop" alt="Runner" />
+          </div>
+          <div class="copy">
+            <div class="meta-label" style="color:var(--lime);margin-bottom:8px">Goals</div>
+            <h3>Gain weight 20%</h3>
+            <p style="font-size:12px;opacity:.8;margin-bottom:12px">Ready to start</p>
+            <h3>Run a 10K 25%</h3>
+            <p style="font-size:12px;opacity:.8">Coach is planning</p>
+          </div>
+        </div>
+        <div class="strip-stats anim-up d5">
+          <div><strong>4</strong><span>Sessions</span></div>
+          <div><strong>6.1h</strong><span>Sleep</span></div>
+          <div><strong>6.2t</strong><span>Volume</span></div>
+          <div><strong>3wk</strong><span>Streak</span></div>
+        </div>
+        <div class="list-flow">
+          <div class="meta-label" style="margin:12px 0">This week · for you</div>
+          <article><b>Mobility flow</b><p>Hips have been tight</p></article>
+          <article><b>Easy 20 min run</b><p>Recovery toward 10K</p></article>
+          <article><b>Desk neck reset</b><p>3 min · no check-in</p></article>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <span><i class="dot">◎</i>Social</span>
+        <span class="active"><i class="dot">●</i>Home</span>
+        <span><i class="dot">◎</i>Goals</span>
+        <span><i class="dot">◎</i>You</span>
+      </nav>
+    </div>
+    <div class="caption">04 · Editorial magazine — brand-first, poetic photo spread</div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sody Home · 06 Desk day</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .deskday {
+    background: var(--peri);
+    color: var(--ink);
+    padding-bottom: 120px;
+  }
+  .sky {
+    background: linear-gradient(180deg, #8eb6f5 0%, var(--peri) 55%, var(--cream) 55%);
+    padding: 54px 22px 0;
+    position: relative;
+    min-height: 280px;
+  }
+  .window-photo {
+    position: absolute; right: 0; top: 40px;
+    width: 58%; height: 220px;
+    overflow: hidden;
+    clip-path: polygon(18% 0, 100% 0, 100% 100%, 0 100%);
+  }
+  .window-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .sky .greet { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; opacity: .7; }
+  .sky h1 { font-size: 38px; margin: 4px 0 8px; }
+  .clock {
+    font-family: Fredoka, sans-serif;
+    font-size: 14px;
+    background: var(--lime);
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 999px;
+    animation: pulse-soft 2.5s ease-in-out infinite;
+  }
+  .main { background: var(--cream); padding: 28px 22px 40px; margin-top: 40px; }
+  .micro {
+    position: relative;
+    margin: -70px 0 28px;
+    height: 210px;
+    overflow: hidden;
+  }
+  .micro img { width: 100%; height: 100%; object-fit: cover; }
+  .micro .veil {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent, rgba(50,75,62,.85));
+  }
+  .micro .copy {
+    position: absolute; left: 16px; right: 16px; bottom: 16px; color: #fff;
+  }
+  .micro h2 { font-size: 24px; max-width: 14ch; }
+  .start-round {
+    position: absolute; right: 16px; bottom: 18px;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--lime); color: var(--ink);
+    display: grid; place-items: center;
+    font-family: Fredoka, sans-serif; font-weight: 700; font-size: 13px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    animation: breathe 2.8s ease-in-out infinite;
+  }
+  .later {
+    margin-top: 8px;
+  }
+  .later .label { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; opacity: .55; margin-bottom: 10px; }
+  .later-hero {
+    position: relative; height: 160px; overflow: hidden; margin-bottom: 12px;
+  }
+  .later-hero img { width: 100%; height: 100%; object-fit: cover; filter: brightness(.85); }
+  .later-hero .t {
+    position: absolute; left: 14px; bottom: 14px; color: #fff;
+  }
+  .later-hero h3 { font-size: 20px; }
+  .row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0; border-top: 1px solid rgba(23,22,58,.1);
+    font-size: 14px;
+  }
+  .row b { font-family: Fredoka, sans-serif; font-size: 16px; }
+  .coach-note {
+    display: flex; gap: 12px; align-items: center;
+    margin: 22px 0;
+    padding: 14px 0;
+  }
+  .week-soft h3 { font-size: 20px; margin-bottom: 8px; }
+  .nums { display: flex; gap: 18px; font-family: Fredoka, sans-serif; font-size: 18px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="phone-scroll deskday">
+        <div class="island"></div>
+        <header class="sky">
+          <div class="window-photo">
+            <img src="https://images.unsplash.com/photo-1434682881908-b43d0467b798?w=800&q=70&auto=format&fit=crop" alt="Outdoor stretch" />
+          </div>
+          <div class="greet anim-up">Good afternoon</div>
+          <h1 class="anim-up d1">Irene</h1>
+          <div class="clock anim-up d2">Desk hours · till 6pm</div>
+        </header>
+        <div class="main">
+          <div class="micro anim-up d3">
+            <img src="https://images.unsplash.com/photo-1552196563-55cd4e45efb3?w=900&q=75&auto=format&fit=crop" alt="Shoulder stretch" />
+            <div class="veil"></div>
+            <div class="copy">
+              <div class="meta-label">Right now</div>
+              <h2>3-min neck & shoulder reset</h2>
+              <p style="font-size:12px;opacity:.85;margin-top:4px">Matched to your trouble spots</p>
+            </div>
+            <div class="start-round">Start</div>
+          </div>
+          <div class="coach-note anim-up d4">
+            <div class="coach-blob" style="width:52px;height:52px"><span class="mouth"></span></div>
+            <p style="font-size:14px;opacity:.8">You’ve been at the keyboard 2h. A tiny reset now keeps tonight’s lift cleaner.</p>
+          </div>
+          <div class="later anim-up d5">
+            <div class="label">Later today</div>
+            <div class="later-hero">
+              <img src="https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=900&q=70&auto=format&fit=crop" alt="Strength" />
+              <div class="t">
+                <div class="meta-label" style="color:var(--lime)">Queued · Get stronger</div>
+                <h3>Upper body strength</h3>
+              </div>
+            </div>
+            <div class="row"><b>Gain weight · 20%</b><span>Ready</span></div>
+            <div class="row"><b>Run a 10K · 25%</b><span>Planning</span></div>
+            <div class="row"><span>＋ Log my own</span><span>〜 Breather</span></div>
+          </div>
+          <div class="week-soft" style="margin-top:22px">
+            <h3>This week</h3>
+            <div class="nums"><span>4 sess</span><span>6.1h</span><span>6.2t</span><span>3wk</span></div>
+          </div>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <span><i class="dot">◎</i>Social</span>
+        <span class="active"><i class="dot">●</i>Home</span>
+        <span><i class="dot">◎</i>Goals</span>
+        <span><i class="dot">◎</i>You</span>
+      </nav>
+    </div>
+    <div class="caption">06 · Desk day — context-aware home for work hours</div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sody Home · 03 Ribbon bands</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .ribbon { background: var(--ink); color: var(--cream); padding-bottom: 110px; }
+  .band {
+    position: relative;
+    padding: 36px 22px;
+    overflow: hidden;
+  }
+  .band.cream { background: var(--cream); color: var(--ink); }
+  .band.blue { background: var(--blue); color: var(--cream); }
+  .band.lime { background: var(--lime); color: var(--ink); }
+  .band.peri { background: var(--peri); color: var(--ink); }
+  .band.lav { background: var(--lav); color: var(--ink); }
+  .band.deep { background: var(--deep); color: var(--cream); }
+  .band.photo {
+    min-height: 320px;
+    padding: 0;
+    display: flex;
+    align-items: flex-end;
+  }
+  .band.photo img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .band.photo .shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 20%, rgba(23,22,58,.85));
+  }
+  .band.photo .inner { position: relative; z-index: 2; padding: 28px 22px; width: 100%; }
+  .slant {
+    clip-path: polygon(0 8%, 100% 0, 100% 92%, 0 100%);
+    margin-top: -28px;
+    padding-top: 56px;
+    padding-bottom: 56px;
+  }
+  .head-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .name { font-size: 36px; color: var(--lime); }
+  .tiny { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; opacity: .7; }
+  h2 { font-size: 28px; line-height: 1.05; margin: 8px 0; }
+  .meta { font-size: 14px; opacity: .8; margin-bottom: 16px; }
+  .actions { display: flex; gap: 10px; }
+  .marquee {
+    display: flex; width: max-content;
+    animation: wave-x 18s linear infinite;
+    gap: 28px; font-family: Fredoka, sans-serif; font-size: 18px;
+  }
+  .marquee span::after { content: ' ✦ '; opacity: .5; }
+  .goal-flow {
+    display: flex; gap: 20px; overflow-x: auto;
+    scrollbar-width: none; padding-bottom: 4px;
+  }
+  .goal-flow::-webkit-scrollbar { display: none; }
+  .g {
+    min-width: 160px;
+  }
+  .g .pct {
+    font-family: Fredoka, sans-serif; font-size: 42px; line-height: 1;
+  }
+  .g b { display: block; font-size: 16px; margin-top: 4px; }
+  .inline-actions {
+    display: flex; gap: 0;
+  }
+  .inline-actions a {
+    flex: 1; padding: 22px 0; text-align: center;
+    font-family: Fredoka, sans-serif; font-size: 16px;
+    text-decoration: none; color: inherit;
+  }
+  .stats-line {
+    display: flex; justify-content: space-between;
+    font-family: Fredoka, sans-serif; font-size: 20px;
+    margin-top: 12px;
+  }
+  .blob-mini {
+    width: 48px; height: 48px;
+    animation: bob 2.8s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="phone-scroll ribbon">
+        <div class="island"></div>
+        <section class="band blue">
+          <div class="head-row anim-up">
+            <div>
+              <div class="tiny">Good morning</div>
+              <h1 class="name">Irene</h1>
+            </div>
+            <div class="coach-blob blob-mini"><span class="mouth"></span></div>
+          </div>
+        </section>
+
+        <section class="band photo slant">
+          <img src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=900&q=75&auto=format&fit=crop" alt="Gym training" />
+          <div class="shade"></div>
+          <div class="inner anim-up d2">
+            <div class="tiny" style="color:var(--lime)">Next up · Get stronger</div>
+            <h2>Upper body strength</h2>
+            <p class="meta">32 min · 6 moves · 2 new to you</p>
+            <div class="actions">
+              <button class="cta cta-lime">Start</button>
+              <button class="cta cta-ghost">Adjust</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="band lime slant" style="margin-top:-36px">
+          <div class="marquee" aria-hidden="true">
+            <span>Ask your AI coach</span><span>Listen first</span><span>Honor your body</span>
+            <span>Ask your AI coach</span><span>Listen first</span><span>Honor your body</span>
+          </div>
+        </section>
+
+        <section class="band cream slant" style="margin-top:-28px">
+          <div class="tiny">Goals in motion</div>
+          <div class="goal-flow" style="margin-top:14px">
+            <div class="g"><div class="pct">20%</div><b>Gain weight</b><span class="tiny">Ready to start</span></div>
+            <div class="g"><div class="pct" style="color:var(--blue)">25%</div><b>Run a 10K</b><span class="tiny">Coach planning</span></div>
+          </div>
+        </section>
+
+        <section class="band deep" style="padding:0">
+          <div class="inline-actions">
+            <a href="#" style="background:var(--cream);color:var(--ink)">＋ Log my own</a>
+            <a href="#" style="background:var(--ink);color:var(--cream)">〜 Breather</a>
+          </div>
+        </section>
+
+        <section class="band photo" style="min-height:200px">
+          <img src="https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=900&q=75&auto=format&fit=crop" alt="Mobility" />
+          <div class="shade" style="background:linear-gradient(90deg,rgba(144,170,71,.9),rgba(144,170,71,.2))"></div>
+          <div class="inner" style="color:var(--ink)">
+            <div class="tiny">At your desk · till 6pm</div>
+            <h2 style="font-size:22px">Neck & shoulder reset</h2>
+            <p class="meta" style="margin:0">3 min · matched to trouble spots</p>
+          </div>
+        </section>
+
+        <section class="band peri">
+          <div class="tiny">This week ✦ for you</div>
+          <p style="margin-top:8px;font-size:15px">Steadier than last week — keep the easy runs.</p>
+          <div class="stats-line">
+            <span>4 sess</span><span>6.1h</span><span>6.2t</span><span>3wk</span>
+          </div>
+        </section>
+      </div>
+      <nav class="tabbar">
+        <span><i class="dot">◎</i>Social</span>
+        <span class="active"><i class="dot">●</i>Home</span>
+        <span><i class="dot">◎</i>Goals</span>
+        <span><i class="dot">◎</i>You</span>
+      </nav>
+    </div>
+    <div class="caption">03 · Ribbon bands — slanted color rivers, zero cards</div>
+  </div>
+</div>
+</body>
+</html>

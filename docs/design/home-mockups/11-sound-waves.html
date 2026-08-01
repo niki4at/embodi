@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sody Home · 11 Sound waves</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .sound {
+    background: var(--cream);
+    color: var(--ink);
+    padding-bottom: 120px;
+    overflow: hidden;
+  }
+  .wave-hero {
+    position: relative;
+    background: var(--blue);
+    color: var(--cream);
+    padding: 54px 22px 80px;
+    overflow: hidden;
+  }
+  .wave-hero h1 { font-size: 38px; color: var(--lime); margin: 4px 0 6px; }
+  .wave-hero .sub { opacity: .75; font-size: 13px; letter-spacing: .16em; text-transform: uppercase; }
+  .eq {
+    display: flex; align-items: flex-end; gap: 5px;
+    height: 56px; margin: 22px 0 10px;
+  }
+  .eq span {
+    flex: 1; background: var(--lime);
+    border-radius: 4px 4px 0 0;
+    animation: eq 1.2s ease-in-out infinite;
+    transform-origin: bottom;
+  }
+  .eq span:nth-child(odd) { background: var(--peri); animation-duration: 1.5s; }
+  .eq span:nth-child(3n) { background: var(--lav); animation-duration: .9s; }
+  @keyframes eq {
+    0%, 100% { height: 18%; }
+    50% { height: 100%; }
+  }
+  .wave-svg {
+    position: absolute; left: 0; right: 0; bottom: -2px;
+    width: 100%; height: 70px;
+  }
+  .mix {
+    padding: 10px 22px 0;
+  }
+  .track {
+    display: grid; grid-template-columns: 72px 1fr auto;
+    gap: 12px; align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(23,22,58,.1);
+  }
+  .track .art {
+    width: 72px; height: 72px; overflow: hidden; border-radius: 8px;
+  }
+  .track .art img { width: 100%; height: 100%; object-fit: cover; }
+  .track b { font-family: Fredoka, sans-serif; font-size: 16px; display: block; }
+  .track small { opacity: .6; font-size: 12px; }
+  .play {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--lime); border: none;
+    font-size: 16px; cursor: pointer;
+    animation: breathe 3s ease-in-out infinite;
+  }
+  .now {
+    margin: 18px -22px;
+    position: relative;
+    height: 220px;
+    overflow: hidden;
+  }
+  .now img { width: 100%; height: 100%; object-fit: cover; }
+  .now .shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent, rgba(23,22,58,.85));
+  }
+  .now .copy {
+    position: absolute; left: 22px; right: 22px; bottom: 20px; color: #fff;
+  }
+  .now h2 { font-size: 26px; margin: 4px 0 8px; }
+  .char-float {
+    position: absolute; right: 18px; top: 16px;
+    z-index: 2;
+  }
+  .footer-wave {
+    margin-top: 20px;
+    background: var(--lav);
+    padding: 22px;
+    margin-left: -22px; margin-right: -22px;
+  }
+  .footer-wave .nums {
+    display: flex; justify-content: space-between;
+    font-family: Fredoka, sans-serif; font-size: 18px; margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="phone-scroll sound">
+        <div class="island"></div>
+        <header class="wave-hero">
+          <div class="sub">Sound + body</div>
+          <h1 class="anim-up">Irene</h1>
+          <p class="anim-up d1" style="opacity:.85;font-size:14px;max-width:28ch">Your body has a rhythm today. Here’s the mix.</p>
+          <div class="eq anim-up d2" aria-hidden="true">
+            <span style="height:40%"></span><span style="height:70%"></span><span style="height:35%"></span>
+            <span style="height:90%"></span><span style="height:50%"></span><span style="height:75%"></span>
+            <span style="height:30%"></span><span style="height:60%"></span><span style="height:85%"></span>
+            <span style="height:45%"></span><span style="height:65%"></span><span style="height:40%"></span>
+          </div>
+          <svg class="wave-svg" viewBox="0 0 390 70" preserveAspectRatio="none">
+            <path d="M0 30 C 50 60, 100 0, 150 30 S 250 70, 300 30 S 360 0, 390 30 L390 70 L0 70 Z" fill="#FFFCE9"/>
+          </svg>
+        </header>
+        <div class="mix">
+          <div class="now anim-up d3">
+            <img src="https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=900&q=75&auto=format&fit=crop" alt="Strength" />
+            <div class="shade"></div>
+            <div class="char-float"><div class="coach-blob" style="width:48px;height:48px"><span class="mouth"></span></div></div>
+            <div class="copy">
+              <div class="meta-label" style="color:var(--lime)">Now playing · Get stronger</div>
+              <h2>Upper body strength</h2>
+              <div style="display:flex;gap:10px">
+                <button class="cta cta-lime" style="padding:12px 22px">Start</button>
+                <button class="cta cta-ghost" style="padding:12px 18px">Adjust</button>
+              </div>
+            </div>
+          </div>
+          <div class="track anim-up d4">
+            <div class="art"><img src="https://images.unsplash.com/photo-1552196563-55cd4e45efb3?w=300&q=70&auto=format&fit=crop" alt="" /></div>
+            <div><b>Desk neck reset</b><small>3 min · till 6pm</small></div>
+            <button class="play">▶</button>
+          </div>
+          <div class="track anim-up d4">
+            <div class="art"><img src="https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=300&q=70&auto=format&fit=crop" alt="" /></div>
+            <div><b>Take a breather</b><small>2–5 min calm</small></div>
+            <button class="play">▶</button>
+          </div>
+          <div class="track anim-up d5">
+            <div class="art"><img src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=300&q=70&auto=format&fit=crop" alt="" /></div>
+            <div><b>Easy 20 min run</b><small>Toward your 10K</small></div>
+            <button class="play">▶</button>
+          </div>
+          <div class="footer-wave">
+            <div class="meta-label">This week’s waveform</div>
+            <div class="nums"><span>4</span><span>6.1h</span><span>6.2t</span><span>3wk</span></div>
+          </div>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <span><i class="dot">◎</i>Social</span>
+        <span class="active"><i class="dot">●</i>Home</span>
+        <span><i class="dot">◎</i>Goals</span>
+        <span><i class="dot">◎</i>You</span>
+      </nav>
+    </div>
+    <div class="caption">11 · Sound waves — audio metaphor for Sound + Body</div>
+  </div>
+</div>
+</body>
+</html>

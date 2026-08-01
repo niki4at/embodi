@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sody Home · 02 Orb companion</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  .orb-home {
+    background: linear-gradient(180deg, var(--blue) 0%, #3a34c9 28%, var(--cream) 28%);
+    color: var(--ink);
+    padding-bottom: 120px;
+    min-height: 100%;
+  }
+  .top {
+    padding: 54px 22px 0;
+    color: var(--cream);
+    position: relative;
+    min-height: 240px;
+  }
+  .top .greet { font-size: 13px; letter-spacing: .18em; text-transform: uppercase; opacity: .75; }
+  .top h1 { font-size: 40px; color: var(--lime); margin: 4px 0 10px; }
+  .avatar {
+    position: absolute; right: 22px; top: 54px;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--lav); color: var(--ink);
+    display: grid; place-items: center;
+    font-family: Fredoka, sans-serif; font-size: 18px;
+  }
+  .orb-stage {
+    position: absolute;
+    left: 50%; top: 118px;
+    transform: translateX(-50%);
+    width: 160px; height: 160px;
+  }
+  .orb {
+    width: 140px; height: 140px; margin: 10px auto;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 35% 30%, #fffce9, transparent 25%),
+      radial-gradient(circle at 60% 60%, var(--lime), var(--peri) 55%, var(--blue));
+    animation: breathe 4s ease-in-out infinite, orb-glow 3s ease-in-out infinite;
+    position: relative;
+  }
+  .orb .eye {
+    position: absolute; top: 52px; width: 10px; height: 14px;
+    background: var(--ink); border-radius: 50%;
+  }
+  .orb .eye.l { left: 48px; }
+  .orb .eye.r { right: 48px; }
+  .orb .smile {
+    position: absolute; left: 50%; bottom: 48px;
+    width: 28px; height: 14px; margin-left: -14px;
+    border-bottom: 3px solid var(--ink);
+    border-radius: 0 0 20px 20px;
+  }
+  .ring-spin {
+    position: absolute; inset: 0;
+    border: 2px dashed rgba(255,252,233,.45);
+    border-radius: 50%;
+    animation: spin-slow 18s linear infinite;
+  }
+  .speech {
+    margin: 90px 22px 0;
+    background: rgba(255,252,233,.14);
+    border: 1px solid rgba(255,252,233,.25);
+    border-radius: 22px 22px 22px 6px;
+    padding: 14px 16px;
+    color: var(--cream);
+    font-size: 14px;
+    backdrop-filter: blur(8px);
+  }
+  .speech b { color: var(--lime); font-family: Fredoka, sans-serif; }
+  .body {
+    margin-top: 28px;
+    padding: 0 22px;
+  }
+  .next {
+    position: relative;
+    margin: 0 -22px;
+    padding: 28px 22px 40px;
+    color: #fff;
+    overflow: hidden;
+    min-height: 280px;
+  }
+  .next img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .next .shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(23,22,58,.2), rgba(23,22,58,.78));
+  }
+  .next .content { position: relative; z-index: 2; }
+  .next .meta-label { color: var(--lime); margin-bottom: 8px; display: block; }
+  .next h2 { font-size: 32px; line-height: 1.05; margin-bottom: 8px; max-width: 12ch; }
+  .next p { opacity: .85; margin-bottom: 18px; font-size: 14px; }
+  .split {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    margin: 24px 0;
+  }
+  .quick {
+    padding: 18px 0;
+    border-bottom: 2px solid rgba(23,22,58,.08);
+    font-family: Fredoka, sans-serif;
+    font-size: 17px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .quick.dark { color: var(--cream); background: var(--ink); margin: 0 -22px; padding: 18px 22px; border: none; }
+  .desk {
+    margin: 24px 0;
+    position: relative;
+    border-radius: 0;
+    overflow: hidden;
+    height: 140px;
+  }
+  .desk img { width: 100%; height: 100%; object-fit: cover; filter: saturate(1.1); }
+  .desk .txt {
+    position: absolute; inset: 0;
+    padding: 18px;
+    background: linear-gradient(90deg, rgba(144,170,71,.85), rgba(144,170,71,.15));
+    color: var(--ink);
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .desk h3 { font-size: 20px; max-width: 16ch; }
+  .pulse-line {
+    height: 3px; width: 100%;
+    background: linear-gradient(90deg, var(--blue), var(--lime), var(--peri), var(--blue));
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+    margin: 8px 0 20px;
+  }
+  .week-row { display: flex; justify-content: space-between; margin: 10px 0; }
+  .week-row strong { font-family: Fredoka, sans-serif; font-size: 20px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="phone-scroll orb-home">
+        <div class="island"></div>
+        <header class="top">
+          <div class="greet anim-up">Good morning</div>
+          <h1 class="anim-up d1">Irene</h1>
+          <div class="avatar">I</div>
+          <div class="orb-stage">
+            <div class="ring-spin"></div>
+            <div class="orb">
+              <i class="eye l"></i><i class="eye r"></i>
+              <i class="smile"></i>
+            </div>
+          </div>
+        </header>
+        <div class="speech anim-up d2">
+          Hey — energy looks solid. I queued <b>Upper body strength</b> for Get stronger. Want me to soften the presses for your left shoulder?
+        </div>
+        <div class="body">
+          <section class="next anim-up d3">
+            <img src="https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=900&q=75&auto=format&fit=crop" alt="Strength training" />
+            <div class="shade"></div>
+            <div class="content">
+              <span class="meta-label">Next up</span>
+              <h2>Upper body strength</h2>
+              <p>32 min · 6 moves · Get stronger</p>
+              <div style="display:flex;gap:10px">
+                <button class="cta cta-lime">Start session</button>
+                <button class="cta cta-ghost">Adjust</button>
+              </div>
+            </div>
+          </section>
+          <div class="quick anim-up d4">＋ Log my own</div>
+          <div class="quick dark anim-up d4">〜 Take a breather</div>
+          <div class="desk anim-up d5">
+            <img src="https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&q=70&auto=format&fit=crop" alt="Calm stretch" />
+            <div class="txt">
+              <span class="meta-label">Desk · Mon–Fri</span>
+              <h3>3-min neck & shoulder reset</h3>
+            </div>
+          </div>
+          <h3 style="font-size:22px;margin-top:8px">This week</h3>
+          <div class="pulse-line"></div>
+          <div class="week-row"><span>Sessions</span><strong>4 ↑</strong></div>
+          <div class="week-row"><span>Sleep</span><strong>6.1h</strong></div>
+          <div class="week-row"><span>Volume</span><strong>6.2t</strong></div>
+          <div class="week-row"><span>Streak</span><strong>3wk</strong></div>
+        </div>
+      </div>
+      <nav class="tabbar">
+        <span><i class="dot">◎</i>Social</span>
+        <span class="active"><i class="dot">●</i>Home</span>
+        <span><i class="dot">◎</i>Goals</span>
+        <span><i class="dot">◎</i>You</span>
+      </nav>
+    </div>
+    <div class="caption">02 · Orb companion — living AI character leads the screen</div>
+  </div>
+</div>
+</body>
+</html>
