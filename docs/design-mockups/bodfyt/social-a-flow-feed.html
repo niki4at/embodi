@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BODFYT · Social A · Flow Feed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Sora:wght@400;600;800&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#211F27; --cream:#FCFBF9; --coral:#FF687B; --lav:#B9ACE3;
+  --mint:#BDF3DB; --sky:#50BDF2; --sun:#FFD86B; --peach:#FFD1BD;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#151318;font-family:'Sora',sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;gap:56px;align-items:center;justify-content:center;padding:48px;flex-wrap:wrap}
+.note{max-width:250px;color:#9b93a8;font-size:13px;line-height:1.7}
+.note h2{font-family:'Fredoka';color:#fff;font-size:22px;margin-bottom:10px}
+.note em{color:var(--mint);font-style:normal}
+.phone{width:393px;height:852px;border-radius:54px;overflow:hidden;position:relative;background:var(--cream);
+  box-shadow:0 50px 120px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.5)}
+.island{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:118px;height:32px;border-radius:20px;background:var(--ink);z-index:40}
+.screen{height:100%;overflow-y:auto;scrollbar-width:none;padding:70px 0 140px}
+.screen::-webkit-scrollbar{display:none}
+.pad{padding-left:26px;padding-right:26px}
+.mono{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:#a29aae}
+
+.rise{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.d1{animation-delay:.1s}.d2{animation-delay:.22s}.d3{animation-delay:.36s}.d4{animation-delay:.5s}.d5{animation-delay:.64s}
+
+.top{display:flex;justify-content:space-between;align-items:baseline}
+.top h1{font-size:34px;font-weight:800;letter-spacing:-.02em}
+.top h1 span{background:linear-gradient(95deg,var(--coral),var(--sky));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* leaderboard as a wavy podium — faces sit ON a curve, no card */
+.podium{margin-top:26px;position:relative;height:190px}
+.podium svg.curve{position:absolute;left:0;right:0;bottom:12px;width:100%}
+.podium svg.curve path{stroke-dasharray:700;stroke-dashoffset:700;animation:draw 2.4s ease forwards .4s}
+@keyframes draw{to{stroke-dashoffset:0}}
+.racer{position:absolute;display:flex;flex-direction:column;align-items:center;gap:5px;animation:floaty 4.5s ease-in-out infinite}
+.racer img{width:56px;height:56px;border-radius:50%;object-fit:cover;box-shadow:0 10px 22px -8px rgba(33,31,39,.4)}
+.racer.first img{width:72px;height:72px;outline:4px solid var(--sun);outline-offset:3px}
+.racer b{font-size:11.5px;font-weight:700}
+.racer span{font-family:'Space Mono';font-size:10px;color:#a29aae}
+.racer .crown{position:absolute;top:-22px;font-size:18px;animation:floaty 3s ease-in-out infinite}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+/* posts as free compositions */
+.post{margin-top:44px;position:relative}
+.phead{display:flex;align-items:center;gap:12px}
+.phead img{width:42px;height:42px;border-radius:50%;object-fit:cover}
+.phead b{font-size:14.5px}
+.phead .mono{display:block;margin-top:2px;letter-spacing:.18em}
+.pimg{margin-top:14px;position:relative}
+.pimg img{width:100%;display:block;object-fit:cover}
+.p1 .pimg img{height:300px;border-radius:120px 34px 130px 34px}
+.p2 .pimg img{height:250px;border-radius:34px 130px 34px 110px}
+.bigstat{position:absolute;bottom:-22px;font-family:'Fredoka';font-weight:700;letter-spacing:-.01em;line-height:1;font-size:44px;text-shadow:0 4px 0 var(--cream)}
+.p1 .bigstat{right:20px;color:var(--coral)}
+.p2 .bigstat{left:16px;color:#3aa5dc}
+.bigstat small{display:block;font-family:'Space Mono';font-size:10px;letter-spacing:.26em;color:#a29aae;text-shadow:none;margin-top:8px}
+.pbody{margin-top:36px;font-size:14.5px;line-height:1.6;color:#575062}
+.reacts{display:flex;gap:10px;margin-top:14px}
+.reacts span{padding:9px 15px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;transition:transform .25s}
+.reacts span:hover{transform:scale(1.1) rotate(-3deg)}
+.r-cheer{background:var(--peach)}.r-fire{background:var(--sun)}.r-plus{background:#eee9f6;color:#7c6fa0}
+
+.prbadge{position:absolute;top:-14px;left:-6px;background:var(--sun);font-family:'Fredoka';font-weight:700;font-size:12px;padding:9px 14px;border-radius:20px;transform:rotate(-7deg);box-shadow:0 10px 20px -8px rgba(255,216,107,.9);animation:wobble 3.4s ease-in-out infinite;z-index:3}
+@keyframes wobble{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(-2deg) translateY(-4px)}}
+
+.wavesep{display:block;margin:44px auto 0}
+
+.tabbar{position:absolute;left:24px;right:24px;bottom:22px;height:70px;border-radius:38px;display:flex;z-index:50;
+  background:rgba(33,31,39,.93);backdrop-filter:blur(12px);box-shadow:0 24px 44px -16px rgba(33,31,39,.6)}
+.tab{flex:1;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;color:#8d8496;font-size:10px;font-weight:600;cursor:pointer}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.active{color:var(--sun)}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="note">
+    <h2>Social / A</h2>
+    <p><em>Flow Feed.</em> No post cards. Each workout is a free composition: an organically-masked photo, one oversized stat as the hero, and the caption breathing underneath. The weekly leaderboard becomes a wavy racetrack with friends' faces riding the curve.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="screen">
+      <div class="top pad rise">
+        <h1>Your <span>people.</span></h1>
+        <span class="mono">Resets Mon</span>
+      </div>
+
+      <div class="podium rise d1">
+        <svg class="curve" viewBox="0 0 393 90" fill="none">
+          <defs><linearGradient id="pg" x1="0" x2="1"><stop offset="0" stop-color="#FFD86B"/><stop offset=".5" stop-color="#FF687B"/><stop offset="1" stop-color="#B9ACE3"/></linearGradient></defs>
+          <path d="M-6 70 C 70 20, 130 86, 200 48 S 330 8, 400 44" stroke="url(#pg)" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+        <div class="racer first" style="left:38px;top:8px"><span class="crown">👑</span><img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80" alt=""><b>maya</b><span>184 min</span></div>
+        <div class="racer" style="left:158px;top:62px;animation-delay:.7s"><img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80" alt=""><b>you</b><span>142 min</span></div>
+        <div class="racer" style="left:262px;top:34px;animation-delay:1.3s"><img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80" alt=""><b>alex</b><span>118 min</span></div>
+      </div>
+
+      <div class="post p1 pad rise d2">
+        <div class="phead">
+          <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80" alt="">
+          <div><b>maya</b><span class="mono">Leg day · 1h ago</span></div>
+        </div>
+        <div class="pimg">
+          <span class="prbadge">NEW PR ✦</span>
+          <img src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=80" alt="lifting">
+          <div class="bigstat">6,240<small>KG TOTAL VOLUME</small></div>
+        </div>
+        <p class="pbody">Coach snuck in pause squats today and honestly… rude. Worth it. 🍋</p>
+        <div class="reacts"><span class="r-cheer">👏 12</span><span class="r-fire">🔥 8</span><span class="r-plus">+ cheer</span></div>
+      </div>
+
+      <svg class="wavesep" width="200" height="22" viewBox="0 0 200 22">
+        <path d="M4 11 C 34 -2, 66 24, 100 11 S 166 -2, 196 11" stroke="#e8e2f2" stroke-width="3" fill="none" stroke-linecap="round"/>
+      </svg>
+
+      <div class="post p2 pad rise d3">
+        <div class="phead">
+          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80" alt="">
+          <div><b>alex</b><span class="mono">Trail run · 3h ago</span></div>
+        </div>
+        <div class="pimg">
+          <img src="https://images.unsplash.com/photo-1502904550040-7534597429ae?auto=format&fit=crop&w=900&q=80" alt="trail run">
+          <div class="bigstat">8.4<small>KM · SUNRISE TRAIL</small></div>
+        </div>
+        <p class="pbody">First run since the ankle thing — AI kept it easy and it felt amazing to be back out.</p>
+        <div class="reacts"><span class="r-cheer">👏 21</span><span class="r-fire">🔥 14</span><span class="r-plus">+ cheer</span></div>
+      </div>
+    </div>
+
+    <nav class="tabbar">
+      <div class="tab active"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 19c.7-3.2 3.4-5 6.5-5s5.8 1.8 6.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.8 14.4c2.7.3 4.8 1.8 5.5 4.6"/></svg>Social</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4.6v-6H9.6v6H5a1 1 0 0 1-1-1z"/></svg>Home</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0zM7 5H4.2A2.8 2.8 0 0 0 7 8.6M17 5h2.8A2.8 2.8 0 0 1 17 8.6M12 13v3.4M8.5 21h7M9.8 17.6h4.4l.5 3.4H9.3z"/></svg>Challenges</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-3.8 4-5.7 7.5-5.7s6.5 1.9 7.5 5.7"/></svg>Profile</div>
+    </nav>
+  </div>
+</div>
+</body>
+</html>

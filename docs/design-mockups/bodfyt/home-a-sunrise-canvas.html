@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BODFYT · Home A · Sunrise Canvas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Sora:wght@400;600;800&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#211F27; --cream:#FCFBF9; --coral:#FF687B; --lav:#B9ACE3;
+  --mint:#BDF3DB; --sky:#50BDF2; --sun:#FFD86B; --peach:#FFD1BD;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#151318;font-family:'Sora',sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;gap:56px;align-items:center;justify-content:center;padding:48px;flex-wrap:wrap}
+.note{max-width:250px;color:#9b93a8;font-size:13px;line-height:1.7}
+.note h2{font-family:'Fredoka';color:#fff;font-size:22px;margin-bottom:10px;letter-spacing:.5px}
+.note em{color:var(--peach);font-style:normal}
+.phone{width:393px;height:852px;border-radius:54px;overflow:hidden;position:relative;
+  background:linear-gradient(175deg,#fdf3ec 0%,#fbeaf1 34%,#efe9fb 68%,#e8f2fd 100%);
+  box-shadow:0 50px 120px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.6)}
+.island{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:118px;height:32px;border-radius:20px;background:var(--ink);z-index:40}
+.screen{height:100%;overflow-y:auto;scrollbar-width:none;position:relative;padding:70px 26px 140px}
+.screen::-webkit-scrollbar{display:none}
+
+/* ambient drifting blobs */
+.blob{position:absolute;border-radius:50%;filter:blur(46px);opacity:.5;pointer-events:none}
+.b1{width:260px;height:260px;background:var(--sun);top:-60px;right:-90px;animation:drift 11s ease-in-out infinite}
+.b2{width:300px;height:300px;background:var(--lav);top:420px;left:-140px;animation:drift 14s ease-in-out infinite reverse}
+.b3{width:220px;height:220px;background:var(--mint);top:900px;right:-70px;animation:drift 12s ease-in-out infinite}
+@keyframes drift{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-24px,26px) scale(1.12)}}
+
+.rise{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+.d1{animation-delay:.08s}.d2{animation-delay:.18s}.d3{animation-delay:.3s}.d4{animation-delay:.42s}.d5{animation-delay:.54s}.d6{animation-delay:.66s}
+
+.topbar{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:2}
+.mono{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:#8d8496}
+.wordmark{font-family:'Fredoka';font-weight:700;font-size:18px;letter-spacing:.06em}
+.flame{font-family:'Space Mono';font-size:12px;color:#c25a3a;background:linear-gradient(120deg,var(--peach),var(--sun));padding:7px 13px;border-radius:20px}
+
+.greet{margin-top:34px;position:relative;z-index:2}
+.greet h1{font-size:42px;font-weight:800;line-height:1.04;letter-spacing:-.02em}
+.greet h1 span{background:linear-gradient(100deg,var(--coral),#c99df1 60%,var(--sky));-webkit-background-clip:text;background-clip:text;color:transparent}
+.greet p{margin-top:12px;font-size:15px;color:#6f6680}
+
+/* breathing check-in orb */
+.orbwrap{margin:40px auto 8px;width:250px;height:250px;position:relative;z-index:2}
+.ring{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(255,104,123,.16),transparent 70%);animation:breathe 4.5s ease-in-out infinite}
+.ring.r2{inset:-26px;background:radial-gradient(circle,rgba(185,172,227,.14),transparent 72%);animation-delay:.7s}
+.orb{position:absolute;inset:26px;border-radius:50%;display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;text-align:center;cursor:pointer;color:#fff;
+  background:linear-gradient(140deg,var(--coral) 0%,#e58ad0 48%,var(--lav) 100%);
+  box-shadow:0 26px 50px -16px rgba(255,104,123,.55);animation:breathe 4.5s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.orb .mono{color:rgba(255,255,255,.85);letter-spacing:.32em}
+.orb b{font-family:'Fredoka';font-size:23px;font-weight:600;letter-spacing:.01em}
+.orb i{font-style:normal;font-size:12px;opacity:.85}
+
+/* today context — floating pills, no borders */
+.context{margin-top:36px;position:relative;z-index:2}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.chip{padding:11px 16px;border-radius:22px;font-size:13px;font-weight:600;animation:floaty 5s ease-in-out infinite}
+.chip:nth-child(2){animation-delay:.6s}.chip:nth-child(3){animation-delay:1.2s}.chip:nth-child(4){animation-delay:1.8s}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.c-mint{background:var(--mint)}.c-sun{background:var(--sun)}.c-peach{background:var(--peach)}.c-sky{background:var(--sky);color:#fff}
+
+/* coach mascot */
+.coach{margin-top:42px;display:flex;gap:16px;align-items:flex-end;position:relative;z-index:2}
+.buddy{flex:0 0 86px;animation:floaty 4s ease-in-out infinite}
+.speech{background:rgba(255,255,255,.75);backdrop-filter:blur(8px);border-radius:26px 26px 26px 6px;padding:16px 18px;font-size:14px;line-height:1.55;color:#4d4459;box-shadow:0 16px 34px -18px rgba(33,31,39,.28)}
+.speech b{color:var(--ink)}
+.speech .go{display:inline-block;margin-top:8px;font-weight:700;color:#e0566b;font-size:13px}
+
+/* hero image blended as organic shape */
+.hero{margin:44px -26px 0;position:relative;z-index:1}
+.hero img{width:100%;height:270px;object-fit:cover;display:block;
+  -webkit-mask-image:radial-gradient(130% 100% at 50% 0%,#000 55%,transparent 98%);
+  mask-image:radial-gradient(130% 100% at 50% 0%,#000 55%,transparent 98%);
+  mix-blend-mode:multiply;opacity:.92}
+.hero .cap{position:absolute;left:26px;bottom:26px}
+.hero .cap .mono{color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.4)}
+.hero .cap h3{color:#fff;font-family:'Fredoka';font-size:24px;text-shadow:0 2px 18px rgba(0,0,0,.45)}
+
+/* build-your-own — pure type, no cards */
+.build{margin-top:40px;position:relative;z-index:2}
+.rowlink{display:flex;align-items:center;justify-content:space-between;padding:17px 0;font-family:'Fredoka';font-size:21px;font-weight:600;cursor:pointer;transition:transform .3s}
+.rowlink:hover{transform:translateX(6px)}
+.rowlink .dot{width:12px;height:12px;border-radius:50%;margin-right:14px;display:inline-block}
+.rowlink span{display:flex;align-items:center}
+.rowlink .arrow{font-family:'Sora';font-size:20px;color:#b3a9c2}
+.routines{display:flex;gap:22px;overflow-x:auto;margin:10px -26px 0;padding:12px 26px 20px;scrollbar-width:none}
+.routines::-webkit-scrollbar{display:none}
+.rt{flex:0 0 auto;font-family:'Fredoka';font-weight:600;font-size:17px;padding:14px 20px;border-radius:26px;color:var(--ink)}
+.rt.s{background:linear-gradient(120deg,var(--peach),#ffb9c4)}
+.rt.m{background:linear-gradient(120deg,#dcd2f5,var(--lav))}
+.rt.c{background:linear-gradient(120deg,#b5e3fb,var(--sky));color:#fff}
+
+.wave{display:block;margin:34px auto 0;opacity:.85}
+.wave path{stroke-dasharray:600;stroke-dashoffset:600;animation:draw 3s ease forwards .6s}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* floating tab bar */
+.tabbar{position:absolute;left:24px;right:24px;bottom:22px;height:70px;border-radius:38px;display:flex;z-index:50;
+  background:rgba(33,31,39,.92);backdrop-filter:blur(12px);box-shadow:0 24px 44px -16px rgba(33,31,39,.6)}
+.tab{flex:1;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;color:#8d8496;font-size:10px;font-weight:600;letter-spacing:.04em;cursor:pointer}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.active{color:var(--sun)}
+.tab.active svg{filter:drop-shadow(0 0 8px rgba(255,216,107,.7))}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="note">
+    <h2>Home / A</h2>
+    <p><em>Sunrise Canvas.</em> The whole screen is one flowing gradient — no cards, no dividers. A breathing check-in orb is the single hero action. Today's context floats as soft color chips, the coach is a blob mascot with a speech bubble, and the photo bleeds into the canvas with a mask instead of a frame.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="screen">
+      <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+
+      <div class="topbar rise">
+        <span class="mono">Wed · Aug 19</span>
+        <span class="wordmark">BODFYT</span>
+        <span class="flame">🔥 12</span>
+      </div>
+
+      <div class="greet rise d1">
+        <h1>Good evening,<br><span>Nina.</span></h1>
+        <p>How's your body feeling today?</p>
+      </div>
+
+      <div class="orbwrap rise d2">
+        <div class="ring"></div><div class="ring r2"></div>
+        <div class="orb">
+          <span class="mono">Daily check-in</span>
+          <b>Start moving</b>
+          <i>~60 seconds</i>
+        </div>
+      </div>
+
+      <div class="context rise d3">
+        <span class="mono">Today's context</span>
+        <div class="chips">
+          <span class="chip c-mint">😴 Slept 7h 20m</span>
+          <span class="chip c-sun">⚡ Energy trending up</span>
+          <span class="chip c-peach">💪 Shoulders recovering</span>
+          <span class="chip c-sky">🏃 2 runs this week</span>
+        </div>
+      </div>
+
+      <div class="coach rise d4">
+        <svg class="buddy" viewBox="0 0 120 110">
+          <path fill="#B9ACE3" d="M60 6c26 0 50 16 50 44s-20 54-50 54S10 82 10 50 34 6 60 6z"/>
+          <circle cx="45" cy="48" r="5" fill="#211F27"/><circle cx="75" cy="48" r="5" fill="#211F27"/>
+          <path d="M47 66q13 10 26 0" stroke="#211F27" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <circle cx="34" cy="59" r="6" fill="#FF687B" opacity=".45"/><circle cx="86" cy="59" r="6" fill="#FF687B" opacity=".45"/>
+        </svg>
+        <div class="speech">
+          <b>Coach:</b> Monday's pull day worked your shoulders hard. A light mobility flow tonight would help them bounce back.
+          <span class="go">Build tonight's session →</span>
+        </div>
+      </div>
+
+      <div class="hero rise d5">
+        <img src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=900&q=80" alt="evening stretch">
+        <div class="cap">
+          <span class="mono">Suggested tonight</span>
+          <h3>20-min unwind flow</h3>
+        </div>
+      </div>
+
+      <svg class="wave" width="240" height="26" viewBox="0 0 240 26">
+        <defs><linearGradient id="wg" x1="0" x2="1"><stop offset="0" stop-color="#FF687B"/><stop offset=".5" stop-color="#B9ACE3"/><stop offset="1" stop-color="#50BDF2"/></linearGradient></defs>
+        <path d="M4 13 C 40 -4, 80 30, 120 13 S 200 -4, 236 13" stroke="url(#wg)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      </svg>
+
+      <div class="build rise d6">
+        <div class="rowlink"><span><i class="dot" style="background:var(--coral)"></i>Build your own</span><span class="arrow">→</span></div>
+        <div class="rowlink"><span><i class="dot" style="background:var(--mint)"></i>Your routines</span><span class="arrow">→</span></div>
+        <div class="routines">
+          <span class="rt s">Push day ×3</span>
+          <span class="rt m">Morning mobility</span>
+          <span class="rt c">5k tempo</span>
+          <span class="rt s">Core blast</span>
+        </div>
+      </div>
+    </div>
+
+    <nav class="tabbar">
+      <div class="tab"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 19c.7-3.2 3.4-5 6.5-5s5.8 1.8 6.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.8 14.4c2.7.3 4.8 1.8 5.5 4.6"/></svg>Social</div>
+      <div class="tab active"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4.6v-6H9.6v6H5a1 1 0 0 1-1-1z"/></svg>Home</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0zM7 5H4.2A2.8 2.8 0 0 0 7 8.6M17 5h2.8A2.8 2.8 0 0 1 17 8.6M12 13v3.4M8.5 21h7M9.8 17.6h4.4l.5 3.4H9.3z"/></svg>Challenges</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-3.8 4-5.7 7.5-5.7s6.5 1.9 7.5 5.7"/></svg>Profile</div>
+    </nav>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BODFYT · Profile A · Story of You</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Sora:wght@400;600;800&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#211F27; --cream:#FCFBF9; --coral:#FF687B; --lav:#B9ACE3;
+  --mint:#BDF3DB; --sky:#50BDF2; --sun:#FFD86B; --peach:#FFD1BD;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#151318;font-family:'Sora',sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;gap:56px;align-items:center;justify-content:center;padding:48px;flex-wrap:wrap}
+.note{max-width:250px;color:#9b93a8;font-size:13px;line-height:1.7}
+.note h2{font-family:'Fredoka';color:#fff;font-size:22px;margin-bottom:10px}
+.note em{color:var(--lav);font-style:normal}
+.phone{width:393px;height:852px;border-radius:54px;overflow:hidden;position:relative;background:var(--cream);
+  box-shadow:0 50px 120px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.5)}
+.island{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:118px;height:32px;border-radius:20px;background:var(--ink);z-index:40}
+.screen{height:100%;overflow-y:auto;scrollbar-width:none;padding:70px 0 140px}
+.screen::-webkit-scrollbar{display:none}
+.pad{padding-left:28px;padding-right:28px}
+.mono{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:#a29aae}
+
+.rise{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.d1{animation-delay:.1s}.d2{animation-delay:.24s}.d3{animation-delay:.4s}.d4{animation-delay:.55s}.d5{animation-delay:.7s}.d6{animation-delay:.85s}
+
+/* hero: aura avatar, no card */
+.hero{text-align:center;position:relative;padding-top:12px}
+.aura{position:absolute;top:-30px;left:50%;transform:translateX(-50%);width:270px;height:270px;border-radius:50%;filter:blur(52px);opacity:.55;
+  background:conic-gradient(from 120deg,var(--coral),var(--sun),var(--mint),var(--sky),var(--lav),var(--coral));animation:spin 16s linear infinite}
+@keyframes spin{to{transform:translateX(-50%) rotate(360deg)}}
+.avatar{position:relative;width:110px;height:110px;border-radius:50%;margin:0 auto;padding:4px;background:linear-gradient(140deg,var(--coral),var(--sun))}
+.avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover;border:4px solid var(--cream)}
+.hero h1{font-family:'Fredoka';font-size:27px;font-weight:700;margin-top:14px;position:relative}
+.hero .handle{color:#8b8298;font-size:13px;margin-top:3px;position:relative}
+.hero .gear{position:absolute;right:26px;top:6px;width:42px;height:42px;border-radius:50%;background:#f2edf7;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px}
+.hero .streak{display:inline-flex;gap:6px;align-items:center;margin-top:12px;background:linear-gradient(120deg,var(--peach),var(--sun));padding:9px 16px;border-radius:22px;font-size:13px;font-weight:700;position:relative}
+
+/* narrative stats: sentences with giant inline numbers */
+.storyline{margin-top:38px;font-size:19px;line-height:1.85;color:#575062;font-weight:400}
+.storyline b{font-family:'Fredoka';font-weight:700;font-size:38px;letter-spacing:-.01em;line-height:1;padding:0 2px}
+.storyline b.coral{color:var(--coral)}
+.storyline b.sky{color:#3aa5dc}
+.storyline b.mintc{color:#33ac82}
+.storyline b.lavc{color:#8d78c8}
+
+/* dot-garden heatmap */
+.garden{margin-top:40px}
+.gwrap{display:grid;grid-template-columns:repeat(14,1fr);gap:7px;margin-top:16px}
+.g{aspect-ratio:1;border-radius:50%;background:#efe9f4;animation:pop .5s cubic-bezier(.3,1.6,.4,1) both}
+.g.l1{background:#cfeee1}.g.l2{background:#9be0c4}.g.l3{background:#57c89d}.g.l4{background:var(--coral);box-shadow:0 0 10px rgba(255,104,123,.5)}
+.gwrap .g:nth-child(3n){animation-delay:.15s}.gwrap .g:nth-child(5n){animation-delay:.3s}.gwrap .g:nth-child(7n){animation-delay:.45s}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.glegend{display:flex;justify-content:space-between;margin-top:10px;font-family:'Space Mono';font-size:9.5px;letter-spacing:.18em;color:#b1a7c2}
+
+/* journey river */
+.river{margin-top:44px;position:relative;height:300px}
+.river svg.flow{position:absolute;left:0;top:0;width:100%;height:100%}
+.river svg.flow path{stroke-dasharray:900;stroke-dashoffset:900;animation:draw 3s ease forwards .5s}
+@keyframes draw{to{stroke-dashoffset:0}}
+.mile{position:absolute;display:flex;gap:12px;align-items:center}
+.mile .bub{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:21px;flex:0 0 54px;box-shadow:0 10px 22px -8px rgba(33,31,39,.28);animation:floaty 5s ease-in-out infinite}
+.mile:nth-child(3) .bub{animation-delay:.7s}.mile:nth-child(4) .bub{animation-delay:1.4s}.mile:nth-child(5) .bub{animation-delay:2.1s}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.mile b{font-size:14px;display:block}
+.mile span{font-size:11.5px;color:#a29aae}
+
+/* footer links as type */
+.links{margin-top:26px}
+.link{display:flex;justify-content:space-between;align-items:center;padding:16px 0;font-family:'Fredoka';font-size:19px;font-weight:600;cursor:pointer;transition:transform .3s}
+.link:hover{transform:translateX(6px)}
+.link .arrow{color:#b3a9c2;font-family:'Sora'}
+
+.tabbar{position:absolute;left:24px;right:24px;bottom:22px;height:70px;border-radius:38px;display:flex;z-index:50;
+  background:rgba(33,31,39,.93);backdrop-filter:blur(12px);box-shadow:0 24px 44px -16px rgba(33,31,39,.6)}
+.tab{flex:1;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;color:#8d8496;font-size:10px;font-weight:600;cursor:pointer}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.active{color:var(--sun)}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="note">
+    <h2>Profile / A</h2>
+    <p><em>Story of You.</em> Stats become sentences with giant inline numbers instead of stat tiles. A conic-gradient aura breathes behind the avatar, the heatmap grows as a garden of dots, and the Journey renders as a river with floating milestone bubbles. Settings stays tucked behind the gear.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="screen">
+      <div class="hero rise">
+        <div class="aura"></div>
+        <span class="gear">⚙</span>
+        <div class="avatar"><img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80" alt="you"></div>
+        <h1>Nina Petrova</h1>
+        <div class="handle">@nina.moves</div>
+        <div class="streak">🔥 12-day streak</div>
+      </div>
+
+      <div class="storyline pad rise d1">
+        This month you moved for <b class="coral">214</b> minutes across
+        <b class="sky">16</b> sessions, lifted <b class="lavc">48k</b> kg total,
+        and set <b class="mintc">3</b> personal records. Your coach noticed your
+        squat is up <b class="coral">9%</b> since July.
+      </div>
+
+      <div class="garden pad rise d2">
+        <span class="mono">August · your movement garden</span>
+        <div class="gwrap">
+          <span class="g l2"></span><span class="g"></span><span class="g l1"></span><span class="g l3"></span><span class="g"></span><span class="g l2"></span><span class="g l4"></span><span class="g"></span><span class="g l1"></span><span class="g l3"></span><span class="g l2"></span><span class="g"></span><span class="g l1"></span><span class="g l2"></span>
+          <span class="g l3"></span><span class="g l1"></span><span class="g"></span><span class="g l2"></span><span class="g l4"></span><span class="g"></span><span class="g l1"></span><span class="g l3"></span><span class="g"></span><span class="g l2"></span><span class="g l1"></span><span class="g l3"></span><span class="g"></span><span class="g l2"></span>
+          <span class="g l1"></span><span class="g l2"></span><span class="g l3"></span><span class="g"></span><span class="g l2"></span><span class="g l1"></span><span class="g"></span><span class="g l4"></span><span class="g l2"></span><span class="g l1"></span><span class="g l3"></span><span class="g"></span><span class="g l2"></span><span class="g l1"></span>
+        </div>
+        <div class="glegend"><span>REST</span><span>MOVED</span><span>PR DAY</span></div>
+      </div>
+
+      <div class="pad rise d3">
+        <span class="mono">Journey highlights</span>
+        <div class="river">
+          <svg class="flow" viewBox="0 0 337 300" fill="none">
+            <defs><linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B9ACE3"/><stop offset=".5" stop-color="#50BDF2"/><stop offset="1" stop-color="#FF687B"/></linearGradient></defs>
+            <path d="M50 12 C 200 30, 290 70, 250 120 C 215 165, 60 150, 60 210 C 60 262, 210 262, 270 290" stroke="url(#rg)" stroke-width="5" stroke-linecap="round" opacity=".55"/>
+          </svg>
+          <div class="mile" style="left:8px;top:0"><div class="bub" style="background:var(--sun)">🏅</div><div><b>First 10k</b><span>Aug 9 · 58:12</span></div></div>
+          <div class="mile" style="left:150px;top:92px"><div class="bub" style="background:var(--peach)">🏋️</div><div><b>Squat PR 85 kg</b><span>Aug 4</span></div></div>
+          <div class="mile" style="left:20px;top:182px"><div class="bub" style="background:var(--mint)">🧘</div><div><b>30 mobility days</b><span>Jul 30</span></div></div>
+          <div class="mile" style="left:160px;top:258px"><div class="bub" style="background:var(--lav)">✨</div><div><b>100th session</b><span>Jul 18</span></div></div>
+        </div>
+      </div>
+
+      <div class="links pad rise d4">
+        <div class="link"><span>Past workouts</span><span class="arrow">→</span></div>
+        <div class="link"><span>Your routines</span><span class="arrow">→</span></div>
+        <div class="link"><span>Posts &amp; cheers</span><span class="arrow">→</span></div>
+        <div class="link"><span>View public profile</span><span class="arrow">→</span></div>
+      </div>
+    </div>
+
+    <nav class="tabbar">
+      <div class="tab"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 19c.7-3.2 3.4-5 6.5-5s5.8 1.8 6.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.8 14.4c2.7.3 4.8 1.8 5.5 4.6"/></svg>Social</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4.6v-6H9.6v6H5a1 1 0 0 1-1-1z"/></svg>Home</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0zM7 5H4.2A2.8 2.8 0 0 0 7 8.6M17 5h2.8A2.8 2.8 0 0 1 17 8.6M12 13v3.4M8.5 21h7M9.8 17.6h4.4l.5 3.4H9.3z"/></svg>Challenges</div>
+      <div class="tab active"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-3.8 4-5.7 7.5-5.7s6.5 1.9 7.5 5.7"/></svg>Profile</div>
+    </nav>
+  </div>
+</div>
+</body>
+</html>
