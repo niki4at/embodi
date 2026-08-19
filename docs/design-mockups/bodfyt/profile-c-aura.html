@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BODFYT · Profile C · Aura</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Sora:wght@400;600;800&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#211F27; --cream:#FCFBF9; --coral:#FF687B; --lav:#B9ACE3;
+  --mint:#BDF3DB; --sky:#50BDF2; --sun:#FFD86B; --peach:#FFD1BD;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0e0c12;font-family:'Sora',sans-serif;color:var(--cream)}
+.stage{min-height:100vh;display:flex;gap:56px;align-items:center;justify-content:center;padding:48px;flex-wrap:wrap}
+.note{max-width:250px;color:#9b93a8;font-size:13px;line-height:1.7}
+.note h2{font-family:'Fredoka';color:#fff;font-size:22px;margin-bottom:10px}
+.note em{color:var(--mint);font-style:normal}
+.phone{width:393px;height:852px;border-radius:54px;overflow:hidden;position:relative;
+  background:radial-gradient(130% 80% at 50% -6%,#332c40 0%,#211d2b 46%,#171420 100%);
+  box-shadow:0 50px 120px rgba(0,0,0,.7), inset 0 0 0 1px rgba(255,255,255,.07)}
+.island{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:118px;height:32px;border-radius:20px;background:#000;z-index:40}
+.screen{height:100%;overflow-y:auto;scrollbar-width:none;padding:70px 26px 140px;position:relative}
+.screen::-webkit-scrollbar{display:none}
+.mono{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:#7d7490}
+
+.rise{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.d1{animation-delay:.12s}.d2{animation-delay:.26s}.d3{animation-delay:.42s}.d4{animation-delay:.58s}.d5{animation-delay:.74s}
+
+/* ring-avatar: weekly goal ring wraps the face */
+.heroC{display:flex;flex-direction:column;align-items:center;text-align:center;position:relative}
+.gear{position:absolute;right:0;top:0;width:42px;height:42px;border-radius:50%;background:rgba(252,251,249,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#cfc7dd}
+.ringwrap{position:relative;width:172px;height:172px}
+.ringwrap svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ringwrap svg .track{stroke:rgba(252,251,249,.1)}
+.ringwrap svg .prog{stroke:url(#lg);stroke-dasharray:503;stroke-dashoffset:503;animation:ringfill 2s cubic-bezier(.2,.7,.2,1) forwards .4s;filter:drop-shadow(0 0 10px rgba(255,104,123,.6))}
+@keyframes ringfill{to{stroke-dashoffset:151}}
+.ringwrap img{position:absolute;inset:18px;width:calc(100% - 36px);height:calc(100% - 36px);border-radius:50%;object-fit:cover}
+.ringwrap .tick{position:absolute;bottom:2px;right:8px;background:var(--mint);color:var(--ink);font-family:'Fredoka';font-weight:700;font-size:12px;padding:8px 12px;border-radius:18px;box-shadow:0 8px 20px -8px rgba(189,243,219,.6);animation:floaty 4s ease-in-out infinite}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.heroC h1{font-family:'Fredoka';font-size:26px;margin-top:16px}
+.heroC .sub{color:#a79dbb;font-size:13px;margin-top:4px}
+.heroC .sub b{color:var(--sun)}
+
+/* orbiting achievement stickers */
+.stickers{position:relative;height:64px;margin-top:18px;width:100%}
+.stk{position:absolute;font-size:13px;font-weight:700;padding:10px 15px;border-radius:20px;color:var(--ink);animation:floaty 4.6s ease-in-out infinite;cursor:pointer}
+.stk.s1{left:6%;top:6px;background:var(--sun);transform:rotate(-6deg)}
+.stk.s2{left:36%;top:16px;background:var(--mint);transform:rotate(3deg);animation-delay:.7s}
+.stk.s3{left:66%;top:2px;background:var(--peach);transform:rotate(-3deg);animation-delay:1.4s}
+
+/* glow stats orbit row */
+.orbstats{display:flex;justify-content:space-between;margin-top:38px;text-align:center}
+.os b{display:block;font-size:30px;font-weight:800;letter-spacing:-.02em}
+.os span{font-family:'Space Mono';font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#7d7490}
+.os.a b{color:var(--coral);text-shadow:0 0 24px rgba(255,104,123,.55)}
+.os.b b{color:var(--sky);text-shadow:0 0 24px rgba(80,189,242,.5)}
+.os.c b{color:var(--mint);text-shadow:0 0 24px rgba(189,243,219,.45)}
+.os.d b{color:var(--sun);text-shadow:0 0 24px rgba(255,216,107,.5)}
+
+/* constellation heatmap */
+.constel{margin-top:42px;position:relative;height:180px}
+.constel svg{position:absolute;inset:0;width:100%;height:100%}
+.constel .lines path{stroke:rgba(185,172,227,.25);stroke-width:1.4;fill:none;stroke-dasharray:600;stroke-dashoffset:600;animation:draw 3s ease forwards .6s}
+@keyframes draw{to{stroke-dashoffset:0}}
+.dotstar{position:absolute;border-radius:50%;animation:tw 3s ease-in-out infinite}
+.dotstar.big{width:14px;height:14px;background:var(--coral);box-shadow:0 0 16px rgba(255,104,123,.9)}
+.dotstar.mid{width:10px;height:10px;background:var(--sky);box-shadow:0 0 12px rgba(80,189,242,.8)}
+.dotstar.sml{width:7px;height:7px;background:#cfc7dd;box-shadow:0 0 8px rgba(207,199,221,.7)}
+@keyframes tw{0%,100%{opacity:.55}50%{opacity:1}}
+.constel .cap{position:absolute;bottom:-2px;left:0}
+
+/* journey as vertical glow timeline */
+.jour{margin-top:44px}
+.jrow{display:flex;gap:16px;padding:14px 0;align-items:center;cursor:pointer;transition:transform .3s}
+.jrow:hover{transform:translateX(6px)}
+.jrow .gem{width:44px;height:44px;border-radius:16px;transform:rotate(45deg);display:flex;align-items:center;justify-content:center;flex:0 0 44px}
+.jrow .gem span{transform:rotate(-45deg);font-size:17px}
+.jrow.g1 .gem{background:linear-gradient(140deg,var(--sun),#f8c33f);box-shadow:0 0 22px rgba(255,216,107,.4)}
+.jrow.g2 .gem{background:linear-gradient(140deg,var(--coral),#e2547c);box-shadow:0 0 22px rgba(255,104,123,.4)}
+.jrow.g3 .gem{background:linear-gradient(140deg,var(--mint),#5fceaa);box-shadow:0 0 22px rgba(189,243,219,.35)}
+.jrow b{display:block;font-size:14.5px}
+.jrow span.when{font-size:11.5px;color:#7d7490}
+.seeall{margin-top:12px;font-family:'Fredoka';font-size:15px;color:var(--lav);cursor:pointer}
+
+.tabbar{position:absolute;left:24px;right:24px;bottom:22px;height:70px;border-radius:38px;display:flex;z-index:50;
+  background:rgba(10,9,14,.88);backdrop-filter:blur(14px);box-shadow:0 24px 44px -16px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.06)}
+.tab{flex:1;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;color:#6e6580;font-size:10px;font-weight:600;cursor:pointer}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.active{color:var(--sun)}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="note">
+    <h2>Profile / C</h2>
+    <p><em>Aura.</em> A night-mode identity: your weekly goal is a glowing ring around your own face, achievements float as tilted stickers, the month renders as a constellation you've drawn by moving, and milestones are gems on a glow timeline. Minimal text, maximal glow.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="screen">
+      <div class="heroC rise">
+        <span class="gear">⚙</span>
+        <div class="ringwrap">
+          <svg viewBox="0 0 172 172">
+            <defs><linearGradient id="lg" x1="0" x2="1"><stop offset="0" stop-color="#FF687B"/><stop offset="1" stop-color="#FFD86B"/></linearGradient></defs>
+            <circle class="track" cx="86" cy="86" r="80" fill="none" stroke-width="9"/>
+            <circle class="prog" cx="86" cy="86" r="80" fill="none" stroke-width="9" stroke-linecap="round"/>
+          </svg>
+          <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80" alt="you">
+          <span class="tick">2 / 3 ✓</span>
+        </div>
+        <h1>Nina Petrova</h1>
+        <p class="sub">@nina.moves · <b>🔥 12-day streak</b> · one session to weekly goal</p>
+      </div>
+
+      <div class="stickers rise d1">
+        <span class="stk s1">🏅 First 10k</span>
+        <span class="stk s2">🧘 30 flow days</span>
+        <span class="stk s3">🏋️ 85kg squat</span>
+      </div>
+
+      <div class="orbstats rise d2">
+        <div class="os a"><b>214'</b><span>Month</span></div>
+        <div class="os b"><b>16</b><span>Sessions</span></div>
+        <div class="os c"><b>48k</b><span>Kg volume</span></div>
+        <div class="os d"><b>3</b><span>PRs</span></div>
+      </div>
+
+      <div class="constel rise d3">
+        <svg class="lines" viewBox="0 0 341 180">
+          <path d="M30 130 L 74 60 L 128 96 L 186 34 L 232 88 L 288 50 L 316 118"/>
+        </svg>
+        <span class="dotstar mid" style="left:24px;top:122px"></span>
+        <span class="dotstar big" style="left:68px;top:52px;animation-delay:.4s"></span>
+        <span class="dotstar sml" style="left:122px;top:90px;animation-delay:.8s"></span>
+        <span class="dotstar big" style="left:180px;top:26px;animation-delay:1.2s"></span>
+        <span class="dotstar mid" style="left:226px;top:80px;animation-delay:1.6s"></span>
+        <span class="dotstar sml" style="left:282px;top:44px;animation-delay:2s"></span>
+        <span class="dotstar mid" style="left:310px;top:110px;animation-delay:2.4s"></span>
+        <span class="cap mono">August constellation · 16 stars lit</span>
+      </div>
+
+      <div class="jour rise d4">
+        <span class="mono">Journey gems</span>
+        <div class="jrow g1"><div class="gem"><span>🏅</span></div><div><b>First 10k — 58:12</b><span class="when">Aug 9 · cardio milestone</span></div></div>
+        <div class="jrow g2"><div class="gem"><span>🏋️</span></div><div><b>Squat PR — 85 kg</b><span class="when">Aug 4 · +5 kg</span></div></div>
+        <div class="jrow g3"><div class="gem"><span>✨</span></div><div><b>100th session with coach</b><span class="when">Jul 18</span></div></div>
+        <div class="seeall">Open full journey →</div>
+      </div>
+    </div>
+
+    <nav class="tabbar">
+      <div class="tab"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 19c.7-3.2 3.4-5 6.5-5s5.8 1.8 6.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.8 14.4c2.7.3 4.8 1.8 5.5 4.6"/></svg>Social</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4.6v-6H9.6v6H5a1 1 0 0 1-1-1z"/></svg>Home</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0zM7 5H4.2A2.8 2.8 0 0 0 7 8.6M17 5h2.8A2.8 2.8 0 0 1 17 8.6M12 13v3.4M8.5 21h7M9.8 17.6h4.4l.5 3.4H9.3z"/></svg>Challenges</div>
+      <div class="tab active"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-3.8 4-5.7 7.5-5.7s6.5 1.9 7.5 5.7"/></svg>Profile</div>
+    </nav>
+  </div>
+</div>
+</body>
+</html>

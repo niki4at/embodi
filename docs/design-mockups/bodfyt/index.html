@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BODFYT · Design Mockup Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Sora:wght@400;600;800&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#211F27; --cream:#FCFBF9; --coral:#FF687B; --lav:#B9ACE3;
+  --mint:#BDF3DB; --sky:#50BDF2; --sun:#FFD86B; --peach:#FFD1BD;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Sora',sans-serif;color:var(--ink);min-height:100vh;
+  background:linear-gradient(165deg,#fdf3ec 0%,#fbeaf1 30%,#efe9fb 65%,#e8f2fd 100%)}
+.wrap{max-width:1060px;margin:0 auto;padding:70px 32px 100px}
+.mono{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:#8d8496}
+h1{font-family:'Fredoka';font-weight:700;font-size:64px;letter-spacing:.02em;margin-top:14px}
+h1 span{background:linear-gradient(95deg,var(--coral),#b986e0 55%,var(--sky));-webkit-background-clip:text;background-clip:text;color:transparent}
+.lede{max-width:560px;margin-top:16px;font-size:16px;line-height:1.7;color:#6f6680}
+.wave{margin-top:22px}
+.wave path{stroke-dasharray:600;stroke-dashoffset:600;animation:draw 2.6s ease forwards .4s}
+@keyframes draw{to{stroke-dashoffset:0}}
+.palette{display:flex;gap:10px;margin-top:26px}
+.palette i{width:34px;height:34px;border-radius:50%;display:block;animation:floaty 4.5s ease-in-out infinite}
+.palette i:nth-child(2n){animation-delay:.6s}.palette i:nth-child(3n){animation-delay:1.2s}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+section{margin-top:70px}
+section>h2{font-family:'Fredoka';font-size:30px;font-weight:600;display:flex;align-items:center;gap:14px}
+section>h2 .chip{font-family:'Space Mono';font-size:10px;letter-spacing:.24em;padding:8px 14px;border-radius:18px}
+section>p.hint{color:#8b8298;font-size:14px;margin-top:8px;max-width:620px;line-height:1.6}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px;margin-top:26px}
+a.tile{display:block;text-decoration:none;color:var(--ink);border-radius:36px;padding:28px;position:relative;overflow:hidden;
+  transition:transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s;box-shadow:0 18px 40px -26px rgba(33,31,39,.35)}
+a.tile:hover{transform:translateY(-8px) rotate(-.6deg);box-shadow:0 32px 60px -26px rgba(33,31,39,.45)}
+a.tile .mono{font-size:9.5px}
+a.tile h3{font-family:'Fredoka';font-size:24px;font-weight:700;margin-top:10px}
+a.tile p{font-size:13.5px;line-height:1.6;margin-top:8px;color:rgba(33,31,39,.62)}
+a.tile .go{display:inline-block;margin-top:16px;font-weight:700;font-size:13px}
+a.tile svg.deco{position:absolute;right:-18px;bottom:-10px;opacity:.5}
+.t-sunrise{background:linear-gradient(140deg,#ffe9db,var(--peach))}
+.t-editorial{background:var(--cream);outline:2px solid #ece5f3}
+.t-orbit{background:linear-gradient(140deg,#2c2637,#211F27);color:var(--cream)}
+.t-orbit h3,.t-orbit .go{color:var(--cream)} .t-orbit p{color:rgba(252,251,249,.6)}
+.t-flow{background:linear-gradient(140deg,#ffe1e6,#ffd2dc)}
+.t-huddle{background:linear-gradient(140deg,var(--mint),#dcf6ea)}
+.t-club{background:linear-gradient(140deg,#241f30,#191622);color:var(--cream)}
+.t-club h3{color:var(--sun)} .t-club .go{color:var(--sun)} .t-club p{color:rgba(252,251,249,.6)}
+.t-quest{background:linear-gradient(140deg,#d5edfb,#c8e7fa)}
+.t-horizon{background:linear-gradient(140deg,var(--sun),#ffe6a1)}
+.t-numbers{background:linear-gradient(140deg,#e9e2fa,var(--lav))}
+.t-story{background:linear-gradient(140deg,#f3eefb,#eadff5)}
+.t-gallery{background:linear-gradient(140deg,var(--peach),#ffdfd0)}
+.t-aura{background:linear-gradient(140deg,#2a2438,#1d1927);color:var(--cream)}
+.t-aura h3{color:var(--mint)} .t-aura .go{color:var(--mint)} .t-aura p{color:rgba(252,251,249,.6)}
+footer{margin-top:90px;text-align:center;color:#9b91a8;font-size:13px;line-height:1.8}
+footer b{font-family:'Fredoka';letter-spacing:.04em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="mono">Design exploration · Aug 2026 · 12 concepts</span>
+  <h1>BODFYT <span>redesign lab</span></h1>
+  <p class="lede">Every body moves differently — so should every screen. Three distinct concepts per tab, built on the BODFYT brand: flowing gradients instead of cards, organic image masks, blob characters, and one clear action per screen. Open any tile, scroll the phone, pick favorites and mix.</p>
+  <svg class="wave" width="280" height="28" viewBox="0 0 280 28">
+    <defs><linearGradient id="hw" x1="0" x2="1"><stop offset="0" stop-color="#FF687B"/><stop offset=".5" stop-color="#B9ACE3"/><stop offset="1" stop-color="#50BDF2"/></linearGradient></defs>
+    <path d="M4 14 C 44 -4, 92 32, 140 14 S 236 -4, 276 14" stroke="url(#hw)" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </svg>
+  <div class="palette">
+    <i style="background:#211F27"></i><i style="background:#FF687B"></i><i style="background:#B9ACE3"></i><i style="background:#BDF3DB"></i><i style="background:#50BDF2"></i><i style="background:#FFD86B"></i><i style="background:#FFD1BD"></i>
+  </div>
+
+  <section>
+    <h2>Home <span class="chip" style="background:var(--peach)">THE DAILY RITUAL</span></h2>
+    <p class="hint">The one screen that must answer a single question in two seconds: "what should I do right now?" All three keep check-in as the hero and everything else as whisper-level.</p>
+    <div class="grid">
+      <a class="tile t-sunrise" href="home-a-sunrise-canvas.html">
+        <span class="mono">CONCEPT A · WARM &amp; SOFT</span>
+        <h3>Sunrise Canvas</h3>
+        <p>One flowing gradient, a breathing check-in orb, floating context chips, and a coach mascot with a speech bubble.</p>
+        <span class="go">Open mockup →</span>
+      </a>
+      <a class="tile t-editorial" href="home-b-editorial.html">
+        <span class="mono">CONCEPT B · BOLD TYPE</span>
+        <h3>The Editorial</h3>
+        <p>Home as today's magazine issue: poster type, duotone photo spread, start paths as a numbered table of contents.</p>
+        <span class="go">Open mockup →</span>
+      </a>
+      <a class="tile t-orbit" href="home-c-night-orbit.html">
+        <span class="mono">CONCEPT C · AI-FIRST</span>
+        <h3>Night Orbit</h3>
+        <p>The coach is a glowing orb with the four movement types orbiting it; check-in happens as a conversation.</p>
+        <span class="go">Open mockup →</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Social <span class="chip" style="background:var(--mint)">YOUR PEOPLE</span></h2>
+    <p class="hint">Three temperatures for the same feed: artful, chatty, competitive. All keep cheering one tap away and the leaderboard glanceable.</p>
+    <div class="grid">
+      <a class="tile t-flow" href="social-a-flow-feed.html">
+        <span class="mono">CONCEPT A · ARTFUL</span>
+        <h3>Flow Feed</h3>
+        <p>Cardless posts as free compositions — masked photos, one oversized hero stat, and a wavy leaderboard racetrack.</p>
+        <span class="go">Open mockup →</span>
+      </a>
+      <a class="tile t-huddle" href="social-b-huddle.html">
+        <span class="mono">CONCEPT B · WARM CHAT</span>
+        <h3>The Huddle</h3>
+        <p>The feed reads like a group chat: color-blocked speech bubbles per workout type, story-ring faces up top.</p>
+        <span class="go">Open mockup →</span>
+      </a>
+      <a class="tile t-club" href="social-c-club-poster.html">
+        <span class="mono">CONCEPT C · COMPETITIVE</span>
+        <h3>Club Poster</h3>
+        <p>Night-club energy: rotated PR ticker, glowing typographic leaderboard, and an organic photo moments wall.</p>
+        <span class="go">Open mockup →</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Challenges <span class="chip" style="background:var(--sky);color:#fff">LONG GAMES</span></h2>
+    <p class="hint">AI programs deserve better than progress bars in boxes. Three metaphors: a trail you hike, a landscape that changes with progress, and pure confident numbers.</p>
+    <div class="grid">
+      <a class="tile t-quest" href="challenges-a-quest-path.html">
+        <span class="mono">CONCEPT A · PLAYFUL</span>
+        <h3>Quest Path</h3>
+        <p>Your challenge as a winding trail with milestone nodes, a hiking blob buddy, and a summit photo blended into the page.</p>
+        <span class="go">Open mockup →</span>
+      </a>
+      <a class="tile t-horizon" href="challenges-b-horizons.html">
+        <span class="mono">CONCEPT B · SCENIC</span>
+        <h3>Horizons</h3>
+        <p>Each challenge is a landscape — a sun rises with your progress, tides fill for streaks, shimmer while the AI generates.</p>
+        <span class="go">Open mockup →</span>
+      </a>
+      <a class="tile t-numbers" href="challenges-c-big-numbers.html">
+        <span class="mono">CONCEPT C · DATA-CONFIDENT</span>
+        <h3>Big Numbers</h3>
+        <p>Hevy-style clarity: one giant animated percentage per challenge, shimmering tracks, bubble-cluster communities.</p>
+        <span class="go">Open mockup →</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Profile <span class="chip" style="background:var(--lav)">THE MIRROR</span></h2>
+    <p class="hint">Progress as identity, not dashboard. Narrative sentences, a photo exhibition, or a glowing night aura — settings stays behind the gear in all three.</p>
+    <div class="grid">
+      <a class="tile t-story" href="profile-a-story.html">
+        <span class="mono">CONCEPT A · NARRATIVE</span>
+        <h3>Story of You</h3>
+        <p>Stats written as sentences with giant inline numbers, a dot-garden heatmap, and a milestone river.</p>
+        <span class="go">Open mockup →</span>
+      </a>
+      <a class="tile t-gallery" href="profile-b-gallery.html">
+        <span class="mono">CONCEPT B · PHOTO-LED</span>
+        <h3>The Gallery</h3>
+        <p>A full-bleed cover dissolving into poster type, loose oversized stats, and a masonry of workout moments.</p>
+        <span class="go">Open mockup →</span>
+      </a>
+      <a class="tile t-aura" href="profile-c-aura.html">
+        <span class="mono">CONCEPT C · NIGHT GLOW</span>
+        <h3>Aura</h3>
+        <p>Your weekly goal is a glowing ring around your face; months become constellations, milestones become gems.</p>
+        <span class="go">Open mockup →</span>
+      </a>
+    </div>
+  </section>
+
+  <footer>
+    <b>BODFYT</b> · every body moves differently<br>
+    Palette #211F27 · #FF687B · #B9ACE3 · #BDF3DB · #50BDF2 · #FFD86B · #FFD1BD · #FCFBF9<br>
+    Static HTML explorations — imagery via Unsplash, type via Google Fonts (Fredoka / Sora / Bricolage Grotesque / Space Mono).
+  </footer>
+</div>
+</body>
+</html>
