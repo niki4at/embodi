@@ -82,9 +82,13 @@ const checkinDataArg = v.object({
     v.literal('challenging')
   ),
   timeAvailable: v.union(
+    v.literal('10'),
     v.literal('15'),
+    v.literal('20'),
     v.literal('30'),
+    v.literal('40'),
     v.literal('45'),
+    v.literal('50'),
     v.literal('60')
   ),
   notes: v.optional(v.string()),
@@ -124,9 +128,13 @@ const checkinDocument = v.object({
     v.literal('challenging')
   ),
   timeAvailable: v.union(
+    v.literal('10'),
     v.literal('15'),
+    v.literal('20'),
     v.literal('30'),
+    v.literal('40'),
     v.literal('45'),
+    v.literal('50'),
     v.literal('60')
   ),
   notes: v.optional(v.string()),
@@ -150,7 +158,7 @@ export type CheckinData = {
   workoutType: 'strength' | 'mobility' | 'cardio' | 'recovery' | 'mixed'
   focusAreas?: string[]
   intensityPreference: 'easy' | 'moderate' | 'challenging'
-  timeAvailable: '15' | '30' | '45' | '60'
+  timeAvailable: '10' | '15' | '20' | '30' | '40' | '45' | '50' | '60'
   notes?: string
   trainingEnvironment?: 'home' | 'gym' | 'outdoors' | 'travel'
   equipmentIntent?: 'available' | 'bodyweight' | 'treadmill'
@@ -434,6 +442,126 @@ export const startSessionFromTodaysCheckin = mutation({
   },
 })
 
+// "Adjust for today": patch a few fields on today's check-in and, when the
+// linked session has not been started yet, rebuild it from the updated
+// check-in. A session with logged sets is left alone (the new values still
+// shape the next session built today).
+export const retuneTodaysSession = mutation({
+  args: {
+    energyLevel: v.optional(v.number()),
+    painLevel: v.optional(v.number()),
+    painAreas: v.optional(v.array(v.string())),
+    timeAvailable: v.optional(
+      v.union(
+        v.literal('10'),
+        v.literal('15'),
+        v.literal('20'),
+        v.literal('30'),
+        v.literal('40'),
+        v.literal('45'),
+        v.literal('50'),
+        v.literal('60')
+      )
+    ),
+  },
+  returns: v.object({
+    sessionId: v.union(v.id('workout_sessions'), v.null()),
+    regenerated: v.boolean(),
+  }),
+  handler: async (
+    ctx,
+    args
+  ): Promise<{
+    sessionId: Id<'workout_sessions'> | null
+    regenerated: boolean
+  }> => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+    const userId = identity.subject
+    const startOfToday = getStartOfToday()
+
+    const todaysCheckin = await ctx.db
+      .query('daily_checkins')
+      .withIndex('by_userId_date', (q) =>
+        q.eq('userId', userId).gte('createdAt', startOfToday)
+      )
+      .order('desc')
+      .first()
+    if (!todaysCheckin) {
+      throw new Error('No check-in for today')
+    }
+
+    const updates: Record<string, unknown> = {}
+    if (args.energyLevel !== undefined) updates.energyLevel = args.energyLevel
+    if (args.painLevel !== undefined) updates.painLevel = args.painLevel
+    if (args.painAreas !== undefined) updates.painAreas = args.painAreas
+    if (args.timeAvailable !== undefined)
+      updates.timeAvailable = args.timeAvailable
+    if (Object.keys(updates).length > 0) {
+      await ctx.db.patch(todaysCheckin._id, updates)
+    }
+
+    const existing = todaysCheckin.sessionId
+      ? await ctx.db.get(todaysCheckin.sessionId)
+      : null
+    if (!existing) {
+      return { sessionId: null, regenerated: false }
+    }
+
+    const loggedSets = await ctx.db
+      .query('workout_sets')
+      .withIndex('by_sessionId', (q) => q.eq('sessionId', existing._id))
+      .first()
+    const canRebuild =
+      loggedSets === null &&
+      (existing.status === 'generated' ||
+        existing.status === 'generating' ||
+        existing.status === 'failed')
+    if (!canRebuild) {
+      return { sessionId: existing._id, regenerated: false }
+    }
+
+    const now = Date.now()
+    await ctx.db.patch(existing._id, { status: 'discarded', updatedAt: now })
+
+    const timeAvailable =
+      args.timeAvailable ?? todaysCheckin.timeAvailable
+    const sessionId = await ctx.db.insert('workout_sessions', {
+      userId,
+      goal: existing.goal,
+      modality: 'generating...',
+      durationMin: parseInt(timeAvailable, 10),
+      status: 'generating',
+      plan: [],
+      healthFacts: [],
+      citations: [],
+      checkinId: todaysCheckin._id,
+      recommendationSeed: existing.recommendationSeed,
+      trainingEnvironment: todaysCheckin.trainingEnvironment,
+      equipmentIntent: todaysCheckin.equipmentIntent,
+      contextTags: todaysCheckin.contextTags,
+      suggestionSource: todaysCheckin.suggestionSource,
+      suggestionReason: todaysCheckin.suggestionReason,
+      equipmentSnapshot: todaysCheckin.equipmentSnapshot,
+      unavailableEquipment: todaysCheckin.unavailableEquipment,
+      createdAt: now,
+      updatedAt: now,
+    })
+    await ctx.db.patch(todaysCheckin._id, { sessionId })
+
+    await ctx.scheduler.runAfter(0, internal.trainer.generateSessionPlan, {
+      sessionId,
+      userId,
+      checkinId: todaysCheckin._id,
+      recommendationSeed: existing.recommendationSeed,
+    })
+
+    return { sessionId, regenerated: true }
+  },
+})
+
 // Get today's check-in for the current user (if exists)
 export const getTodaysCheckin = query({
   args: {},
@@ -525,9 +653,13 @@ export const updateCheckin = mutation({
       ),
       timeAvailable: v.optional(
         v.union(
+          v.literal('10'),
           v.literal('15'),
+          v.literal('20'),
           v.literal('30'),
+          v.literal('40'),
           v.literal('45'),
+          v.literal('50'),
           v.literal('60')
         )
       ),

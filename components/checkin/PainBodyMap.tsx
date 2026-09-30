@@ -1,41 +1,21 @@
 import * as Haptics from 'expo-haptics'
-import React, { useState } from 'react'
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-} from 'react-native'
-import {
-  Gesture,
-  GestureDetector,
-  GestureHandlerRootView,
-} from 'react-native-gesture-handler'
-import Animated, {
-  FadeIn,
-  FadeOut,
-  SlideInDown,
-  SlideOutDown,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated'
-import Svg, { Ellipse, G, Path } from 'react-native-svg'
+import React, { useMemo, useState } from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated'
+import Svg, { Circle, Ellipse, G, Path, Text as SvgText } from 'react-native-svg'
 
-import { motion, radius, spacing, typography } from '@/constants/design'
-import { useTheme } from '@/constants/theme-context'
+import { Chip, Eyebrow, Segmented } from '@/components/ui/primitives'
 import {
   BACK_PARTS,
   FRONT_PARTS,
   PART_LABELS,
   type BodyPart,
+  type BodyPartShape,
 } from '@/constants/body-shapes'
-
-import { PillButton } from '@/components/ui/pill-button'
+import { painDot } from '@/constants/checkin-labels'
+import { motion, radius, spacing, typography } from '@/constants/design'
+import { fonts } from '@/constants/fonts'
+import { useTheme } from '@/constants/theme-context'
 
 export type { BodyPart } from '@/constants/body-shapes'
 
@@ -44,136 +24,199 @@ export type PainRatings = Partial<Record<BodyPart, number>>
 interface PainBodyMapProps {
   value: PainRatings
   onChange: (ratings: PainRatings) => void
-  showLegend?: boolean
+  /** Renders the "No pain today" chip under the figure. */
+  showClear?: boolean
 }
 
-function painColor(level: number, palette: ReturnType<typeof useTheme>['palette']) {
-  if (level <= 0) return 'transparent'
-  if (level <= 3) return palette.painMildSoft
-  if (level <= 6) return palette.painModerateSoft
-  return palette.painSevereSoft
+/** Approximate visual centre of a part so we can place its tap dot. */
+function partCenter(part: BodyPartShape): { x: number; y: number } {
+  if (part.shape === 'ellipse') {
+    return { x: part.cx ?? 0, y: part.cy ?? 0 }
+  }
+  const numbers = (part.d ?? '').match(/-?\d+(\.\d+)?/g)?.map(Number) ?? []
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  for (let i = 0; i + 1 < numbers.length; i += 2) {
+    const x = numbers[i]
+    const y = numbers[i + 1]
+    if (x < minX) minX = x
+    if (x > maxX) maxX = x
+    if (y < minY) minY = y
+    if (y > maxY) maxY = y
+  }
+  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }
 }
 
-function painSolid(level: number, palette: ReturnType<typeof useTheme>['palette']) {
-  if (level <= 3) return palette.painMild
-  if (level <= 6) return palette.painModerate
-  return palette.painSevere
-}
+const LEVELS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-export function PainBodyMap({ value, onChange, showLegend = true }: PainBodyMapProps) {
+/**
+ * Tap-the-spot body map. Every region carries a small hollow dot; tapping one
+ * opens an inline "How bad" rating card under the figure and fills the dot
+ * with a numbered badge (yellow, orange, red as pain climbs). Tapping the
+ * dot again closes the card. Rated spots also appear as chips below.
+ */
+export function PainBodyMap({ value, onChange, showClear = true }: PainBodyMapProps) {
   const { palette, resolved } = useTheme()
   const [view, setView] = useState<'front' | 'back'>('front')
   const [selectedPart, setSelectedPart] = useState<BodyPart | null>(null)
-  const [tempRating, setTempRating] = useState<number>(5)
 
   const parts = view === 'front' ? FRONT_PARTS : BACK_PARTS
+  const centers = useMemo(
+    () => new Map(parts.map((p) => [p.id, partCenter(p)] as const)),
+    [parts],
+  )
 
-  const baseFill = resolved === 'dark' ? palette.surfaceAlt : '#EEF1F4'
-  const stroke = palette.borderStrong
+  const figureFill = resolved === 'dark' ? palette.surfaceAlt : '#EFEFF1'
+  const figureStroke = resolved === 'dark' ? palette.border : '#E2E2E6'
+  const dotStroke = resolved === 'dark' ? palette.textTertiary : '#A6A6AB'
+  const dotFill = palette.bgElevated
 
-  const handlePartPress = (part: BodyPart) => {
-    Haptics.selectionAsync()
-    setTempRating(value[part] ?? 5)
+  const rated = (Object.entries(value) as [BodyPart, number][]).filter(
+    ([, level]) => level > 0,
+  )
+
+  const handleTap = (part: BodyPart) => {
+    Haptics.selectionAsync().catch(() => {})
+    if (selectedPart === part) {
+      setSelectedPart(null)
+      return
+    }
     setSelectedPart(part)
+    if (value[part] === undefined) {
+      onChange({ ...value, [part]: 3 })
+    }
   }
 
-  const confirmRating = () => {
-    if (selectedPart === null) return
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-    onChange({ ...value, [selectedPart]: tempRating })
-    setSelectedPart(null)
+  const handleRate = (level: number) => {
+    if (!selectedPart) return
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
+    if (level === 0) {
+      const next = { ...value }
+      delete next[selectedPart]
+      onChange(next)
+      return
+    }
+    onChange({ ...value, [selectedPart]: level })
   }
 
-  const removeRating = () => {
-    if (selectedPart === null) return
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+  const handleRemove = () => {
+    if (!selectedPart) return
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
     const next = { ...value }
     delete next[selectedPart]
     onChange(next)
     setSelectedPart(null)
   }
 
+  const handleClear = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+    onChange({})
+    setSelectedPart(null)
+  }
+
+  const selectedLevel = selectedPart ? value[selectedPart] ?? 0 : 0
+
   return (
     <View style={styles.wrap}>
-      <View style={styles.toggleRow}>
-        <View
-          style={[
-            styles.toggleTrack,
-            { backgroundColor: palette.surfaceAlt },
-          ]}
-        >
-          {(['front', 'back'] as const).map(v => {
-            const active = v === view
-            return (
-              <TouchableOpacity
-                key={v}
-                style={[
-                  styles.toggleBtn,
-                  active && {
-                    backgroundColor: palette.surface,
-                  },
-                ]}
-                onPress={() => {
-                  Haptics.selectionAsync()
-                  setView(v)
-                }}
-                activeOpacity={0.85}
-              >
-                <Text
-                  style={[
-                    styles.toggleLabel,
-                    {
-                      color: active ? palette.textPrimary : palette.textSecondary,
-                    },
-                  ]}
-                >
-                  {v === 'front' ? 'Front' : 'Back'}
-                </Text>
-              </TouchableOpacity>
-            )
-          })}
-        </View>
-      </View>
-
-      <View
-        style={[
-          styles.canvas,
-          {
-            backgroundColor: palette.surfaceAlt,
-            borderColor: palette.border,
-          },
+      <Segmented
+        compact
+        style={styles.toggle}
+        value={view}
+        onChange={(next) => {
+          setView(next)
+          setSelectedPart(null)
+        }}
+        options={[
+          { value: 'front', label: 'Front' },
+          { value: 'back', label: 'Back' },
         ]}
-      >
-        <Svg viewBox="0 0 200 420" width="100%" height="100%">
+      />
+
+      <View style={styles.canvas}>
+        <View style={styles.sideLabels} pointerEvents="none">
+          <Text style={[styles.sideLabel, { color: palette.textSecondary }]}>
+            {view === 'front' ? 'R' : 'L'}
+          </Text>
+          <Text style={[styles.sideLabel, { color: palette.textSecondary }]}>
+            {view === 'front' ? 'L' : 'R'}
+          </Text>
+        </View>
+        <Svg
+          viewBox="0 0 200 400"
+          width="100%"
+          height="100%"
+          accessibilityLabel={`${view} of the body. Tap a spot to rate it.`}
+        >
           <G>
-            {parts.map(part => {
-              const level = value[part.id] ?? 0
-              const fill = level > 0 ? painColor(level, palette) : baseFill
-
-              if (part.shape === 'ellipse') {
-                return (
-                  <Ellipse
-                    key={`${view}-${part.id}`}
-                    cx={part.cx}
-                    cy={part.cy}
-                    rx={part.rx}
-                    ry={part.ry}
-                    fill={fill}
-                    stroke={stroke}
-                    strokeWidth={1.5}
-                    onPress={() => handlePartPress(part.id)}
-                  />
-                )
-              }
-
-              return (
+            {parts.map((part) =>
+              part.shape === 'ellipse' ? (
+                <Ellipse
+                  key={`${view}-${part.id}`}
+                  cx={part.cx}
+                  cy={part.cy}
+                  rx={part.rx}
+                  ry={part.ry}
+                  fill={figureFill}
+                  stroke={figureStroke}
+                  strokeWidth={1}
+                  onPress={() => handleTap(part.id)}
+                />
+              ) : (
                 <Path
                   key={`${view}-${part.id}`}
                   d={part.d}
-                  fill={fill}
-                  stroke={stroke}
-                  strokeWidth={1.5}
-                  onPress={() => handlePartPress(part.id)}
+                  fill={figureFill}
+                  stroke={figureStroke}
+                  strokeWidth={1}
+                  onPress={() => handleTap(part.id)}
+                />
+              ),
+            )}
+          </G>
+          <G>
+            {parts.map((part) => {
+              const center = centers.get(part.id)
+              if (!center) return null
+              const level = value[part.id] ?? 0
+              const isSelected = selectedPart === part.id
+              if (level > 0) {
+                const color = painDot(level, palette)
+                return (
+                  <G key={`dot-${view}-${part.id}`} onPress={() => handleTap(part.id)}>
+                    <Circle
+                      cx={center.x}
+                      cy={center.y}
+                      r={isSelected ? 13 : 12}
+                      fill={color}
+                      stroke={isSelected ? palette.textPrimary : color}
+                      strokeWidth={isSelected ? 2 : 0}
+                    />
+                    <SvgText
+                      x={center.x}
+                      y={center.y + 4.2}
+                      fontSize={11}
+                      fontFamily={fonts.uiBold}
+                      fontWeight="700"
+                      fill={palette.black}
+                      textAnchor="middle"
+                    >
+                      {String(level)}
+                    </SvgText>
+                  </G>
+                )
+              }
+              return (
+                <Circle
+                  key={`dot-${view}-${part.id}`}
+                  cx={center.x}
+                  cy={center.y}
+                  r={isSelected ? 7 : 5}
+                  fill={dotFill}
+                  stroke={isSelected ? palette.textPrimary : dotStroke}
+                  strokeWidth={isSelected ? 2 : 1.2}
+                  onPress={() => handleTap(part.id)}
                 />
               )
             })}
@@ -181,253 +224,105 @@ export function PainBodyMap({ value, onChange, showLegend = true }: PainBodyMapP
         </Svg>
       </View>
 
-      {showLegend ? (
-        <View
-          style={[
-            styles.legend,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-            },
-          ]}
+      {selectedPart ? (
+        <Animated.View
+          key={selectedPart}
+          entering={FadeInDown.duration(motion.duration.base)}
+          exiting={FadeOut.duration(motion.duration.quick)}
+          style={[styles.ratingCard, { borderColor: palette.border }]}
+          accessibilityLiveRegion="polite"
         >
-          <Text style={[styles.legendTitle, { color: palette.textSecondary }]}>
-            Pain level
-          </Text>
-          <View style={styles.legendRow}>
-            <LegendItem color={palette.painMild} label="Mild (1-3)" textColor={palette.textSecondary} />
-            <LegendItem color={palette.painModerate} label="Moderate (4-6)" textColor={palette.textSecondary} />
-            <LegendItem color={palette.painSevere} label="Severe (7-10)" textColor={palette.textSecondary} />
+          <View style={styles.ratingHeader}>
+            <Text style={[styles.ratingTitle, { color: palette.textPrimary }]}>
+              {PART_LABELS[selectedPart]}
+            </Text>
+            <Pressable
+              onPress={handleRemove}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${PART_LABELS[selectedPart]}`}
+            >
+              <Text style={[styles.remove, { color: palette.textSecondary }]}>Remove</Text>
+            </Pressable>
           </View>
-        </View>
+          <Eyebrow
+            right={
+              <Text style={[styles.ratingCount, { color: palette.textSecondary }]}>
+                {selectedLevel}/10
+              </Text>
+            }
+          >
+            How bad
+          </Eyebrow>
+          <View style={styles.levels} accessibilityRole="radiogroup">
+            {LEVELS.map((level) => {
+              const active = level === selectedLevel
+              const color = painDot(level, palette)
+              return (
+                <Pressable
+                  key={level}
+                  onPress={() => handleRate(level)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={`Pain ${level} of 10`}
+                  style={[
+                    styles.level,
+                    {
+                      backgroundColor: active ? color : 'transparent',
+                      borderColor: active ? color : palette.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.levelText,
+                      { color: active ? palette.black : palette.textPrimary },
+                    ]}
+                  >
+                    {level}
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </View>
+        </Animated.View>
       ) : null}
 
-      <PainRatingSheet
-        visible={selectedPart !== null}
-        partLabel={selectedPart ? PART_LABELS[selectedPart] : ''}
-        rating={tempRating}
-        onChange={setTempRating}
-        onConfirm={confirmRating}
-        onRemove={removeRating}
-        onClose={() => setSelectedPart(null)}
-        canRemove={selectedPart ? value[selectedPart] !== undefined : false}
-        accentColor={painSolid(tempRating, palette)}
-      />
-    </View>
-  )
-}
-
-function LegendItem({
-  color,
-  label,
-  textColor,
-}: {
-  color: string
-  label: string
-  textColor: string
-}) {
-  return (
-    <View style={styles.legendItem}>
-      <View style={[styles.legendDot, { backgroundColor: color }]} />
-      <Text style={[styles.legendLabel, { color: textColor }]}>{label}</Text>
-    </View>
-  )
-}
-
-interface PainRatingSheetProps {
-  visible: boolean
-  partLabel: string
-  rating: number
-  onChange: (n: number) => void
-  onConfirm: () => void
-  onRemove: () => void
-  onClose: () => void
-  canRemove: boolean
-  accentColor: string
-}
-
-function PainRatingSheet({
-  visible,
-  partLabel,
-  rating,
-  onChange,
-  onConfirm,
-  onRemove,
-  onClose,
-  canRemove,
-  accentColor,
-}: PainRatingSheetProps) {
-  const { palette } = useTheme()
-
-  if (!visible) return null
-
-  return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType="none"
-      onRequestClose={onClose}
-    >
-      <GestureHandlerRootView style={styles.modalRoot}>
-        <Animated.View
-          entering={FadeIn.duration(motion.duration.quick)}
-          exiting={FadeOut.duration(motion.duration.quick)}
-          style={styles.backdrop}
-        >
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        </Animated.View>
-
-        <Animated.View
-          entering={SlideInDown.duration(motion.duration.base)}
-          exiting={SlideOutDown.duration(motion.duration.quick)}
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: palette.bgElevated,
-              borderColor: palette.border,
-            },
-          ]}
-        >
-          <View
-            style={[styles.handle, { backgroundColor: palette.borderStrong }]}
+      <View style={styles.chips}>
+        {rated.map(([part, level]) => {
+          const color = painDot(level, palette)
+          const active = selectedPart === part
+          return (
+            <Chip
+              key={part}
+              label={PART_LABELS[part]}
+              onPress={() => {
+                const shape = [...FRONT_PARTS, ...BACK_PARTS].find((p) => p.id === part)
+                const inFront = FRONT_PARTS.some((p) => p.id === part)
+                if (shape) setView(inFront ? 'front' : 'back')
+                setSelectedPart(part)
+              }}
+              accessibilityLabel={`${PART_LABELS[part]}, pain ${level} of 10. Edit.`}
+              leading={
+                <View style={[styles.badge, { backgroundColor: color }]}>
+                  <Text style={styles.badgeText}>{level}</Text>
+                </View>
+              }
+              style={[
+                styles.ratedChip,
+                active && { borderColor: palette.textPrimary },
+              ]}
+            />
+          )
+        })}
+        {showClear ? (
+          <Chip
+            label={rated.length > 0 ? 'Clear all' : 'No pain today'}
+            onPress={handleClear}
+            selected={false}
           />
-
-          <Text style={[styles.sheetTitle, { color: palette.textPrimary }]}>
-            {partLabel}
-          </Text>
-          <Text style={[styles.sheetSubtitle, { color: palette.textSecondary }]}>
-            Rate your pain level (0-10)
-          </Text>
-
-          <View style={styles.ratingRow}>
-            <Text style={[styles.ratingHint, { color: palette.textTertiary }]}>
-              No pain
-            </Text>
-            <Text style={[styles.ratingValue, { color: accentColor }]}>
-              {rating}
-            </Text>
-            <Text style={[styles.ratingHint, { color: palette.textTertiary }]}>
-              Worst pain
-            </Text>
-          </View>
-
-          <PainSlider
-            value={rating}
-            onChange={onChange}
-            accentColor={accentColor}
-          />
-
-          <View style={styles.tickRow}>
-            {[0, 2, 4, 6, 8, 10].map(n => (
-              <Text
-                key={n}
-                style={[styles.tick, { color: palette.textTertiary }]}
-              >
-                {n}
-              </Text>
-            ))}
-          </View>
-
-          <View style={styles.actionRow}>
-            <View style={styles.actionFlex}>
-              <PillButton
-                label={canRemove ? 'Remove' : 'Cancel'}
-                variant="secondary"
-                onPress={canRemove ? onRemove : onClose}
-              />
-            </View>
-            <View style={styles.actionFlex}>
-              <PillButton label="Confirm" onPress={onConfirm} />
-            </View>
-          </View>
-        </Animated.View>
-      </GestureHandlerRootView>
-    </Modal>
-  )
-}
-
-interface PainSliderProps {
-  value: number
-  onChange: (n: number) => void
-  accentColor: string
-}
-
-function PainSlider({ value, onChange, accentColor }: PainSliderProps) {
-  const { palette } = useTheme()
-  const { width } = useWindowDimensions()
-  const trackWidth = Math.min(width - 80, 480)
-  const thumbSize = 28
-
-  const offset = useSharedValue(((value / 10) * (trackWidth - thumbSize)))
-
-  React.useEffect(() => {
-    offset.value = withSpring(
-      (value / 10) * (trackWidth - thumbSize),
-      motion.spring,
-    )
-  }, [value, trackWidth, offset])
-
-  const updateValue = (next: number) => {
-    if (next !== value) {
-      Haptics.selectionAsync()
-      onChange(next)
-    }
-  }
-
-  const pan = Gesture.Pan()
-    .onChange(event => {
-      const next = Math.min(
-        trackWidth - thumbSize,
-        Math.max(0, offset.value + event.changeX),
-      )
-      offset.value = next
-      const ratio = next / (trackWidth - thumbSize)
-      const rounded = Math.round(ratio * 10)
-      runOnJS(updateValue)(rounded)
-    })
-    .onFinalize(() => {
-      const ratio = offset.value / (trackWidth - thumbSize)
-      const rounded = Math.round(ratio * 10)
-      offset.value = withSpring(
-        (rounded / 10) * (trackWidth - thumbSize),
-        motion.spring,
-      )
-    })
-
-  const thumbStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: offset.value }],
-  }))
-  const fillStyle = useAnimatedStyle(() => ({
-    width: offset.value + thumbSize / 2,
-  }))
-
-  return (
-    <View style={[styles.sliderTrackWrap, { width: trackWidth }]}>
-      <View
-        style={[
-          styles.sliderTrack,
-          { backgroundColor: palette.surfaceAlt },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.sliderFill,
-          { backgroundColor: accentColor },
-          fillStyle,
-        ]}
-      />
-      <GestureDetector gesture={pan}>
-        <Animated.View
-          style={[
-            styles.sliderThumb,
-            {
-              backgroundColor: palette.bgElevated,
-              borderColor: accentColor,
-            },
-            thumbStyle,
-          ]}
-        />
-      </GestureDetector>
+        ) : null}
+      </View>
     </View>
   )
 }
@@ -436,153 +331,85 @@ const styles = StyleSheet.create({
   wrap: {
     gap: spacing.lg,
   },
-  toggleRow: {
-    alignItems: 'center',
-  },
-  toggleTrack: {
-    flexDirection: 'row',
-    borderRadius: radius.pill,
-    padding: 4,
-    gap: 4,
-  },
-  toggleBtn: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
-  },
-  toggleLabel: {
-    ...typography.smallStrong,
+  toggle: {
+    alignSelf: 'flex-start',
   },
   canvas: {
-    aspectRatio: 200 / 420,
     width: '100%',
-    borderRadius: radius.xxl,
-    borderWidth: 1,
-    padding: spacing.lg,
+    aspectRatio: 200 / 400,
+    maxHeight: 440,
     alignSelf: 'center',
-    maxHeight: 480,
   },
-  legend: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  legendTitle: {
-    ...typography.smallStrong,
-  },
-  legendRow: {
+  sideLabels: {
+    position: 'absolute',
+    top: 8,
+    left: '12%',
+    right: '12%',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    zIndex: 1,
+  },
+  sideLabel: {
+    ...typography.mono,
+  },
+  ratingCard: {
+    borderWidth: 1,
+    borderRadius: radius.xxl,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
+  },
+  ratingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  ratingTitle: {
+    ...typography.h3,
+  },
+  remove: {
+    ...typography.smallStrong,
+  },
+  ratingCount: {
+    ...typography.mono,
+    fontSize: 11,
+  },
+  levels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 4,
+  },
+  level: {
+    flex: 1,
+    aspectRatio: 1,
+    maxWidth: 30,
+    borderWidth: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  levelText: {
+    ...typography.smallStrong,
+    fontSize: 12,
+  },
+  chips: {
+    flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  legendItem: {
-    flexDirection: 'row',
+  ratedChip: {
+    paddingLeft: 6,
+  },
+  badge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
-    gap: spacing.sm,
-  },
-  legendDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-  },
-  legendLabel: {
-    ...typography.small,
-  },
-
-  modalRoot: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  sheet: {
-    borderTopLeftRadius: radius.xxl,
-    borderTopRightRadius: radius.xxl,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.huge,
-    gap: spacing.lg,
-    borderTopWidth: 1,
-  },
-  handle: {
-    width: 44,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-  },
-  sheetTitle: {
-    ...typography.h2,
-  },
-  sheetSubtitle: {
-    ...typography.small,
-    marginTop: -spacing.sm,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.sm,
-  },
-  ratingHint: {
-    ...typography.small,
-  },
-  ratingValue: {
-    ...typography.metric,
-    fontSize: 40,
-    lineHeight: 44,
-  },
-  sliderTrackWrap: {
-    height: 28,
     justifyContent: 'center',
-    alignSelf: 'center',
   },
-  sliderTrack: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 12,
-    height: 6,
-    borderRadius: 3,
-  },
-  sliderFill: {
-    position: 'absolute',
-    left: 0,
-    top: 12,
-    height: 6,
-    borderRadius: 3,
-  },
-  sliderThumb: {
-    position: 'absolute',
-    top: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 3,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-  },
-  tickRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-  },
-  tick: {
-    ...typography.caption,
-    fontSize: 10,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  actionFlex: {
-    flex: 1,
+  badgeText: {
+    ...typography.smallStrong,
+    fontSize: 12,
+    color: '#0B0B0D',
   },
 })

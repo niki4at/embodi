@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient'
 import React from 'react'
 import {
   ActivityIndicator,
@@ -12,10 +13,10 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated'
 
-import { motion, radius, shadow, spacing, typography } from '@/constants/design'
+import { gradients, motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 
-type PillVariant = 'primary' | 'secondary' | 'ghost'
+type PillVariant = 'primary' | 'gradient' | 'secondary' | 'ghost'
 
 interface PillButtonProps {
   label: string
@@ -30,9 +31,10 @@ interface PillButtonProps {
 }
 
 /**
- * Coral pill CTA matching the Figma onboarding "Get started" / "I already have
- * an account" buttons. Variants share the same height and pill radius so
- * stacked CTAs line up cleanly.
+ * Bodfit pill CTA. `primary` is solid ink (Continue, Log it), `gradient` is
+ * the blue-to-lavender hero button (Build my session, Start session),
+ * `secondary` is a hairline outline, `ghost` is text only. All share one
+ * height and radius so stacked CTAs line up.
  */
 export function PillButton({
   label,
@@ -51,46 +53,54 @@ export function PillButton({
     transform: [{ scale: scale.value }],
   }))
 
-  const isPrimary = variant === 'primary'
-  const isGhost = variant === 'ghost'
+  const ink = resolved === 'dark' ? palette.white : palette.textPrimary
+  const onInk = resolved === 'dark' ? palette.black : palette.white
 
-  const containerStyle: ViewStyle = isPrimary
-    ? {
-        backgroundColor: disabled ? palette.surfaceHigh : palette.primary,
-        ...(disabled
-          ? shadow.none
-          : resolved === 'dark'
-            ? shadow.primaryDark
-            : shadow.primary),
+  let containerStyle: ViewStyle
+  let labelColor: string
+  switch (variant) {
+    case 'primary':
+      containerStyle = { backgroundColor: disabled ? palette.surfaceHigh : ink }
+      labelColor = disabled ? palette.textTertiary : onInk
+      break
+    case 'gradient':
+      containerStyle = { backgroundColor: 'transparent' }
+      labelColor = palette.white
+      break
+    case 'secondary':
+      containerStyle = {
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: palette.borderStrong,
       }
-    : isGhost
-      ? {
-          backgroundColor: 'transparent',
-        }
-      : {
-          backgroundColor: palette.surface,
-          borderWidth: 1,
-          borderColor: palette.borderStrong,
-        }
+      labelColor = palette.textPrimary
+      break
+    case 'ghost':
+      containerStyle = { backgroundColor: 'transparent' }
+      labelColor = palette.textSecondary
+      break
+    default: {
+      const _exhaustive: never = variant
+      return _exhaustive
+    }
+  }
 
-  const labelColor = isPrimary
-    ? palette.white
-    : isGhost
-      ? palette.textSecondary
-      : palette.textPrimary
+  const content = loading ? (
+    <ActivityIndicator color={labelColor} />
+  ) : (
+    <Text style={[styles.label, { color: labelColor }]} numberOfLines={1}>
+      {label}
+    </Text>
+  )
 
   return (
     <Animated.View
-      style={[
-        animatedStyle,
-        fullWidth ? styles.fullWidth : null,
-        style,
-      ]}
+      style={[animatedStyle, fullWidth ? styles.fullWidth : null, style]}
     >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
-        accessibilityState={{ disabled: !!disabled }}
+        accessibilityState={{ disabled: !!disabled, busy: !!loading }}
         testID={testID}
         onPress={() => {
           if (disabled || loading) return
@@ -105,10 +115,17 @@ export function PillButton({
         }}
         style={[styles.base, containerStyle, disabled && styles.disabled]}
       >
-        {loading ? (
-          <ActivityIndicator color={labelColor} />
+        {variant === 'gradient' ? (
+          <LinearGradient
+            colors={[...gradients.hero]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={[styles.gradient, disabled && styles.gradientDisabled]}
+          >
+            {content}
+          </LinearGradient>
         ) : (
-          <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
+          content
         )}
       </Pressable>
     </Animated.View>
@@ -120,16 +137,26 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   base: {
-    height: 58,
-    borderRadius: radius.xl,
+    height: 52,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
+    overflow: 'hidden',
+  },
+  gradient: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+  },
+  gradientDisabled: {
+    opacity: 0.55,
   },
   label: {
     ...typography.button,
   },
   disabled: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
 })

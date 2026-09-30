@@ -6,50 +6,61 @@ import React, { useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native'
-import Animated, {
-  FadeInDown,
-  SlideInRight,
-  SlideOutLeft,
-} from 'react-native-reanimated'
+import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { IconSymbol } from '@/components/ui/icon-symbol'
-import { PillButton } from '@/components/ui/pill-button'
 import {
   ContextEditorSheet,
-  ContextSummary,
   CONTEXT_TAGS,
   EQUIPMENT_INTENT_LABELS,
   EQUIPMENT_INTENTS,
   isEquipmentIntent,
   isTrainingEnvironment,
-  requiresTrainingContextConfirmation,
   TRAINING_ENVIRONMENT_LABELS,
   TRAINING_ENVIRONMENTS,
   useForegroundPlaceMatch,
   type ContextSuggestionSource,
-  type TrainingContextTag,
   type TrainingContextSelection,
+  type TrainingContextTag,
+  type TrainingEnvironment,
 } from '@/components/training-context'
+import { PillButton } from '@/components/ui/pill-button'
+import {
+  Chip,
+  Eyebrow,
+  FlowHeader,
+  InferredSparkle,
+  OptionTile,
+  Segmented,
+  TextLink,
+} from '@/components/ui/primitives'
+import {
+  ENERGY_OPTIONS,
+  FOCUS_OPTIONS,
+  INTENSITY_OPTIONS,
+  QUICK_PAIN_AREAS,
+  SLEEP_OPTIONS,
+  STRESS_OPTIONS,
+  TIME_OPTIONS,
+  WORKOUT_TYPE_OPTIONS,
+  type EnergyBucket,
+  type IntensityPreference,
+  type SleepQuality,
+  type StressBucket,
+  type TimeAvailable,
+  type WorkoutType,
+} from '@/constants/checkin-labels'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 
-import CheckInChoice, { type ChoiceOption } from './CheckInChoice'
-import CheckInMultiChoice, { type MultiChoiceOption } from './CheckInMultiChoice'
-import CheckInSlider from './CheckInSlider'
 import { PainBodyMap, type BodyPart, type PainRatings } from './PainBodyMap'
-
-type SleepQuality = 'rough' | 'okay' | 'decent' | 'great'
-type WorkoutType = 'strength' | 'mobility' | 'cardio' | 'recovery' | 'mixed'
-type IntensityPreference = 'easy' | 'moderate' | 'challenging'
-type TimeAvailable = '15' | '30' | '45' | '60'
 
 type RecommendationSeed = {
   title: string
@@ -70,28 +81,31 @@ const VALID_WORKOUT_TYPES: WorkoutType[] = [
   'mixed',
 ]
 
-const TIME_BUCKETS: TimeAvailable[] = ['15', '30', '45', '60']
-
-function workoutTypeFromModality(modality: string): WorkoutType | null {
+function workoutOptionIndexFromModality(modality: string): number | null {
   const m = modality.toLowerCase()
+  const find = (label: string) =>
+    WORKOUT_TYPE_OPTIONS.findIndex((o) => o.label.toLowerCase() === label)
+  if (m.includes('run')) return find('run')
   if (m.includes('strength') || m.includes('lift') || m.includes('power'))
-    return 'strength'
+    return find('strength')
   if (m.includes('mobility') || m.includes('yoga') || m.includes('flex'))
-    return 'mobility'
-  if (m.includes('cardio') || m.includes('run') || m.includes('endurance'))
-    return 'cardio'
+    return find('mobility')
+  if (m.includes('cardio') || m.includes('endurance')) return find('cardio')
   if (m.includes('recovery') || m.includes('breath') || m.includes('rest'))
-    return 'recovery'
+    return find('recovery')
   if (m.includes('mixed') || m.includes('hybrid') || m.includes('full'))
-    return 'mixed'
-  if (VALID_WORKOUT_TYPES.includes(m as WorkoutType)) return m as WorkoutType
+    return find('hybrid')
+  if (VALID_WORKOUT_TYPES.includes(m as WorkoutType)) {
+    const idx = WORKOUT_TYPE_OPTIONS.findIndex((o) => o.value === m)
+    return idx >= 0 ? idx : null
+  }
   return null
 }
 
 function nearestTimeBucket(durationMin: number): TimeAvailable {
   let best: TimeAvailable = '30'
   let bestDelta = Infinity
-  for (const bucket of TIME_BUCKETS) {
+  for (const bucket of TIME_OPTIONS) {
     const delta = Math.abs(parseInt(bucket, 10) - durationMin)
     if (delta < bestDelta) {
       bestDelta = delta
@@ -123,69 +137,17 @@ function parseRecommendationSeed(raw: unknown): RecommendationSeed | null {
   return null
 }
 
-interface CheckInFormData {
-  energyLevel: number
-  sleepQuality: SleepQuality | null
-  painRatings: PainRatings
-  stressLevel: number
-  workoutType: WorkoutType | null
-  focusAreas: string[]
-  intensityPreference: IntensityPreference | null
-  timeAvailable: TimeAvailable | null
-  notes: string
+function parseStringArray(raw: string | undefined): string[] {
+  if (!raw) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return Array.isArray(parsed)
+      ? parsed.filter((value): value is string => typeof value === 'string')
+      : []
+  } catch {
+    return []
+  }
 }
-
-const SLEEP_OPTIONS: ChoiceOption<SleepQuality>[] = [
-  { value: 'rough', label: 'Rough night', emoji: '😴', description: 'Barely slept' },
-  { value: 'okay', label: 'Could be better', emoji: '😐', description: 'Woke up tired' },
-  { value: 'decent', label: 'Decent', emoji: '🙂', description: 'Rested enough' },
-  { value: 'great', label: 'Slept great', emoji: '😊', description: 'Feel refreshed' },
-]
-
-const WORKOUT_OPTIONS: ChoiceOption<WorkoutType>[] = [
-  { value: 'strength', label: 'Strength', emoji: '💪', description: 'Build power' },
-  { value: 'mobility', label: 'Mobility', emoji: '🧘', description: 'Flexibility' },
-  { value: 'cardio', label: 'Cardio', emoji: '🏃', description: 'Get moving' },
-  { value: 'recovery', label: 'Recovery', emoji: '🌿', description: 'Gentle day' },
-  { value: 'mixed', label: 'Mixed', emoji: '⚡', description: 'A bit of everything' },
-]
-
-const FOCUS_OPTIONS: MultiChoiceOption[] = [
-  { value: 'full-body', label: 'Full body', emoji: '🧍' },
-  { value: 'upper-body', label: 'Upper body', emoji: '💪' },
-  { value: 'lower-body', label: 'Lower body', emoji: '🦵' },
-  { value: 'chest', label: 'Chest', emoji: '🫀' },
-  { value: 'back', label: 'Back', emoji: '🔙' },
-  { value: 'shoulders', label: 'Shoulders', emoji: '🤸' },
-  { value: 'arms', label: 'Arms', emoji: '💪' },
-  { value: 'core', label: 'Core', emoji: '🎯' },
-  { value: 'legs', label: 'Legs', emoji: '🦵' },
-  { value: 'glutes', label: 'Glutes', emoji: '🍑' },
-]
-
-const INTENSITY_OPTIONS: ChoiceOption<IntensityPreference>[] = [
-  { value: 'easy', label: 'Easy', emoji: '🌱', description: 'Keep it light' },
-  { value: 'moderate', label: 'Moderate', emoji: '🔥', description: 'Steady effort' },
-  { value: 'challenging', label: 'Push me', emoji: '🚀', description: 'Go hard' },
-]
-
-const TIME_OPTIONS: ChoiceOption<TimeAvailable>[] = [
-  { value: '15', label: '15 min', emoji: '⚡' },
-  { value: '30', label: '30 min', emoji: '⏱️' },
-  { value: '45', label: '45 min', emoji: '💪' },
-  { value: '60', label: '60 min', emoji: '🏆' },
-]
-
-const TOTAL_STEPS = 4
-const WEEKDAYS = [
-  'sunday',
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-] as const
 
 function preferredSuggestionSource(
   environmentSource: ContextSuggestionSource,
@@ -201,28 +163,70 @@ function preferredSuggestionSource(
   ]
   return (
     priority.find(
-      (source) =>
-        source === environmentSource || source === equipmentSource,
+      (source) => source === environmentSource || source === equipmentSource,
     ) ?? 'fallback'
   )
 }
 
-function parseStringArray(raw: string | undefined): string[] {
-  if (!raw) return []
-  try {
-    const parsed: unknown = JSON.parse(raw)
-    return Array.isArray(parsed)
-      ? parsed.filter((value): value is string => typeof value === 'string')
-      : []
-  } catch {
-    return []
+function suggestedIntensity(
+  sleep: SleepQuality | null,
+  energy: EnergyBucket | null,
+): IntensityPreference {
+  if (energy === 'drained' || energy === 'low' || sleep === 'rough') return 'easy'
+  if (
+    energy === 'charged' ||
+    (energy === 'good' && (sleep === 'great' || sleep === 'decent'))
+  ) {
+    return 'challenging'
   }
+  return 'moderate'
+}
+
+const WEEKDAYS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+] as const
+
+const TOTAL_STEPS = 4
+const STEP_EYEBROW = ['', 'Body', 'Time', 'Set up'] as const
+const STEP_TITLE = [
+  'How are you today?',
+  'Anything sore or hurting?',
+  'How long have you got?',
+  'What are we doing?',
+] as const
+
+/** Location is only asked for gym-flavoured work; runs, mobility, and recovery skip it. */
+function asksForLocation(option: (typeof WORKOUT_TYPE_OPTIONS)[number] | null): boolean {
+  if (!option) return false
+  if (option.focusTag === 'running') return false
+  return option.value === 'strength' || option.value === 'mixed' || option.value === 'cardio'
+}
+
+interface CheckInFormData {
+  sleepQuality: SleepQuality | null
+  energy: EnergyBucket | null
+  stress: StressBucket | null
+  quickPainAreas: string[]
+  painRatings: PainRatings
+  timeAvailable: TimeAvailable | null
+  workoutOption: number | null
+  focusAreas: string[]
+  intensityPreference: IntensityPreference | null
+  notes: string
 }
 
 export default function CheckInScreen() {
   const { palette } = useTheme()
   const params = useLocalSearchParams<{
     rec?: string
+    step?: string
+    bodyMap?: string
     trainingEnvironment?: string
     equipmentIntent?: string
     contextTags?: string
@@ -230,50 +234,56 @@ export default function CheckInScreen() {
   }>()
   const recommendation = useMemo(
     () => parseRecommendationSeed(params.rec),
-    [params.rec]
+    [params.rec],
   )
+  const initialStep = useMemo(() => {
+    const parsed = parseInt(params.step ?? '0', 10)
+    return Number.isFinite(parsed) && parsed >= 0 && parsed < TOTAL_STEPS
+      ? parsed
+      : 0
+  }, [params.step])
 
-  const [currentStep, setCurrentStep] = useState(0)
+  const [currentStep, setCurrentStep] = useState(initialStep)
+  const [bodyMapMode, setBodyMapMode] = useState(params.bodyMap === '1')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [notesFocused, setNotesFocused] = useState(false)
   const [contextEditorOpen, setContextEditorOpen] = useState(false)
   const [homeSetupPrompted, setHomeSetupPrompted] = useState(false)
-  const [confirmedEnvironment, setConfirmedEnvironment] = useState(false)
-  const [confirmedEquipmentIntent, setConfirmedEquipmentIntent] =
-    useState(false)
   const [trainingContext, setTrainingContext] =
     useState<TrainingContextSelection | null>(null)
-  const [formData, setFormData] = useState<CheckInFormData>(() => {
-    const seededWorkoutType = recommendation
-      ? workoutTypeFromModality(recommendation.modality)
-      : null
-    const seededTime = recommendation
+  const [formData, setFormData] = useState<CheckInFormData>(() => ({
+    sleepQuality: null,
+    energy: null,
+    stress: null,
+    quickPainAreas: [],
+    painRatings: {},
+    timeAvailable: recommendation
       ? nearestTimeBucket(recommendation.durationMin)
-      : null
-    return {
-      energyLevel: 5,
-      sleepQuality: null,
-      painRatings: {},
-      stressLevel: 2,
-      workoutType: seededWorkoutType,
-      focusAreas: [],
-      intensityPreference: null,
-      timeAvailable: seededTime,
-      notes: '',
-    }
-  })
+      : null,
+    workoutOption: recommendation
+      ? workoutOptionIndexFromModality(recommendation.modality)
+      : null,
+    focusAreas: [],
+    intensityPreference: null,
+    notes: '',
+  }))
 
-  // Re-pre-fill if the user navigates back into the screen with a different rec.
   useEffect(() => {
     if (!recommendation) return
     setFormData((prev) => ({
       ...prev,
-      workoutType:
-        prev.workoutType ?? workoutTypeFromModality(recommendation.modality),
+      workoutOption:
+        prev.workoutOption ?? workoutOptionIndexFromModality(recommendation.modality),
       timeAvailable:
         prev.timeAvailable ?? nearestTimeBucket(recommendation.durationMin),
     }))
   }, [recommendation])
+
+  const workoutOption =
+    formData.workoutOption !== null
+      ? WORKOUT_TYPE_OPTIONS[formData.workoutOption] ?? null
+      : null
+  const workoutType: WorkoutType | null = workoutOption?.value ?? null
 
   const onboardingData = useQuery(api.onboarding.getOnboarding)
   const trainingPreferences = useQuery(api.trainingPreferences.get)
@@ -304,7 +314,7 @@ export default function CheckInScreen() {
   )
   const contextSuggestion = useQuery(
     api.trainingContext.suggest,
-    formData.workoutType
+    workoutType
       ? {
           manualContext:
             requestedEnvironment || requestedEquipmentIntent
@@ -314,11 +324,10 @@ export default function CheckInScreen() {
                 }
               : undefined,
           foregroundPlaceMatch: foregroundPlaceMatch ?? undefined,
-          workoutType: formData.workoutType,
+          workoutType,
           goal: recommendation?.title ?? onboardingData?.goal,
           weekday: WEEKDAYS[suggestionNow.getDay()],
-          timeOfDay:
-            suggestionNow.getHours() < 12 ? 'morning' : 'evening',
+          timeOfDay: suggestionNow.getHours() < 12 ? 'morning' : 'evening',
         }
       : 'skip',
   )
@@ -336,7 +345,7 @@ export default function CheckInScreen() {
 
   useEffect(() => {
     if (
-      !formData.workoutType ||
+      !workoutType ||
       trainingContext?.suggestionSource === 'manual' ||
       equipmentInventory === undefined ||
       contextSuggestion === undefined
@@ -354,24 +363,22 @@ export default function CheckInScreen() {
       contextSuggestion.environment.reason,
       contextSuggestion.equipmentIntent.reason,
     ].filter((reason, index, values) => values.indexOf(reason) === index)
-    setTrainingContext(
-      {
-        trainingEnvironment: nextEnvironment,
-        equipmentIntent: nextEquipmentIntent,
-        contextTags: requestedContextTags,
-        suggestionSource: preferredSuggestionSource(
-          contextSuggestion.environment.source,
-          contextSuggestion.equipmentIntent.source,
-        ),
-        suggestionReason: reasons.join(' '),
-        equipmentSnapshot,
-        unavailableEquipment: requestedUnavailableEquipment,
-      },
-    )
+    setTrainingContext({
+      trainingEnvironment: nextEnvironment,
+      equipmentIntent: nextEquipmentIntent,
+      contextTags: requestedContextTags,
+      suggestionSource: preferredSuggestionSource(
+        contextSuggestion.environment.source,
+        contextSuggestion.equipmentIntent.source,
+      ),
+      suggestionReason: reasons.join(' '),
+      equipmentSnapshot,
+      unavailableEquipment: requestedUnavailableEquipment,
+    })
   }, [
     equipmentInventory,
     equipmentSnapshot,
-    formData.workoutType,
+    workoutType,
     contextSuggestion,
     requestedContextTags,
     requestedUnavailableEquipment,
@@ -382,6 +389,7 @@ export default function CheckInScreen() {
     if (
       currentStep !== 3 ||
       homeSetupPrompted ||
+      !asksForLocation(workoutOption) ||
       trainingContext?.trainingEnvironment !== 'home' ||
       equipmentInventory === undefined ||
       equipmentInventory.length > 0
@@ -391,7 +399,7 @@ export default function CheckInScreen() {
     setHomeSetupPrompted(true)
     Alert.alert(
       'Set up your home equipment?',
-      'Save it once and Embodi will consider it for future Home sessions. You can use bodyweight today and do this later.',
+      'Save it once and Bodfit will consider it for future Home sessions. You can use bodyweight today and do this later.',
       [
         { text: 'Bodyweight today', style: 'cancel' },
         {
@@ -405,686 +413,653 @@ export default function CheckInScreen() {
     equipmentInventory,
     homeSetupPrompted,
     trainingContext?.trainingEnvironment,
+    workoutOption,
   ])
 
-  const updateFormData = <K extends keyof CheckInFormData>(
+  const update = <K extends keyof CheckInFormData>(
     key: K,
     value: CheckInFormData[K],
-  ) => {
-    setFormData(prev => ({ ...prev, [key]: value }))
-  }
+  ) => setFormData((prev) => ({ ...prev, [key]: value }))
 
   const { painLevel, painAreas } = useMemo(() => {
     const entries = Object.entries(formData.painRatings) as [BodyPart, number][]
-    const max = entries.reduce((acc, [, lvl]) => Math.max(acc, lvl), 0)
-    return {
-      painLevel: max,
-      painAreas: entries.filter(([, lvl]) => lvl > 0).map(([part]) => part),
-    }
-  }, [formData.painRatings])
-  const needsEnvironmentConfirmation =
-    requiresTrainingContextConfirmation(
-      contextSuggestion?.environment.confidence,
-      confirmedEnvironment,
-    )
-  const needsEquipmentConfirmation =
-    requiresTrainingContextConfirmation(
-      contextSuggestion?.equipmentIntent.confidence,
-      confirmedEquipmentIntent,
-    )
+    const rated = entries.filter(([, lvl]) => lvl > 0)
+    const max = rated.reduce((acc, [, lvl]) => Math.max(acc, lvl), 0)
+    const areas = [
+      ...formData.quickPainAreas,
+      ...rated.map(([part]) => part as string),
+    ]
+    const level =
+      max > 0 ? max : formData.quickPainAreas.length > 0 ? 4 : 0
+    return { painLevel: level, painAreas: Array.from(new Set(areas)) }
+  }, [formData.painRatings, formData.quickPainAreas])
+
+  const intensitySuggestion = suggestedIntensity(
+    formData.sleepQuality,
+    formData.energy,
+  )
+  const needsLocation = asksForLocation(workoutOption)
 
   const canProceed = (): boolean => {
     switch (currentStep) {
       case 0:
-        return formData.sleepQuality !== null
+        return formData.sleepQuality !== null && formData.energy !== null
       case 1:
         return true
       case 2:
-        return (
-          formData.workoutType !== null && formData.intensityPreference !== null
-        )
+        return formData.timeAvailable !== null
       case 3:
         return (
-          formData.timeAvailable !== null &&
-          trainingContext !== null &&
-          !needsEnvironmentConfirmation &&
-          !needsEquipmentConfirmation
+          workoutType !== null &&
+          formData.intensityPreference !== null &&
+          (!needsLocation || trainingContext !== null)
         )
       default:
         return true
     }
   }
 
+  const goTo = (step: number) => setCurrentStep(step)
+
   const handleNext = () => {
     if (currentStep < TOTAL_STEPS - 1) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      setCurrentStep(prev => prev + 1)
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
+      goTo(currentStep + 1)
     }
   }
 
   const handleBack = () => {
-    if (currentStep > 0) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-      setCurrentStep(prev => prev - 1)
-    } else {
-      router.back()
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {})
+    if (currentStep === 1 && bodyMapMode) {
+      setBodyMapMode(false)
+      return
     }
+    if (currentStep > 0) {
+      goTo(currentStep - 1)
+    } else if (router.canGoBack()) {
+      router.back()
+    } else {
+      router.replace('/')
+    }
+  }
+
+  const handleSkipToWorkout = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
+    setFormData((prev) => ({
+      ...prev,
+      sleepQuality: 'great',
+      energy: 'charged',
+      stress: 'calm',
+      quickPainAreas: [],
+      painRatings: {},
+      timeAvailable: prev.timeAvailable ?? '30',
+    }))
+    goTo(3)
   }
 
   const handleSubmit = async () => {
     if (isSubmitting) return
-
+    const energyOption = ENERGY_OPTIONS.find((o) => o.value === formData.energy)
+    const stressOption =
+      STRESS_OPTIONS.find((o) => o.value === formData.stress) ?? STRESS_OPTIONS[0]
     if (
       !formData.sleepQuality ||
-      !formData.workoutType ||
+      !energyOption ||
+      !workoutType ||
       !formData.intensityPreference ||
       !formData.timeAvailable ||
-      !trainingContext ||
-      needsEnvironmentConfirmation ||
-      needsEquipmentConfirmation
+      (needsLocation && !trainingContext)
     ) {
       return
     }
 
+    const focusAreas = [
+      ...formData.focusAreas,
+      ...(workoutOption?.focusTag ? [workoutOption.focusTag] : []),
+    ]
+
     setIsSubmitting(true)
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-
       const result = await createCheckin({
         data: {
-          energyLevel: formData.energyLevel,
+          energyLevel: energyOption.level,
           sleepQuality: formData.sleepQuality,
           painLevel,
           painAreas: painAreas.length > 0 ? painAreas : undefined,
-          stressLevel: formData.stressLevel,
-          workoutType: formData.workoutType,
-          focusAreas:
-            formData.focusAreas.length > 0 ? formData.focusAreas : undefined,
+          stressLevel: stressOption.level,
+          workoutType,
+          focusAreas: focusAreas.length > 0 ? focusAreas : undefined,
           intensityPreference: formData.intensityPreference,
           timeAvailable: formData.timeAvailable,
           notes: formData.notes.trim() || undefined,
-          trainingEnvironment: trainingContext.trainingEnvironment,
-          equipmentIntent: trainingContext.equipmentIntent,
-          contextTags: trainingContext.contextTags,
-          suggestionSource: trainingContext.suggestionSource,
-          suggestionReason: trainingContext.suggestionReason,
-          unavailableEquipment: trainingContext.unavailableEquipment,
+          trainingEnvironment: trainingContext?.trainingEnvironment,
+          equipmentIntent: trainingContext?.equipmentIntent,
+          contextTags: trainingContext?.contextTags,
+          suggestionSource: trainingContext?.suggestionSource,
+          suggestionReason: trainingContext?.suggestionReason,
+          unavailableEquipment: trainingContext?.unavailableEquipment,
         },
         startSession: true,
         recommendationSeed: recommendation ?? undefined,
       })
 
       if (result.sessionId) {
-        await recordContextEvent({
-          trainingEnvironment: trainingContext.trainingEnvironment,
-          equipmentIntent: trainingContext.equipmentIntent,
-          contextTags: trainingContext.contextTags,
-          workoutType: formData.workoutType,
-          goal: recommendation?.title ?? onboardingData?.goal,
-          localWeekday: WEEKDAYS[suggestionNow.getDay()],
-          timeOfDay:
-            suggestionNow.getHours() < 12 ? 'morning' : 'evening',
-          suggestionSource: trainingContext.suggestionSource,
-          suggestionReason: trainingContext.suggestionReason,
-          equipmentKeys: trainingContext.equipmentSnapshot.map(
-            (item) => item.catalogKey,
-          ),
-        }).catch((error: unknown) => {
-          console.info('Could not record training context pattern', error)
-        })
-        const sessionHref = {
+        if (trainingContext) {
+          await recordContextEvent({
+            trainingEnvironment: trainingContext.trainingEnvironment,
+            equipmentIntent: trainingContext.equipmentIntent,
+            contextTags: trainingContext.contextTags,
+            workoutType,
+            goal: recommendation?.title ?? onboardingData?.goal,
+            localWeekday: WEEKDAYS[suggestionNow.getDay()],
+            timeOfDay: suggestionNow.getHours() < 12 ? 'morning' : 'evening',
+            suggestionSource: trainingContext.suggestionSource,
+            suggestionReason: trainingContext.suggestionReason,
+            equipmentKeys: trainingContext.equipmentSnapshot.map(
+              (item) => item.catalogKey,
+            ),
+          }).catch((error: unknown) => {
+            console.info('Could not record training context pattern', error)
+          })
+        }
+        router.replace({
           pathname: '/session/ready',
           params: { sessionId: String(result.sessionId) },
-        } as unknown as Href
-        router.replace(sessionHref)
+        } as unknown as Href)
       }
     } catch (error) {
       console.error('Failed to create check-in:', error)
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {})
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const firstName = onboardingData?.name?.split(' ')[0] || 'there'
-  const proceedEnabled = canProceed()
   const isLast = currentStep === TOTAL_STEPS - 1
-  const buttonDisabled = !proceedEnabled || (isLast && isSubmitting)
+  const proceedEnabled = canProceed()
 
-  const renderStep = () => {
-    switch (currentStep) {
-      case 0:
-        return (
-          <Animated.View
-            key="step-0"
-            entering={SlideInRight.duration(motion.duration.base)}
-            exiting={SlideOutLeft.duration(motion.duration.quick)}
-          >
-            <Text style={[styles.stepTitle, { color: palette.textPrimary }]}>
-              How are you feeling today, {firstName}?
-            </Text>
-            <Text
-              style={[styles.stepSubtitle, { color: palette.textSecondary }]}
-            >
-              This shapes the session you get next.
-            </Text>
+  const setEnvironment = (environment: TrainingEnvironment) => {
+    setTrainingContext((current) =>
+      current
+        ? {
+            ...current,
+            trainingEnvironment: environment,
+            equipmentIntent:
+              environment === 'home' && equipmentSnapshot.length === 0
+                ? 'bodyweight'
+                : environment === 'home'
+                  ? 'available'
+                  : current.equipmentIntent === 'treadmill'
+                    ? 'treadmill'
+                    : 'available',
+            suggestionSource: 'manual',
+            suggestionReason: 'Chosen for this session.',
+          }
+        : current,
+    )
+  }
 
-            <CheckInSlider
-              title="Energy"
-              subtitle="How energised do you feel right now?"
-              value={formData.energyLevel}
-              min={1}
-              max={10}
-              minLabel="Running on empty"
-              maxLabel="Ready to crush it"
-              onChange={v => updateFormData('energyLevel', v)}
-              delay={80}
+  /* -------------------------------------------------------------- steps */
+
+  const renderStepOne = () => (
+    <View>
+      {!recommendation ? (
+        <Pressable
+          onPress={handleSkipToWorkout}
+          accessibilityRole="button"
+          accessibilityLabel="Feeling great? Skip to workout. Good energy, solid sleep, no pain. You can still change the workout."
+          style={({ pressed }) => [
+            styles.skipCard,
+            { backgroundColor: palette.coachMuted },
+            pressed && styles.pressed,
+          ]}
+        >
+          <Eyebrow color={palette.coach}>Feeling great?</Eyebrow>
+          <Text style={[styles.skipTitle, { color: palette.textPrimary }]}>
+            Skip to workout
+          </Text>
+          <Text style={[styles.skipBody, { color: palette.textSecondary }]}>
+            Good energy, solid sleep, no pain. You can still change the workout.
+          </Text>
+        </Pressable>
+      ) : (
+        <View style={[styles.skipCard, { backgroundColor: palette.primaryMuted }]}>
+          <Eyebrow color={palette.primary}>Building from your pick</Eyebrow>
+          <Text style={[styles.skipTitle, { color: palette.textPrimary }]}>
+            {recommendation.title}
+          </Text>
+          <Text style={[styles.skipBody, { color: palette.textSecondary }]}>
+            {recommendation.modality} {'\u00b7'} {recommendation.durationMin} min{' '}
+            {'\u00b7'} {recommendation.moveCount} moves
+          </Text>
+        </View>
+      )}
+
+      <Text style={[styles.title, { color: palette.textPrimary }]} accessibilityRole="header">
+        {STEP_TITLE[0]}
+      </Text>
+
+      <Eyebrow style={styles.groupLabel}>Sleep</Eyebrow>
+      <View style={styles.rowFour}>
+        {SLEEP_OPTIONS.map((option) => (
+          <OptionTile
+            key={option.value}
+            title={option.label}
+            subtitle={option.hint}
+            centered
+            selected={formData.sleepQuality === option.value}
+            onPress={() => update('sleepQuality', option.value)}
+            style={styles.quarterTile}
+            accessibilityLabel={`Sleep ${option.label}, ${option.hint}`}
+          />
+        ))}
+      </View>
+
+      <Eyebrow style={styles.groupLabel}>Energy</Eyebrow>
+      <View style={styles.stack}>
+        {ENERGY_OPTIONS.map((option) => (
+          <OptionTile
+            key={option.value}
+            title={option.label}
+            subtitle={option.hint}
+            dot={palette[option.dot]}
+            selected={formData.energy === option.value}
+            onPress={() => update('energy', option.value)}
+          />
+        ))}
+      </View>
+
+      <Eyebrow style={styles.groupLabel}>Stress</Eyebrow>
+      <View style={styles.rowThree}>
+        {STRESS_OPTIONS.map((option) => (
+          <OptionTile
+            key={option.value}
+            title={option.label}
+            centered
+            selected={formData.stress === option.value}
+            onPress={() => update('stress', option.value)}
+            style={styles.thirdTile}
+            accessibilityLabel={`Stress: ${option.label}`}
+          />
+        ))}
+      </View>
+    </View>
+  )
+
+  const renderStepTwo = () => (
+    <View>
+      <Eyebrow>{STEP_EYEBROW[1]}</Eyebrow>
+      <Text style={[styles.title, styles.titleTight, { color: palette.textPrimary }]} accessibilityRole="header">
+        {STEP_TITLE[1]}
+      </Text>
+      {bodyMapMode ? (
+        <>
+          <Text style={[styles.hint, { color: palette.textSecondary }]}>
+            Tap the exact spot. Tap it again to close.
+          </Text>
+          <PainBodyMap
+            value={formData.painRatings}
+            onChange={(ratings) => update('painRatings', ratings)}
+          />
+        </>
+      ) : (
+        <>
+          <View style={styles.chipWrap}>
+            {QUICK_PAIN_AREAS.map((area) => (
+              <Chip
+                key={area.id}
+                label={area.label}
+                selected={formData.quickPainAreas.includes(area.id)}
+                onPress={() =>
+                  update(
+                    'quickPainAreas',
+                    formData.quickPainAreas.includes(area.id)
+                      ? formData.quickPainAreas.filter((a) => a !== area.id)
+                      : [...formData.quickPainAreas, area.id],
+                  )
+                }
+              />
+            ))}
+          </View>
+          <View style={styles.stackTight}>
+            <Chip
+              label="Adjust on body map"
+              dashed
+              onPress={() => setBodyMapMode(true)}
+              style={styles.selfStart}
+              accessibilityLabel="Adjust on body map. Tap exact spots and rate them."
             />
-
-            <CheckInChoice
-              title="Sleep quality"
-              subtitle="How did you sleep last night?"
-              options={SLEEP_OPTIONS}
-              value={formData.sleepQuality}
-              onChange={v => updateFormData('sleepQuality', v)}
-              delay={160}
+            <Chip
+              label="Nothing today"
+              onPress={() => {
+                update('quickPainAreas', [])
+                update('painRatings', {})
+                handleNext()
+              }}
+              style={styles.selfStart}
+              accessibilityLabel="Nothing hurts today. Continue."
             />
-          </Animated.View>
-        )
+          </View>
+        </>
+      )}
+    </View>
+  )
 
-      case 1:
-        return (
-          <Animated.View
-            key="step-1"
-            entering={SlideInRight.duration(motion.duration.base)}
-            exiting={SlideOutLeft.duration(motion.duration.quick)}
-          >
-            <Text style={[styles.stepTitle, { color: palette.textPrimary }]}>
-              Any aches today?
-            </Text>
-            <Text
-              style={[styles.stepSubtitle, { color: palette.textSecondary }]}
-            >
-              Tap any body part that hurts and rate the intensity. I&apos;ll steer
-              the session around what&apos;s flaring up.
-            </Text>
+  const renderStepThree = () => (
+    <View>
+      <Eyebrow>{STEP_EYEBROW[2]}</Eyebrow>
+      <Text style={[styles.title, styles.titleTight, { color: palette.textPrimary }]} accessibilityRole="header">
+        {STEP_TITLE[2]}
+      </Text>
+      <View style={styles.timeGrid}>
+        {TIME_OPTIONS.map((minutes) => (
+          <OptionTile
+            key={minutes}
+            title={minutes}
+            subtitle="min"
+            centered
+            tone="ink"
+            selected={formData.timeAvailable === minutes}
+            onPress={() => update('timeAvailable', minutes)}
+            style={styles.timeTile}
+            accessibilityLabel={`${minutes} minutes`}
+          />
+        ))}
+      </View>
+    </View>
+  )
 
-            <PainBodyMap
-              value={formData.painRatings}
-              onChange={ratings => updateFormData('painRatings', ratings)}
-            />
+  const renderStepFour = () => {
+    const environmentOptions = TRAINING_ENVIRONMENTS.map((environment) => ({
+      value: environment,
+      label: TRAINING_ENVIRONMENT_LABELS[environment],
+      leading:
+        contextSuggestion?.environment.value === environment &&
+        contextSuggestion.environment.source !== 'manual' ? (
+          <InferredSparkle size={9} />
+        ) : undefined,
+    }))
+    const equipmentLabel =
+      trainingContext?.equipmentIntent === 'bodyweight'
+        ? 'Bodyweight only'
+        : trainingContext?.equipmentIntent === 'treadmill'
+          ? 'Treadmill'
+          : trainingContext && trainingContext.equipmentSnapshot.length > 0
+            ? trainingContext.equipmentSnapshot
+                .slice(0, 4)
+                .map((item) => item.label)
+                .join(' \u00b7 ')
+            : 'Whatever is on hand'
 
-            <View style={{ height: spacing.xl }} />
+    return (
+      <View>
+        <Eyebrow>{STEP_EYEBROW[3]}</Eyebrow>
+        <Text style={[styles.title, styles.titleTight, { color: palette.textPrimary }]} accessibilityRole="header">
+          {STEP_TITLE[3]}
+        </Text>
 
-            <CheckInSlider
-              title="Stress"
-              subtitle="How's your mental load?"
-              value={formData.stressLevel}
-              min={1}
-              max={5}
-              minLabel="Clear-headed"
-              maxLabel="Overwhelmed"
-              onChange={v => updateFormData('stressLevel', v)}
-              delay={160}
-            />
-          </Animated.View>
-        )
-
-      case 2:
-        return (
-          <Animated.View
-            key="step-2"
-            entering={SlideInRight.duration(motion.duration.base)}
-            exiting={SlideOutLeft.duration(motion.duration.quick)}
-          >
-            <Text style={[styles.stepTitle, { color: palette.textPrimary }]}>
-              What kind of session today?
-            </Text>
-            <Text
-              style={[styles.stepSubtitle, { color: palette.textSecondary }]}
-            >
-              Pick the focus and how hard you want to work.
-            </Text>
-
-            <CheckInChoice
-              title="Workout type"
-              subtitle="What sounds good right now?"
-              options={WORKOUT_OPTIONS}
-              value={formData.workoutType}
-              onChange={(value) => {
-                updateFormData('workoutType', value)
-                setConfirmedEnvironment(false)
-                setConfirmedEquipmentIntent(false)
+        <Eyebrow style={styles.groupLabelTight}>Type</Eyebrow>
+        <View style={styles.typeGrid}>
+          {WORKOUT_TYPE_OPTIONS.map((option, index) => (
+            <OptionTile
+              key={option.label}
+              title={option.label}
+              centered
+              tone="ink"
+              selected={formData.workoutOption === index}
+              onPress={() => {
+                update('workoutOption', index)
                 if (trainingContext?.suggestionSource !== 'manual') {
                   setTrainingContext(null)
                 }
               }}
-              columns={2}
-              delay={80}
+              style={styles.typeTile}
             />
+          ))}
+        </View>
 
-            <CheckInMultiChoice
-              title="Focus areas"
-              subtitle="Which areas do you want to work? (optional)"
-              options={FOCUS_OPTIONS}
-              selected={formData.focusAreas}
-              onChange={v => updateFormData('focusAreas', v)}
-              delay={120}
+        <Eyebrow style={styles.groupLabel}>Focus</Eyebrow>
+        <View style={styles.chipWrap}>
+          {FOCUS_OPTIONS.map((focus) => (
+            <Chip
+              key={focus.value}
+              label={focus.label}
+              selected={formData.focusAreas.includes(focus.value)}
+              onPress={() =>
+                update(
+                  'focusAreas',
+                  formData.focusAreas.includes(focus.value)
+                    ? formData.focusAreas.filter((f) => f !== focus.value)
+                    : [...formData.focusAreas, focus.value],
+                )
+              }
             />
+          ))}
+        </View>
 
-            <CheckInChoice
-              title="Intensity"
-              subtitle="How hard do you want to push?"
-              options={INTENSITY_OPTIONS}
-              value={formData.intensityPreference}
-              onChange={v => updateFormData('intensityPreference', v)}
-              columns={3}
-              delay={160}
-            />
-          </Animated.View>
-        )
-
-      case 3:
-        return (
-          <Animated.View
-            key="step-3"
-            entering={SlideInRight.duration(motion.duration.base)}
-            exiting={SlideOutLeft.duration(motion.duration.quick)}
-          >
-            <Text style={[styles.stepTitle, { color: palette.textPrimary }]}>
-              How much time do you have?
-            </Text>
-            <Text
-              style={[styles.stepSubtitle, { color: palette.textSecondary }]}
-            >
-              I&apos;ll design a session that fits.
-            </Text>
-
-            <CheckInChoice
-              title="Time available"
-              subtitle="Choose your session length"
-              options={TIME_OPTIONS}
-              value={formData.timeAvailable}
-              onChange={v => updateFormData('timeAvailable', v)}
-              columns={2}
-              delay={80}
-            />
-
-            {trainingContext ? (
-              <Animated.View
-                entering={FadeInDown.delay(120).duration(motion.duration.base)}
-                style={styles.contextContainer}
-              >
-                {contextSuggestion &&
-                ((contextSuggestion.environment.confidence < 0.5 &&
-                  !confirmedEnvironment) ||
-                  (contextSuggestion.equipmentIntent.confidence < 0.5 &&
-                    !confirmedEquipmentIntent)) ? (
-                  <View
-                    style={[
-                      styles.uncertainContext,
-                      {
-                        backgroundColor: palette.surface,
-                        borderColor: palette.border,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.uncertainTitle,
-                        { color: palette.textPrimary },
-                      ]}
-                    >
-                      Confirm today&apos;s setup
-                    </Text>
-                    {contextSuggestion.environment.confidence < 0.5 &&
-                    !confirmedEnvironment ? (
-                      <View style={styles.quickChoices}>
-                        {TRAINING_ENVIRONMENTS.map((environment) => (
-                          <TouchableOpacity
-                            key={environment}
-                            onPress={() => {
-                              setConfirmedEnvironment(true)
-                              setTrainingContext((current) =>
-                                current
-                                  ? {
-                                      ...current,
-                                      trainingEnvironment: environment,
-                                      suggestionSource: 'manual',
-                                      suggestionReason:
-                                        'Confirmed for this session.',
-                                    }
-                                  : current,
-                              )
-                            }}
-                            accessibilityRole="button"
-                            style={[
-                              styles.quickChoice,
-                              {
-                                backgroundColor:
-                                  trainingContext.trainingEnvironment ===
-                                  environment
-                                    ? palette.primaryMuted
-                                    : palette.surfaceAlt,
-                                borderColor:
-                                  trainingContext.trainingEnvironment ===
-                                  environment
-                                    ? palette.primary
-                                    : palette.border,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.quickChoiceText,
-                                { color: palette.textPrimary },
-                              ]}
-                            >
-                              {TRAINING_ENVIRONMENT_LABELS[environment]}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    ) : null}
-                    {contextSuggestion.equipmentIntent.confidence < 0.5 &&
-                    !confirmedEquipmentIntent ? (
-                      <View style={styles.quickChoices}>
-                        {EQUIPMENT_INTENTS.map((intent) => (
-                          <TouchableOpacity
-                            key={intent}
-                            onPress={() => {
-                              setConfirmedEquipmentIntent(true)
-                              setTrainingContext((current) =>
-                                current
-                                  ? {
-                                      ...current,
-                                      equipmentIntent: intent,
-                                      suggestionSource: 'manual',
-                                      suggestionReason:
-                                        'Confirmed for this session.',
-                                    }
-                                  : current,
-                              )
-                            }}
-                            accessibilityRole="button"
-                            style={[
-                              styles.quickChoice,
-                              {
-                                backgroundColor:
-                                  trainingContext.equipmentIntent === intent
-                                    ? palette.primaryMuted
-                                    : palette.surfaceAlt,
-                                borderColor:
-                                  trainingContext.equipmentIntent === intent
-                                    ? palette.primary
-                                    : palette.border,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.quickChoiceText,
-                                { color: palette.textPrimary },
-                              ]}
-                            >
-                              {EQUIPMENT_INTENT_LABELS[intent]}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    ) : null}
+        <Eyebrow style={styles.groupLabel}>Intensity</Eyebrow>
+        <View style={styles.rowThree}>
+          {INTENSITY_OPTIONS.map((option) => (
+            <OptionTile
+              key={option.value}
+              title={option.label}
+              subtitle={option.hint}
+              centered
+              tone="ink"
+              selected={formData.intensityPreference === option.value}
+              onPress={() => update('intensityPreference', option.value)}
+              style={styles.thirdTile}
+              trailing={
+                option.value === intensitySuggestion ? (
+                  <View style={styles.tileSparkle}>
+                    <InferredSparkle size={10} />
                   </View>
-                ) : null}
-                <ContextSummary
-                  value={trainingContext}
-                  onChange={() => setContextEditorOpen(true)}
-                />
-                {trainingContext.trainingEnvironment === 'home' &&
-                trainingContext.equipmentSnapshot.length === 0 ? (
-                  <TouchableOpacity
-                    onPress={() => router.push('/training-setup' as Href)}
-                    accessibilityRole="link"
-                    accessibilityLabel="Add equipment in training setup"
-                    style={styles.trainingSetupLink}
-                  >
-                    <Text
-                      style={[
-                        styles.trainingSetupLinkText,
-                        { color: palette.primary },
-                      ]}
-                    >
-                      Training at home with bodyweight. Add equipment
-                    </Text>
-                    <IconSymbol
-                      name="chevron.right"
-                      size={14}
-                      color={palette.primary}
+                ) : undefined
+              }
+              accessibilityLabel={`${option.label}, ${option.hint}${
+                option.value === intensitySuggestion
+                  ? '. Suggested for your sleep and energy.'
+                  : ''
+              }`}
+            />
+          ))}
+        </View>
+        <View style={styles.sparkleHint}>
+          <InferredSparkle size={9} />
+          <Text style={[styles.sparkleHintText, { color: palette.textSecondary }]}>
+            Suggested for your sleep and energy
+          </Text>
+        </View>
+
+        {needsLocation ? (
+          <>
+            <Eyebrow style={styles.groupLabel}>Where</Eyebrow>
+            <View style={[styles.whereCard, { borderColor: palette.border }]}>
+              {trainingContext ? (
+                <>
+                  <Segmented
+                    options={environmentOptions}
+                    value={trainingContext.trainingEnvironment}
+                    onChange={setEnvironment}
+                  />
+                  {contextSuggestion &&
+                  contextSuggestion.environment.source !== 'manual' ? (
+                    <View style={styles.sparkleHintInline}>
+                      <InferredSparkle size={9} />
+                      <Text
+                        style={[styles.sparkleHintText, { color: palette.textSecondary }]}
+                        numberOfLines={2}
+                      >
+                        {contextSuggestion.environment.reason}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <View style={[styles.whereDivider, { backgroundColor: palette.divider }]} />
+                  <View style={styles.whereRow}>
+                    <Eyebrow color={palette.primary}>
+                      {trainingContext.trainingEnvironment === 'home'
+                        ? 'Using what you have'
+                        : 'Select the following'}
+                    </Eyebrow>
+                    <TextLink
+                      label="Edit for today"
+                      color={palette.danger}
+                      onPress={() => setContextEditorOpen(true)}
                     />
-                  </TouchableOpacity>
-                ) : null}
-              </Animated.View>
-            ) : (
-              <View
-                style={[
-                  styles.contextLoading,
-                  {
-                    backgroundColor: palette.surface,
-                    borderColor: palette.border,
-                  },
-                ]}
-                accessibilityLiveRegion="polite"
-              >
-                <ActivityIndicator size="small" color={palette.primary} />
-                <Text
-                  style={[
-                    styles.contextLoadingText,
-                    { color: palette.textSecondary },
-                  ]}
-                >
-                  Matching your place and equipment…
-                </Text>
-              </View>
-            )}
+                  </View>
+                  {trainingContext.trainingEnvironment === 'home' ? (
+                    <Text
+                      style={[styles.equipmentLine, { color: palette.textPrimary }]}
+                      numberOfLines={2}
+                    >
+                      {equipmentLabel}
+                    </Text>
+                  ) : (
+                    <View style={styles.chipWrapTight}>
+                      {EQUIPMENT_INTENTS.map((intent) => (
+                        <Chip
+                          key={intent}
+                          label={EQUIPMENT_INTENT_LABELS[intent]}
+                          selected={trainingContext.equipmentIntent === intent}
+                          onPress={() =>
+                            setTrainingContext((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    equipmentIntent: intent,
+                                    suggestionSource: 'manual',
+                                    suggestionReason: 'Chosen for this session.',
+                                  }
+                                : current,
+                            )
+                          }
+                        />
+                      ))}
+                    </View>
+                  )}
+                  {trainingContext.trainingEnvironment === 'home' &&
+                  trainingContext.equipmentSnapshot.length === 0 ? (
+                    <TextLink
+                      label="Add your home equipment \u2192"
+                      onPress={() => router.push('/training-setup' as Href)}
+                    />
+                  ) : null}
+                </>
+              ) : (
+                <View style={styles.contextLoading} accessibilityLiveRegion="polite">
+                  <ActivityIndicator size="small" color={palette.primary} />
+                  <Text style={[styles.sparkleHintText, { color: palette.textSecondary }]}>
+                    Matching your place and equipment
+                  </Text>
+                </View>
+              )}
+            </View>
+          </>
+        ) : null}
 
-            <Animated.View
-              entering={FadeInDown.delay(160).duration(motion.duration.base)}
-              style={styles.notesContainer}
-            >
-              <Text
-                style={[styles.notesLabel, { color: palette.textPrimary }]}
-              >
-                Anything else I should know?
-              </Text>
-              <TextInput
-                style={[
-                  styles.notesInput,
-                  {
-                    backgroundColor: palette.surface,
-                    borderColor: notesFocused
-                      ? palette.primary
-                      : palette.borderStrong,
-                    color: palette.textPrimary,
-                  },
-                ]}
-                placeholder="Goals, limitations or requests (optional)"
-                placeholderTextColor={palette.textTertiary}
-                value={formData.notes}
-                onChangeText={text => updateFormData('notes', text)}
-                onFocus={() => setNotesFocused(true)}
-                onBlur={() => setNotesFocused(false)}
-                multiline
-                numberOfLines={3}
-              />
-            </Animated.View>
-          </Animated.View>
-        )
+        <Eyebrow style={styles.groupLabel}>Note for the coach</Eyebrow>
+        <TextInput
+          style={[
+            styles.notes,
+            {
+              backgroundColor: palette.surface,
+              color: palette.textPrimary,
+              borderColor: notesFocused ? palette.primary : 'transparent',
+            },
+          ]}
+          placeholder="Optional. Anything the coach should know today."
+          placeholderTextColor={palette.textTertiary}
+          value={formData.notes}
+          onChangeText={(text) => update('notes', text)}
+          onFocus={() => setNotesFocused(true)}
+          onBlur={() => setNotesFocused(false)}
+          multiline
+          accessibilityLabel="Note for the coach"
+        />
+      </View>
+    )
+  }
 
+  const renderStep = () => {
+    switch (currentStep) {
+      case 0:
+        return renderStepOne()
+      case 1:
+        return renderStepTwo()
+      case 2:
+        return renderStepThree()
+      case 3:
+        return renderStepFour()
       default:
         return null
     }
   }
-
-  const progress = (currentStep + 1) / TOTAL_STEPS
 
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: palette.bg }]}
       edges={['top']}
     >
-      <View style={[styles.container, { backgroundColor: palette.bg }]}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={handleBack}
-            style={[
-              styles.iconButton,
-              {
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
-              },
-            ]}
-            hitSlop={12}
-          >
-            <IconSymbol
-              name="chevron.left"
-              size={22}
-              color={palette.textPrimary}
-            />
-          </TouchableOpacity>
+      <FlowHeader
+        backLabel={currentStep === 0 ? 'Home' : 'Back'}
+        onBack={handleBack}
+        step={currentStep + 1}
+        total={TOTAL_STEPS}
+      />
 
-          <View
-            style={[styles.progressTrack, { backgroundColor: palette.surfaceAlt }]}
-          >
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  backgroundColor: palette.primary,
-                  width: `${progress * 100}%`,
-                },
-              ]}
-            />
-          </View>
-
-          <Text style={[styles.stepCount, { color: palette.textSecondary }]}>
-            {currentStep + 1}/{TOTAL_STEPS}
-          </Text>
-        </View>
-
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Animated.View
+          key={`step-${currentStep}-${bodyMapMode ? 'map' : 'list'}`}
+          entering={FadeInDown.duration(motion.duration.base)}
+          exiting={FadeOut.duration(motion.duration.quick)}
         >
-          {recommendation ? (
-            <Animated.View
-              entering={FadeInDown.duration(motion.duration.base)}
-              style={[
-                styles.recBanner,
-                {
-                  backgroundColor: palette.primaryMuted,
-                  borderColor: palette.primary + '33',
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.recBannerIcon,
-                  { backgroundColor: palette.primary + '22' },
-                ]}
-              >
-                <IconSymbol
-                  name="wand.and.stars"
-                  size={16}
-                  color={palette.primary}
-                />
-              </View>
-              <View style={styles.recBannerCopy}>
-                <Text
-                  style={[
-                    styles.recBannerLabel,
-                    { color: palette.primary },
-                  ]}
-                >
-                  Building from your pick
-                </Text>
-                <Text
-                  style={[
-                    styles.recBannerTitle,
-                    { color: palette.textPrimary },
-                  ]}
-                  numberOfLines={2}
-                >
-                  {recommendation.title}
-                </Text>
-                <Text
-                  style={[
-                    styles.recBannerMeta,
-                    { color: palette.textSecondary },
-                  ]}
-                >
-                  {recommendation.modality} · {recommendation.durationMin} min ·{' '}
-                  {recommendation.moveCount} moves
-                </Text>
-              </View>
-            </Animated.View>
-          ) : null}
-
           {renderStep()}
-        </ScrollView>
+        </Animated.View>
+      </ScrollView>
 
-        <View
-          style={[
-            styles.footer,
-            {
-              backgroundColor: palette.bg,
-              borderTopColor: palette.divider,
-            },
-          ]}
-        >
-          {isLast && isSubmitting ? (
-            <View
-              style={[
-                styles.submittingPill,
-                { backgroundColor: palette.primary },
-              ]}
-            >
-              <ActivityIndicator size="small" color={palette.white} />
-              <Text style={[styles.submittingLabel, { color: palette.white }]}>
-                Building your session…
-              </Text>
-            </View>
-          ) : (
-            <PillButton
-              label={isLast ? 'Start session' : 'Continue'}
-              onPress={isLast ? handleSubmit : handleNext}
-              disabled={buttonDisabled}
-            />
-          )}
-        </View>
-
-        {trainingContext ? (
-          <ContextEditorSheet
-            visible={contextEditorOpen}
-            value={trainingContext}
-            onClose={() => setContextEditorOpen(false)}
-            onSave={(value) => {
-              setTrainingContext(value)
-              setConfirmedEnvironment(true)
-              setConfirmedEquipmentIntent(true)
-              setContextEditorOpen(false)
-            }}
-            showTrainingSetupLink={
-              trainingContext.trainingEnvironment === 'home' &&
-              trainingContext.equipmentSnapshot.length === 0
-            }
-            onOpenTrainingSetup={() => {
-              setContextEditorOpen(false)
-              router.push('/training-setup' as Href)
-            }}
+      <View style={[styles.footer, { backgroundColor: palette.bg }]}>
+        {isLast ? (
+          <PillButton
+            variant="gradient"
+            label={isSubmitting ? 'Building your session' : 'Build my session'}
+            onPress={handleSubmit}
+            disabled={!proceedEnabled || isSubmitting}
+            loading={isSubmitting}
           />
-        ) : null}
+        ) : (
+          <PillButton
+            label="Continue"
+            onPress={handleNext}
+            disabled={!proceedEnabled}
+          />
+        )}
       </View>
+
+      {trainingContext ? (
+        <ContextEditorSheet
+          visible={contextEditorOpen}
+          value={trainingContext}
+          onClose={() => setContextEditorOpen(false)}
+          onSave={(value) => {
+            setTrainingContext({ ...value, suggestionSource: 'manual' })
+            setContextEditorOpen(false)
+          }}
+          showTrainingSetupLink={
+            trainingContext.trainingEnvironment === 'home' &&
+            trainingContext.equipmentSnapshot.length === 0
+          }
+          onOpenTrainingSetup={() => {
+            setContextEditorOpen(false)
+            router.push('/training-setup' as Href)
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   )
 }
@@ -1093,173 +1068,172 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.lg,
-    gap: spacing.md,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressTrack: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  stepCount: {
-    ...typography.smallStrong,
-    minWidth: 30,
-    textAlign: 'right',
+  pressed: {
+    opacity: 0.8,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xxxl,
+    paddingTop: spacing.xs,
+    paddingBottom: 120,
   },
-  recBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+  skipCard: {
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: 4,
     marginBottom: spacing.xl,
   },
-  recBannerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  recBannerCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  recBannerLabel: {
-    ...typography.smallStrong,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    fontSize: 11,
-  },
-  recBannerTitle: {
+  skipTitle: {
     ...typography.bodyStrong,
+    fontSize: 16,
   },
-  recBannerMeta: {
+  skipBody: {
     ...typography.small,
   },
-  stepTitle: {
+  title: {
     ...typography.h1,
-    marginBottom: spacing.sm,
+    fontSize: 24,
+    lineHeight: 30,
   },
-  stepSubtitle: {
-    ...typography.body,
-    marginBottom: spacing.xxl,
+  titleTight: {
+    marginTop: 6,
   },
-  notesContainer: {
+  hint: {
+    ...typography.small,
+    fontSize: 14,
     marginTop: spacing.sm,
-  },
-  contextContainer: {
-    marginTop: spacing.xl,
     marginBottom: spacing.lg,
   },
-  uncertainContext: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.sm,
+  groupLabel: {
+    marginTop: spacing.xxl,
     marginBottom: spacing.md,
   },
-  uncertainTitle: {
-    ...typography.bodyStrong,
+  groupLabelTight: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
   },
-  quickChoices: {
+  rowFour: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  quarterTile: {
+    flex: 1,
+    minHeight: 60,
+    paddingHorizontal: 4,
+  },
+  rowThree: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  thirdTile: {
+    flex: 1,
+    minHeight: 56,
+  },
+  stack: {
+    gap: spacing.sm,
+  },
+  stackTight: {
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  selfStart: {
+    alignSelf: 'flex-start',
+  },
+  chipWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
+    gap: spacing.sm,
+    marginTop: spacing.lg,
   },
-  quickChoice: {
-    minHeight: 38,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+  chipWrapTight: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
-  quickChoiceText: {
-    ...typography.smallStrong,
+  timeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginTop: spacing.lg,
   },
-  trainingSetupLink: {
+  timeTile: {
+    flexBasis: '30%',
+    flexGrow: 1,
+    minHeight: 76,
+  },
+  typeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  typeTile: {
+    flexBasis: '30%',
+    flexGrow: 1,
+    minHeight: 54,
+  },
+  tileSparkle: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  sparkleHint: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xs,
+    gap: 6,
+    marginTop: spacing.sm,
   },
-  trainingSetupLinkText: {
-    ...typography.smallStrong,
-    flex: 1,
+  sparkleHintInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sparkleHintText: {
+    ...typography.small,
+    fontSize: 12,
+    flexShrink: 1,
+  },
+  whereCard: {
+    borderWidth: 1,
+    borderRadius: radius.xxl,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  whereDivider: {
+    height: StyleSheet.hairlineWidth,
+  },
+  whereRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  equipmentLine: {
+    ...typography.bodyStrong,
   },
   contextLoading: {
-    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
+    minHeight: 56,
   },
-  contextLoadingText: {
-    ...typography.small,
-  },
-  notesLabel: {
-    ...typography.h3,
-    marginBottom: spacing.md,
-  },
-  notesInput: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+  notes: {
     ...typography.body,
-    minHeight: 110,
+    minHeight: 72,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     textAlignVertical: 'top',
   },
   footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.lg,
-    paddingTop: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  submittingPill: {
-    height: 58,
-    borderRadius: radius.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  submittingLabel: {
-    ...typography.button,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxl,
   },
 })

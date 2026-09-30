@@ -767,9 +767,13 @@ export default defineSchema({
       v.literal('challenging')
     ),
     timeAvailable: v.union(
+      v.literal('10'),
       v.literal('15'),
+      v.literal('20'),
       v.literal('30'),
+      v.literal('40'),
       v.literal('45'),
+      v.literal('50'),
       v.literal('60')
     ),
     trainingEnvironment: v.optional(trainingEnvironment),

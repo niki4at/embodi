@@ -1,3 +1,17 @@
+import { useMutation, useQuery } from 'convex/react'
+import * as Haptics from 'expo-haptics'
+import { router, type Href } from 'expo-router'
+import React, { useCallback, useMemo, useState } from 'react'
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
+
 import { useFloatingTabBarInset } from '@/components/navigation/floating-tab-bar'
 import {
   ContextEditorSheet,
@@ -6,37 +20,40 @@ import {
   type TrainingContextSelection,
   type TrainingEnvironment,
 } from '@/components/training-context'
-import { IconSymbol } from '@/components/ui/icon-symbol'
-import { motion, radius, spacing, typography } from '@/constants/design'
+import { GradientText } from '@/components/ui/gradient-text'
+import { Chip } from '@/components/ui/primitives'
+import {
+  energyDotFromLevel,
+  energyLabelFromLevel,
+  greetingForHour,
+  painAreaLabel,
+  SLEEP_LABEL,
+  type SleepQuality,
+} from '@/constants/checkin-labels'
+import { motion, spacing, typography } from '@/constants/design'
+import { fonts } from '@/constants/fonts'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
-import { useMutation, useQuery } from 'convex/react'
-import * as Haptics from 'expo-haptics'
-import { router, type Href } from 'expo-router'
-import React, { memo, useCallback, useMemo, useState } from 'react'
+import { computeCycleStatus, type CyclePhase } from '@/convex/cycle'
+import { labelForRegion } from '@/constants/flare-regions'
+
+import { AdjustSheet } from './adjust-sheet'
+import { FlareChip } from './flare-chip'
+import { HomeHeader, type HomeTab } from './home-header'
 import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import Animated, {
-  FadeInDown,
-  FadeInUp,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated'
-import { computeCycleStatus } from '@/convex/cycle'
-import { CoachSuggestion } from './coach-suggestion'
-import { StartMovementCard } from './start-movement-card'
-import { TodayContext } from './today-context'
+  CoachSection,
+  ContextTiles,
+  DeskSection,
+  GoalsStrip,
+  QuickActions,
+  SuggestedCard,
+  type ContextTile,
+  type DeskMove,
+  type GoalCard,
+} from './home-sections'
+import { StartOrb, type OrbContent } from './start-orb'
+import { WeeklyInsightsSection } from './weekly-insights'
 
 const WEEKDAYS = [
   'sunday',
@@ -48,34 +65,52 @@ const WEEKDAYS = [
   'saturday',
 ] as const
 
-const HEADER_DELAY = 0
-const STAGGER = 70
+const CYCLE_PHASE_LABEL: Record<CyclePhase, string> = {
+  menstrual: 'Menstrual',
+  follicular: 'Follicular',
+  ovulatory: 'Ovulatory',
+  luteal: 'Luteal',
+  unknown: 'Cycle',
+}
 
-type TodaysCheckin = {
-  _id: Id<'daily_checkins'>
-  energyLevel: number
-  painLevel: number
-  timeAvailable: string
-  workoutType: string
-} | null | undefined
+const DESK_MOVES: DeskMove[] = [
+  { id: 'neck-reset', title: 'Neck reset', meta: '3 min \u00b7 seated', durationMin: 3 },
+  { id: 'wrist-eyes', title: 'Wrist & eyes', meta: '5 min \u00b7 standing', durationMin: 5 },
+]
 
-type TodaysSession = {
-  _id: Id<'workout_sessions'>
-  status:
-    | 'generating'
-    | 'generated'
-    | 'in-progress'
-    | 'completed'
-    | 'discarded'
-    | 'failed'
-  goal: string
-  modality: string
-  durationMin: number
-  source?: 'custom' | 'coach'
-  planCount: number
-  setsLogged: number
-  totalTargetSets: number
-} | null | undefined
+type TodaysCheckin =
+  | {
+      _id: Id<'daily_checkins'>
+      energyLevel: number
+      painLevel: number
+      painAreas?: string[]
+      sleepQuality: SleepQuality
+      timeAvailable: string
+      workoutType: string
+    }
+  | null
+  | undefined
+
+type TodaysSession =
+  | {
+      _id: Id<'workout_sessions'>
+      status:
+        | 'generating'
+        | 'generated'
+        | 'in-progress'
+        | 'completed'
+        | 'discarded'
+        | 'failed'
+      goal: string
+      modality: string
+      durationMin: number
+      source?: 'custom' | 'coach'
+      planCount: number
+      setsLogged: number
+      totalTargetSets: number
+    }
+  | null
+  | undefined
 
 type CompletedTodaySession = {
   _id: Id<'workout_sessions'>
@@ -97,8 +132,6 @@ type TodayState =
       kind: 'ready' | 'in-progress' | 'completed'
       session: NonNullable<TodaysSession>
     }
-
-type TodayCardState = Exclude<TodayState, { kind: 'needs-checkin' }>
 
 function deriveTodayState(
   checkin: TodaysCheckin,
@@ -124,24 +157,73 @@ function deriveTodayState(
     }
     return { kind: 'ready', session }
   }
-  // No active session today. If there's a check-in but nothing has been built
-  // or finished yet, offer to start from it. Otherwise (including after a
-  // completed session) show the start-movement choice so a new one can begin.
   if (checkin && completedToday.length === 0) {
     return { kind: 'checkin-orphan' }
   }
   return { kind: 'needs-checkin' }
 }
 
+type Recommendation = {
+  title: string
+  durationMin: number
+  moveCount: number
+  modality: string
+  description: string
+  reasoning: string
+  tags: string[]
+}
+
+type InsightShape = {
+  status: 'generating' | 'ready' | 'failed'
+  headline?: string
+  alignedRecommendations: Recommendation[]
+  explorationRecommendations: Recommendation[]
+} | null
+
+function recommendationSeedHref(
+  rec: Recommendation,
+  source: 'aligned' | 'exploration',
+): Href {
+  return {
+    pathname: '/checkin',
+    params: {
+      rec: JSON.stringify({
+        title: rec.title,
+        modality: rec.modality,
+        durationMin: rec.durationMin,
+        moveCount: rec.moveCount,
+        description: rec.description,
+        reasoning: rec.reasoning,
+        tags: rec.tags,
+        source,
+      }),
+    },
+  } as unknown as Href
+}
+
 export default function HomeContent() {
   const { palette } = useTheme()
   const tabBarInset = useFloatingTabBarInset()
+  const [tab, setTab] = useState<HomeTab>('today')
+
   const onboardingData = useQuery(api.onboarding.getOnboarding)
   const trainingPreferences = useQuery(api.trainingPreferences.get)
   const equipmentInventory = useQuery(api.equipment.listActive)
-  const todaysCheckin = useQuery(api.checkin.getTodaysCheckin)
-  const todaysSession = useQuery(api.trainer.getTodaysSession)
-  const completedToday = useQuery(api.trainer.getTodaysCompletedSessions)
+  const todaysCheckin = useQuery(api.checkin.getTodaysCheckin) as TodaysCheckin
+  const todaysSession = useQuery(api.trainer.getTodaysSession) as TodaysSession
+  const completedToday = useQuery(api.trainer.getTodaysCompletedSessions) as
+    | CompletedTodaySession[]
+    | undefined
+  const flare = useQuery(api.flareUp.getFlareUp)
+  const challenges = useQuery(api.challenges.listChallenges) as
+    | GoalCard[]
+    | undefined
+  const insight = useQuery(api.weeklyInsights.getCurrentWeekInsight) as
+    | InsightShape
+    | undefined
+  const overview = useQuery(api.profileSummary.getProfileOverview, {
+    now: useMemo(() => Date.now(), []),
+  })
   const cycleEnabled = onboardingData?.trackPeriod === true
   const cycleData = useQuery(
     api.cycle.getRecentEntries,
@@ -151,15 +233,12 @@ export default function HomeContent() {
   const startSessionFromCheckin = useMutation(
     api.checkin.startSessionFromTodaysCheckin,
   )
-  const startSessionFromRoutine = useMutation(
-    api.routines.startSessionFromRoutine,
-  )
+
   const [isRecoveringSession, setIsRecoveringSession] = useState(false)
   const [isStartingCoachSession, setIsStartingCoachSession] = useState(false)
-  const [startingRoutineId, setStartingRoutineId] = useState<string | null>(
-    null,
-  )
   const [contextEditorOpen, setContextEditorOpen] = useState(false)
+  const [adjustOpen, setAdjustOpen] = useState(false)
+  const [deskEnabled, setDeskEnabled] = useState(true)
   const [contextOverride, setContextOverride] =
     useState<TrainingContextSelection | null>(null)
 
@@ -226,39 +305,86 @@ export default function HomeContent() {
       sessionId: Id<'workout_sessions'>,
       destination: 'ready' | 'logging' = 'logging',
     ) => {
-      const sessionHref = {
+      router.push({
         pathname: destination === 'ready' ? '/session/ready' : '/session',
         params: { sessionId: String(sessionId) },
-      } as unknown as Href
-      router.push(sessionHref)
+      } as unknown as Href)
     },
     [],
   )
 
-  const handleTodayPress = useCallback(async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-
-    switch (state.kind) {
-      case 'loading':
-      case 'needs-checkin':
-        return
-      case 'generating': {
-        navigateToSession(state.sessionId, 'ready')
+  const openFreshCheckin = useCallback(
+    (extra?: Record<string, string>) => {
+      const params: Record<string, string> = { ...(extra ?? {}) }
+      if (contextOverride) {
+        params.trainingEnvironment = contextOverride.trainingEnvironment
+        params.equipmentIntent = contextOverride.equipmentIntent
+        params.contextTags = JSON.stringify(contextOverride.contextTags)
+        params.unavailableEquipment = JSON.stringify(
+          contextOverride.unavailableEquipment,
+        )
+      }
+      if (Object.keys(params).length === 0) {
+        router.push('/checkin')
         return
       }
+      router.push({ pathname: '/checkin', params } as unknown as Href)
+    },
+    [contextOverride],
+  )
+
+  const startReusingTodaysCheckin = useCallback(async () => {
+    if (isStartingCoachSession) return
+    setIsStartingCoachSession(true)
+    try {
+      const sessionId = await startSessionFromCheckin({ allowAdditional: true })
+      navigateToSession(sessionId, 'ready')
+    } catch (error) {
+      console.error('Failed to start session from check-in', error)
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+    } finally {
+      setIsStartingCoachSession(false)
+    }
+  }, [isStartingCoachSession, startSessionFromCheckin, navigateToSession])
+
+  const handleAskCoach = useCallback(() => {
+    if (todaysCheckin) {
+      Alert.alert(
+        'Start another session',
+        "Use today's check-in or start a fresh one?",
+        [
+          { text: 'Reuse check-in', onPress: () => void startReusingTodaysCheckin() },
+          { text: 'New check-in', onPress: () => openFreshCheckin() },
+          { text: 'Cancel', style: 'cancel' },
+        ],
+      )
+      return
+    }
+    openFreshCheckin()
+  }, [todaysCheckin, startReusingTodaysCheckin, openFreshCheckin])
+
+  const handleOrbPress = useCallback(async () => {
+    switch (state.kind) {
+      case 'loading':
+        return
+      case 'needs-checkin':
+        openFreshCheckin()
+        return
+      case 'generating':
+        navigateToSession(state.sessionId, 'ready')
+        return
       case 'ready': {
-        // Custom sessions have no check-in basis, so skip the "Your session
-        // is ready" screen and drop straight into logging.
         const destination =
           state.session.source === 'custom' ? 'logging' : 'ready'
         navigateToSession(state.session._id, destination)
         return
       }
       case 'in-progress':
-      case 'completed': {
         navigateToSession(state.session._id, 'logging')
         return
-      }
+      case 'completed':
+        handleAskCoach()
+        return
       case 'checkin-orphan': {
         if (isRecoveringSession) return
         setIsRecoveringSession(true)
@@ -275,127 +401,262 @@ export default function HomeContent() {
         }
         return
       }
-    }
-  }, [state, navigateToSession, startSessionFromCheckin, isRecoveringSession])
-
-  const startReusingTodaysCheckin = useCallback(async () => {
-    if (isStartingCoachSession) return
-    setIsStartingCoachSession(true)
-    try {
-      const sessionId = await startSessionFromCheckin({ allowAdditional: true })
-      navigateToSession(sessionId, 'ready')
-    } catch (error) {
-      console.error('Failed to start session from check-in', error)
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-    } finally {
-      setIsStartingCoachSession(false)
-    }
-  }, [isStartingCoachSession, startSessionFromCheckin, navigateToSession])
-
-  const openFreshCheckin = useCallback(() => {
-    if (!contextOverride) {
-      router.push('/checkin')
-      return
-    }
-    router.push({
-      pathname: '/checkin',
-      params: {
-        trainingEnvironment: contextOverride.trainingEnvironment,
-        equipmentIntent: contextOverride.equipmentIntent,
-        contextTags: JSON.stringify(contextOverride.contextTags),
-        unavailableEquipment: JSON.stringify(
-          contextOverride.unavailableEquipment,
-        ),
-      },
-    } as unknown as Href)
-  }, [contextOverride])
-
-  const handleAskCoach = useCallback(() => {
-    // If the user already checked in today, let them choose between reusing
-    // that check-in or doing a fresh one before building another session.
-    if (todaysCheckin) {
-      Alert.alert(
-        'Start another session',
-        "Use today's check-in or start a fresh one?",
-        [
-          {
-            text: 'Reuse check-in',
-            onPress: () => {
-              void startReusingTodaysCheckin()
-            },
-          },
-          {
-            text: 'New check-in',
-            onPress: openFreshCheckin,
-          },
-          { text: 'Cancel', style: 'cancel' },
-        ],
-      )
-      return
-    }
-    openFreshCheckin()
-  }, [todaysCheckin, startReusingTodaysCheckin, openFreshCheckin])
-
-  const handleStartMyOwn = useCallback(() => {
-    router.push('/build-workout' as Href)
-  }, [])
-
-  const handleContextPress = useCallback(() => {
-    void Haptics.selectionAsync()
-    setContextEditorOpen(true)
-  }, [])
-
-  const handleOpenRoutines = useCallback(() => {
-    Haptics.selectionAsync()
-    router.push('/routines' as Href)
-  }, [])
-
-  const handleStartRoutine = useCallback(
-    async (routineId: Id<'workout_routines'>) => {
-      if (startingRoutineId) return
-      setStartingRoutineId(routineId)
-      try {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-        const sessionId = await startSessionFromRoutine({ routineId })
-        navigateToSession(sessionId, 'logging')
-      } catch (error) {
-        console.error('Failed to start routine', error)
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-      } finally {
-        setStartingRoutineId(null)
+      default: {
+        const _exhaustive: never = state
+        return _exhaustive
       }
-    },
-    [startingRoutineId, startSessionFromRoutine, navigateToSession],
-  )
+    }
+  }, [
+    state,
+    navigateToSession,
+    startSessionFromCheckin,
+    isRecoveringSession,
+    openFreshCheckin,
+    handleAskCoach,
+  ])
 
-  const handleOpenRecap = useCallback(
-    (sessionId: Id<'workout_sessions'>) => {
-      Haptics.selectionAsync()
-      const recapHref = {
-        pathname: '/session/recap',
-        params: { sessionId: String(sessionId) },
-      } as unknown as Href
-      router.push(recapHref)
-    },
-    [],
-  )
-
-  const handleUpdateCheckIn = useCallback(() => {
-    router.push('/checkin')
+  const handleOpenRecap = useCallback((sessionId: Id<'workout_sessions'>) => {
+    router.push({
+      pathname: '/session/recap',
+      params: { sessionId: String(sessionId) },
+    } as unknown as Href)
   }, [])
 
-  const handleOpenCycle = useCallback(() => {
-    router.push('/cycle')
+  /* ------------------------------------------------------------------ copy */
+
+  const firstName = (onboardingData?.name || 'there').split(' ')[0]
+  const greeting = greetingForHour(suggestionNow.getHours())
+
+  const flareRegions = flare?.active ? flare.regions : []
+  const painAreas = todaysCheckin?.painAreas ?? []
+
+  const contextLine = useMemo(() => {
+    if (flareRegions.length > 0) {
+      return `Flare-up mode is on, so today eases off your ${flareRegions
+        .map((r) => labelForRegion(r).toLowerCase())
+        .join(' and ')}.`
+    }
+    if (painAreas.length > 0) {
+      return `You logged ${painAreas
+        .slice(0, 2)
+        .map((a) => painAreaLabel(a).toLowerCase())
+        .join(' and ')} soreness today, so this session goes easy there.`
+    }
+    if (state.kind === 'completed') {
+      return 'Session done. Anything else today is a bonus.'
+    }
+    if (state.kind === 'needs-checkin') {
+      return 'Check in and the coach builds today around how you feel.'
+    }
+    return 'Built from your check-in, not a fixed plan.'
+  }, [flareRegions, painAreas, state.kind])
+
+  const orbContent = useMemo<OrbContent>(() => {
+    switch (state.kind) {
+      case 'loading':
+        return { word: '\u2026', title: 'Loading your day', spinning: true }
+      case 'needs-checkin':
+        return {
+          word: 'Check in',
+          meta: 'about 2 minutes',
+          title: 'Start your movement',
+          subtitle: 'The coach builds today from your sleep, energy, and body.',
+        }
+      case 'checkin-orphan':
+        return {
+          word: isRecoveringSession ? 'Starting' : 'Start',
+          meta: `${todaysCheckin?.timeAvailable ?? 30} mins`,
+          title: 'Build today\u2019s session',
+          subtitle: 'From this morning\u2019s check-in',
+          spinning: isRecoveringSession,
+        }
+      case 'generating':
+        return {
+          word: 'Building',
+          meta: 'coach is planning',
+          title: 'Coach is building today around you',
+          spinning: true,
+        }
+      case 'ready':
+        return {
+          word: 'Start',
+          meta: `${state.session.durationMin} mins \u00b7 ${state.session.planCount} moves`,
+          title: state.session.goal,
+          subtitle: state.session.modality,
+          subtitleAccent: onboardingData?.goal
+            ? `toward ${onboardingData.goal.toLowerCase()}`
+            : undefined,
+        }
+      case 'in-progress': {
+        const pct = state.session.totalTargetSets
+          ? Math.round(
+              (state.session.setsLogged / state.session.totalTargetSets) * 100,
+            )
+          : 0
+        return {
+          word: 'Continue',
+          meta: `${state.session.setsLogged} of ${state.session.totalTargetSets} sets`,
+          title: state.session.goal,
+          subtitle: `${pct}% done`,
+          progress: pct,
+        }
+      }
+      case 'completed':
+        return {
+          word: 'Done',
+          meta: `${state.session.setsLogged} sets logged`,
+          title: state.session.goal,
+          subtitle: 'Tap to start another session',
+        }
+      default: {
+        const _exhaustive: never = state
+        return _exhaustive
+      }
+    }
+  }, [state, isRecoveringSession, todaysCheckin, onboardingData?.goal])
+
+  const contextTiles = useMemo<ContextTile[]>(() => {
+    const sleep = todaysCheckin
+      ? SLEEP_LABEL[todaysCheckin.sleepQuality] ?? 'Logged'
+      : 'Not logged'
+    const energy = todaysCheckin
+      ? energyLabelFromLevel(todaysCheckin.energyLevel)
+      : 'Not logged'
+    const recovery =
+      painAreas.length > 0
+        ? painAreas.slice(0, 2).map(painAreaLabel).join(', ')
+        : flareRegions.length > 0
+          ? flareRegions.map(labelForRegion).join(', ')
+          : 'Feeling fresh'
+    const week = overview?.stats
+      ? `${overview.stats.workoutsThisWeek} of ${overview.stats.weeklyGoal} sessions`
+      : '\u2014'
+    return [
+      {
+        key: 'sleep',
+        label: 'Sleep',
+        value: sleep,
+        dot: palette.primary,
+        onPress: () => openFreshCheckin(),
+      },
+      {
+        key: 'energy',
+        label: 'Energy',
+        value: energy,
+        dot: todaysCheckin
+          ? energyDotFromLevel(todaysCheckin.energyLevel, palette)
+          : palette.energyOkay,
+        onPress: () => openFreshCheckin(),
+      },
+      {
+        key: 'recovery',
+        label: 'Recovery',
+        value: recovery,
+        dot: palette.warning,
+        onPress: () => openFreshCheckin({ step: '1' }),
+      },
+      {
+        key: 'week',
+        label: 'This week',
+        value: week,
+        dot: palette.accent,
+        onPress: () => setTab('week'),
+      },
+    ]
+  }, [todaysCheckin, painAreas, flareRegions, overview, palette, openFreshCheckin])
+
+  const readyInsight = insight && insight.status === 'ready' ? insight : null
+  const coachRec = readyInsight?.alignedRecommendations[0] ?? null
+  const suggestedRec =
+    readyInsight?.explorationRecommendations[0] ??
+    (readyInsight?.alignedRecommendations[1] ?? null)
+
+  const coachText =
+    readyInsight?.headline ??
+    (coachRec
+      ? `${coachRec.reasoning} Want to try ${coachRec.title.toLowerCase()}?`
+      : 'Every session is built from your check-in, so tell me how today feels and I\u2019ll take it from there.')
+
+  const goals = useMemo<GoalCard[]>(
+    () =>
+      (challenges ?? []).filter(
+        (c) => c.status === 'active' || c.status === 'generating',
+      ),
+    [challenges],
+  )
+
+  const quickActions = useMemo(() => {
+    const actions: { label: string; onPress: () => void }[] = [
+      { label: 'Log my own check in', onPress: () => openFreshCheckin() },
+      {
+        label: 'Take a breather',
+        onPress: () =>
+          router.push(
+            recommendationSeedHref(
+              {
+                title: 'Take a breather',
+                modality: 'recovery',
+                durationMin: 10,
+                moveCount: 4,
+                description: 'Slow breathing and gentle mobility to reset.',
+                reasoning: 'You asked for a breather.',
+                tags: ['recovery', 'breath'],
+              },
+              'exploration',
+            ),
+          ),
+      },
+      { label: 'Build my own workout', onPress: () => router.push('/build-workout' as Href) },
+    ]
+    if (routines && routines.length > 0) {
+      actions.push({
+        label: 'Your routines',
+        onPress: () => router.push('/routines' as Href),
+      })
+    }
+    return actions
+  }, [openFreshCheckin, routines])
+
+  const handleStartDeskMove = useCallback((move: DeskMove) => {
+    router.push(
+      recommendationSeedHref(
+        {
+          title: move.title,
+          modality: 'mobility',
+          durationMin: move.durationMin,
+          moveCount: 3,
+          description: `${move.title}: a short desk reset you can do in work clothes.`,
+          reasoning: 'Micro-session picked from the At your desk strip.',
+          tags: ['desk', 'mobility'],
+        },
+        'exploration',
+      ),
+    )
   }, [])
 
-  const userName = onboardingData?.name || 'there'
-  const firstName = userName.split(' ')[0]
+  const cycleChipLabel =
+    cycleEnabled && cycleStatus
+      ? cycleStatus.hasData && cycleStatus.phase !== 'unknown'
+        ? `${CYCLE_PHASE_LABEL[cycleStatus.phase]}${
+            cycleStatus.dayOfCycle ? ` \u00b7 Day ${cycleStatus.dayOfCycle}` : ''
+          }`
+        : 'Log your cycle'
+      : null
+
+  const sessionForAdjust =
+    state.kind === 'ready' ||
+    state.kind === 'in-progress' ||
+    state.kind === 'completed'
+      ? state.session
+      : null
 
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: palette.bg }]}
       edges={['top']}
     >
+      <HomeHeader tab={tab} onChange={setTab} />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -403,107 +664,148 @@ export default function HomeContent() {
           { paddingBottom: tabBarInset },
         ]}
       >
-        <Animated.View
-          entering={FadeInUp.duration(motion.duration.base)}
-          style={styles.header}
-        >
-          <Text style={[styles.greeting, { color: palette.textTertiary }]}>
-            Welcome back
-          </Text>
-          <Text style={[styles.name, { color: palette.textPrimary }]}>
-            {firstName}
-          </Text>
-        </Animated.View>
+        {tab === 'week' ? (
+          <Animated.View entering={FadeInDown.duration(motion.duration.base)}>
+            <WeeklyInsightsSection />
+          </Animated.View>
+        ) : (
+          <>
+            <Animated.View
+              entering={FadeInUp.duration(motion.duration.base)}
+              style={styles.header}
+            >
+              <Text style={[styles.greeting, { color: palette.textPrimary }]}>
+                {greeting},
+              </Text>
+              <GradientText
+                fontFamily={fonts.displayBold}
+                fontSize={28}
+                lineHeight={34}
+                letterSpacing={-0.6}
+                accessibilityLabel={firstName}
+              >
+                {firstName}
+              </GradientText>
+              <Text style={[styles.contextLine, { color: palette.textSecondary }]}>
+                {contextLine}
+              </Text>
+              <View style={styles.chipRow}>
+                {cycleChipLabel ? (
+                  <Chip
+                    label={cycleChipLabel}
+                    onPress={() => router.push('/cycle')}
+                    style={[styles.smallChip, { backgroundColor: palette.surfaceAlt, borderColor: palette.surfaceAlt }]}
+                    leading={<View style={[styles.chipDot, { backgroundColor: palette.accent }]} />}
+                  />
+                ) : null}
+                <FlareChip />
+              </View>
+            </Animated.View>
 
-        <Animated.View
-          entering={FadeInDown.delay(HEADER_DELAY + STAGGER).duration(motion.duration.base)}
-        >
-          {state.kind === 'needs-checkin' ? (
-            <>
-              <StartMovementCard
-                onAskCoach={handleAskCoach}
-                onStartMyOwn={handleStartMyOwn}
-                onContextPress={handleContextPress}
-                likelyEnvironment={likelyContext.trainingEnvironment}
-                likelyEquipmentIntent={likelyContext.equipmentIntent}
-                isStartingCoachSession={isStartingCoachSession}
+            <Animated.View entering={FadeInDown.delay(60).duration(motion.duration.base)}>
+              <StartOrb
+                content={orbContent}
+                onPress={() => void handleOrbPress()}
+                disabled={state.kind === 'loading'}
+                adjustLabel={state.kind === 'loading' ? undefined : 'Adjust for today'}
+                onAdjust={() => setAdjustOpen(true)}
               />
-              <CoachSuggestion />
-            </>
-          ) : (
-            <TodayCard
-              state={state}
-              isRecovering={isRecoveringSession}
-              onPress={handleTodayPress}
-            />
-          )}
-        </Animated.View>
+            </Animated.View>
 
-        {routines && routines.length > 0 && (
-          <Animated.View
-            entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 1.25).duration(motion.duration.base)}
-          >
-            <RoutinesStrip
-              routines={routines}
-              startingRoutineId={startingRoutineId}
-              onStartRoutine={handleStartRoutine}
-              onSeeAll={handleOpenRoutines}
-            />
-          </Animated.View>
-        )}
+            {completedToday && completedToday.length > 0 && state.kind !== 'completed' ? (
+              <View style={styles.doneRow}>
+                {completedToday.map((session) => (
+                  <Chip
+                    key={session._id}
+                    label={`Done: ${session.goal} \u00b7 ${session.actualDurationMin ?? session.durationMin} min`}
+                    onPress={() => handleOpenRecap(session._id)}
+                    style={[styles.smallChip, { backgroundColor: palette.successMuted, borderColor: palette.successMuted }]}
+                    leading={<View style={[styles.chipDot, { backgroundColor: palette.success }]} />}
+                  />
+                ))}
+              </View>
+            ) : null}
 
-        {completedToday && completedToday.length > 0 && (
-          <Animated.View
-            entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 1.5).duration(motion.duration.base)}
-          >
-            <CompletedTodayStrip
-              sessions={completedToday}
-              onOpenRecap={handleOpenRecap}
-            />
-          </Animated.View>
-        )}
+            <Animated.View entering={FadeInDown.delay(120).duration(motion.duration.base)}>
+              <ContextTiles tiles={contextTiles} />
+            </Animated.View>
 
-        <Animated.View
-          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 2).duration(motion.duration.base)}
-        >
-          <TodayContext
-            checkin={todaysCheckin ?? null}
-            context={likelyContext}
-            cycle={
-              cycleEnabled && cycleData !== undefined
-                ? {
-                    enabled: true,
-                    hasData: cycleStatus?.hasData ?? false,
-                    phase: cycleStatus?.phase ?? 'unknown',
-                    dayOfCycle: cycleStatus?.dayOfCycle ?? null,
+            <Animated.View entering={FadeInDown.delay(160).duration(motion.duration.base)}>
+              <CoachSection
+                text={coachText}
+                actionLabel={coachRec ? 'Build a session' : 'Check in'}
+                onAction={() =>
+                  coachRec
+                    ? router.push(recommendationSeedHref(coachRec, 'aligned'))
+                    : openFreshCheckin()
+                }
+              />
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(200).duration(motion.duration.base)}>
+              <GoalsStrip
+                goals={goals}
+                onOpen={(id) =>
+                  router.push({
+                    pathname: '/challenge/[id]',
+                    params: { id: String(id) },
+                  } as unknown as Href)
+                }
+                onSeeAll={() => router.push('/(tabs)/challenges' as Href)}
+              />
+              {suggestedRec ? (
+                <SuggestedCard
+                  eyebrow={suggestionNow.getHours() >= 17 ? 'Suggested tonight' : 'Suggested today'}
+                  title={`${suggestedRec.durationMin} min ${suggestedRec.title.toLowerCase()}`}
+                  meta={`${suggestedRec.modality} \u00b7 ${suggestedRec.moveCount} moves`}
+                  onPress={() =>
+                    router.push(recommendationSeedHref(suggestedRec, 'exploration'))
                   }
-                : null
-            }
-            onUpdateCheckin={handleUpdateCheckIn}
-            onEditContext={handleContextPress}
-            onOpenCycle={handleOpenCycle}
-          />
-        </Animated.View>
+                />
+              ) : null}
+            </Animated.View>
 
-        <Animated.View
-          entering={FadeInDown.delay(HEADER_DELAY + STAGGER * 3).duration(motion.duration.base)}
-          style={[
-            styles.safetyCard,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-            },
-          ]}
-        >
-          <IconSymbol name="info.circle" size={16} color={palette.textSecondary} />
-          <Text style={[styles.safetyText, { color: palette.textSecondary }]}>
-            Recommendations adapt to your check-ins. Not medical advice. Talk to a
-            professional for concerns.
-          </Text>
-        </Animated.View>
+            <Animated.View entering={FadeInDown.delay(240).duration(motion.duration.base)}>
+              <QuickActions actions={quickActions} />
+            </Animated.View>
 
-        <View style={styles.bottomSpacing} />
+            <Animated.View entering={FadeInDown.delay(280).duration(motion.duration.base)}>
+              <DeskSection
+                enabled={deskEnabled}
+                onToggle={setDeskEnabled}
+                moves={DESK_MOVES}
+                onStart={handleStartDeskMove}
+              />
+            </Animated.View>
+
+            <Text style={[styles.footnote, { color: palette.textTertiary }]}>
+              Sessions adapt to your check-ins. Not medical advice.
+            </Text>
+          </>
+        )}
       </ScrollView>
+
+      <AdjustSheet
+        visible={adjustOpen}
+        onClose={() => setAdjustOpen(false)}
+        checkin={todaysCheckin ?? null}
+        planCount={sessionForAdjust?.planCount ?? 0}
+        sessionStarted={
+          sessionForAdjust !== null && sessionForAdjust.status !== 'generated'
+        }
+        onFullAdjustment={() => {
+          setAdjustOpen(false)
+          openFreshCheckin()
+        }}
+        onEditBodyMap={() => {
+          setAdjustOpen(false)
+          openFreshCheckin({ step: '1', bodyMap: '1' })
+        }}
+        onRetuned={(sessionId, regenerated) => {
+          setAdjustOpen(false)
+          if (regenerated && sessionId) navigateToSession(sessionId, 'ready')
+        }}
+      />
 
       <ContextEditorSheet
         visible={contextEditorOpen}
@@ -526,519 +828,56 @@ export default function HomeContent() {
   )
 }
 
-interface TodayCardProps {
-  state: TodayCardState
-  isRecovering: boolean
-  onPress: () => void
-}
-
-type CardVariant = 'primary' | 'success' | 'muted'
-
-interface CardContent {
-  variant: CardVariant
-  label: string
-  title: string
-  subtitle: string
-  iconName: React.ComponentProps<typeof IconSymbol>['name']
-  showSpinner: boolean
-  progress?: number
-}
-
-function getCardContent(
-  state: TodayCardState,
-  isRecovering: boolean,
-): CardContent {
-  switch (state.kind) {
-    case 'loading':
-      return {
-        variant: 'muted',
-        label: 'TODAY',
-        title: 'Loading',
-        subtitle: 'Fetching your day',
-        iconName: 'sparkles',
-        showSpinner: true,
-      }
-    case 'checkin-orphan':
-      return {
-        variant: 'primary',
-        label: 'TODAY',
-        title: isRecovering ? 'Starting' : 'Start today\u2019s session',
-        subtitle: 'Built from your check-in',
-        iconName: 'play.fill',
-        showSpinner: isRecovering,
-      }
-    case 'generating':
-      return {
-        variant: 'primary',
-        label: 'TODAY',
-        title: 'Building your session',
-        subtitle: 'Adapting to today\u2019s check-in',
-        iconName: 'sparkles',
-        showSpinner: true,
-      }
-    case 'ready': {
-      const { session } = state
-      return {
-        variant: 'primary',
-        label: 'TODAY',
-        title: session.goal,
-        subtitle: `${session.modality} \u00b7 ${session.durationMin} min \u00b7 ${session.planCount} exercises`,
-        iconName: 'play.fill',
-        showSpinner: false,
-      }
-    }
-    case 'in-progress': {
-      const { session } = state
-      const pct = session.totalTargetSets
-        ? Math.round((session.setsLogged / session.totalTargetSets) * 100)
-        : 0
-      return {
-        variant: 'primary',
-        label: 'IN PROGRESS',
-        title: 'Continue session',
-        subtitle: `${session.setsLogged} of ${session.totalTargetSets} sets \u00b7 ${pct}% done`,
-        iconName: 'arrow.right',
-        showSpinner: false,
-        progress: pct,
-      }
-    }
-    case 'completed':
-      return {
-        variant: 'success',
-        label: 'DONE TODAY',
-        title: 'Session complete',
-        subtitle: 'View your recap and notes',
-        iconName: 'checkmark',
-        showSpinner: false,
-      }
-  }
-}
-
-const TodayCard = memo(function TodayCard({
-  state,
-  isRecovering,
-  onPress,
-}: TodayCardProps) {
-  const { palette, resolved, shadows } = useTheme()
-  const scale = useSharedValue(1)
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }))
-
-  const content = getCardContent(state, isRecovering)
-  const isLoading = state.kind === 'loading'
-
-  const backgroundColor =
-    content.variant === 'success'
-      ? palette.success
-      : content.variant === 'muted'
-        ? palette.surface
-        : palette.primary
-
-  const textOnSolid = '#FFFFFF'
-  const titleColor = content.variant === 'muted' ? palette.textPrimary : textOnSolid
-  const subtitleColor =
-    content.variant === 'muted'
-      ? palette.textSecondary
-      : 'rgba(255,255,255,0.92)'
-  const labelColor =
-    content.variant === 'muted'
-      ? palette.textTertiary
-      : 'rgba(255,255,255,0.85)'
-  const iconBgColor =
-    content.variant === 'muted'
-      ? palette.primaryMuted
-      : 'rgba(255,255,255,0.22)'
-  const iconColor = content.variant === 'muted' ? palette.primary : textOnSolid
-
-  const cardShadow =
-    content.variant === 'muted'
-      ? undefined
-      : resolved === 'dark'
-        ? shadows.primaryDark
-        : shadows.primary
-
-  return (
-    <Pressable
-      onPressIn={() => {
-        if (isLoading) return
-        scale.value = withSpring(0.98, motion.spring)
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, motion.spring)
-      }}
-      onPress={onPress}
-      disabled={isLoading}
-      accessibilityRole="button"
-      accessibilityLabel={content.title}
-    >
-      <Animated.View
-        style={[
-          styles.primaryAction,
-          {
-            backgroundColor,
-            borderWidth: content.variant === 'muted' ? 1 : 0,
-            borderColor: palette.border,
-          },
-          cardShadow,
-          animatedStyle,
-        ]}
-      >
-        <View style={styles.primaryActionInner}>
-          <View style={styles.primaryActionTextWrap}>
-            <Text style={[styles.primaryActionLabel, { color: labelColor }]}>
-              {content.label}
-            </Text>
-            <Text
-              style={[styles.primaryActionTitle, { color: titleColor }]}
-              numberOfLines={2}
-            >
-              {content.title}
-            </Text>
-            <Text
-              style={[styles.primaryActionSubtitle, { color: subtitleColor }]}
-              numberOfLines={2}
-            >
-              {content.subtitle}
-            </Text>
-          </View>
-          <View
-            style={[styles.primaryActionIcon, { backgroundColor: iconBgColor }]}
-          >
-            {content.showSpinner ? (
-              <ActivityIndicator size="small" color={iconColor} />
-            ) : (
-              <IconSymbol name={content.iconName} size={22} color={iconColor} />
-            )}
-          </View>
-        </View>
-        {content.progress !== undefined && (
-          <View
-            style={[
-              styles.progressTrack,
-              { backgroundColor: 'rgba(255,255,255,0.25)' },
-            ]}
-          >
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${Math.max(0, Math.min(100, content.progress))}%`,
-                  backgroundColor: textOnSolid,
-                },
-              ]}
-            />
-          </View>
-        )}
-      </Animated.View>
-    </Pressable>
-  )
-})
-
-interface CompletedTodayStripProps {
-  sessions: CompletedTodaySession[]
-  onOpenRecap: (sessionId: Id<'workout_sessions'>) => void
-}
-
-const CompletedTodayStrip = memo(function CompletedTodayStrip({
-  sessions,
-  onOpenRecap,
-}: CompletedTodayStripProps) {
-  const { palette } = useTheme()
-
-  return (
-    <View style={styles.completedStrip}>
-      <Text style={[styles.completedStripLabel, { color: palette.textTertiary }]}>
-        COMPLETED TODAY
-      </Text>
-      {sessions.map((session) => (
-        <TouchableOpacity
-          key={session._id}
-          onPress={() => onOpenRecap(session._id)}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel={`View recap for ${session.goal}`}
-          style={[
-            styles.completedRow,
-            { backgroundColor: palette.surface, borderColor: palette.border },
-          ]}
-        >
-          <View
-            style={[
-              styles.completedRowIcon,
-              { backgroundColor: palette.successMuted ?? palette.primaryMuted },
-            ]}
-          >
-            <IconSymbol name="checkmark" size={16} color={palette.success} />
-          </View>
-          <View style={styles.completedRowText}>
-            <Text
-              style={[styles.completedRowTitle, { color: palette.textPrimary }]}
-              numberOfLines={1}
-            >
-              {session.goal}
-            </Text>
-            <Text
-              style={[styles.completedRowMeta, { color: palette.textSecondary }]}
-              numberOfLines={1}
-            >
-              {session.modality} {'\u00b7'}{' '}
-              {session.actualDurationMin ?? session.durationMin} min {'\u00b7'}{' '}
-              {session.setsLogged} sets
-            </Text>
-          </View>
-          <IconSymbol
-            name="chevron.right"
-            size={16}
-            color={palette.textTertiary}
-          />
-        </TouchableOpacity>
-      ))}
-    </View>
-  )
-})
-
-type RoutineSummary = {
-  _id: Id<'workout_routines'>
-  name: string
-  goal: string
-  modality: string
-  durationMin: number
-  exerciseCount: number
-  createdAt: number
-  updatedAt: number
-}
-
-interface RoutinesStripProps {
-  routines: RoutineSummary[]
-  startingRoutineId: string | null
-  onStartRoutine: (routineId: Id<'workout_routines'>) => void
-  onSeeAll: () => void
-}
-
-const RoutinesStrip = memo(function RoutinesStrip({
-  routines,
-  startingRoutineId,
-  onStartRoutine,
-  onSeeAll,
-}: RoutinesStripProps) {
-  const { palette } = useTheme()
-
-  return (
-    <View style={styles.routinesStrip}>
-      <View style={styles.routinesHeader}>
-        <Text style={[styles.completedStripLabel, { color: palette.textTertiary }]}>
-          YOUR ROUTINES
-        </Text>
-        <TouchableOpacity
-          onPress={onSeeAll}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="See all routines"
-        >
-          <Text style={[styles.routinesSeeAll, { color: palette.primary }]}>
-            See all
-          </Text>
-        </TouchableOpacity>
-      </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.routinesRow}
-      >
-        {routines.map((routine) => (
-          <TouchableOpacity
-            key={routine._id}
-            onPress={() => onStartRoutine(routine._id)}
-            disabled={startingRoutineId !== null}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={`Start ${routine.name}`}
-            style={[
-              styles.routineChip,
-              { backgroundColor: palette.surface, borderColor: palette.border },
-            ]}
-          >
-            <View
-              style={[
-                styles.routineChipIcon,
-                { backgroundColor: palette.primaryMuted },
-              ]}
-            >
-              {startingRoutineId === routine._id ? (
-                <ActivityIndicator size="small" color={palette.primary} />
-              ) : (
-                <IconSymbol name="repeat" size={18} color={palette.primary} />
-              )}
-            </View>
-            <Text
-              style={[styles.routineChipTitle, { color: palette.textPrimary }]}
-              numberOfLines={1}
-            >
-              {routine.name}
-            </Text>
-            <Text
-              style={[styles.routineChipMeta, { color: palette.textSecondary }]}
-              numberOfLines={1}
-            >
-              {routine.exerciseCount}{' '}
-              {routine.exerciseCount === 1 ? 'move' : 'moves'} {'\u00b7'}{' '}
-              {routine.durationMin} min
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  )
-})
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xxxl,
+    paddingTop: spacing.lg,
   },
   header: {
-    marginBottom: spacing.xxl,
+    gap: 2,
   },
   greeting: {
-    ...typography.small,
-    marginBottom: 2,
-  },
-  name: {
     ...typography.h1,
+    fontSize: 28,
+    lineHeight: 34,
+    fontFamily: fonts.displaySemiBold,
   },
-  primaryAction: {
-    borderRadius: radius.xl,
-    marginTop: spacing.lg,
-    overflow: 'hidden',
-  },
-  primaryActionInner: {
-    padding: spacing.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.lg,
-  },
-  primaryActionTextWrap: {
-    flex: 1,
-  },
-  primaryActionLabel: {
-    ...typography.caption,
-    marginBottom: 4,
-  },
-  primaryActionTitle: {
-    ...typography.h2,
-    marginBottom: 4,
-  },
-  primaryActionSubtitle: {
+  contextLine: {
     ...typography.small,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: spacing.md,
   },
-  primaryActionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressTrack: {
-    height: 6,
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  completedStrip: {
-    marginTop: spacing.lg,
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
+    marginTop: spacing.md,
   },
-  completedStripLabel: {
-    ...typography.caption,
-    marginBottom: 2,
+  smallChip: {
+    minHeight: 30,
+    paddingHorizontal: 12,
+    gap: 6,
   },
-  routinesStrip: {
+  chipDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  doneRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.sm,
     marginTop: spacing.lg,
   },
-  routinesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  routinesSeeAll: {
-    ...typography.smallStrong,
-  },
-  routinesRow: {
-    gap: spacing.md,
-    paddingRight: spacing.xs,
-  },
-  routineChip: {
-    width: 160,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  routineChipIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
-  routineChipTitle: {
-    ...typography.bodyStrong,
-    fontSize: 15,
-  },
-  routineChipMeta: {
+  footnote: {
     ...typography.small,
-  },
-  completedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-  },
-  completedRowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  completedRowText: {
-    flex: 1,
-  },
-  completedRowTitle: {
-    ...typography.bodyStrong,
-  },
-  completedRowMeta: {
-    ...typography.small,
-    marginTop: 2,
-  },
-  safetyCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    marginTop: spacing.xl,
-  },
-  safetyText: {
-    flex: 1,
-    ...typography.small,
-  },
-  bottomSpacing: {
-    height: spacing.huge,
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: spacing.xxxl,
   },
 })
