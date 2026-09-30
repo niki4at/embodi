@@ -62,6 +62,11 @@ type ExerciseTableProps = {
    * visible below the rows.
    */
   variant?: 'card' | 'embedded'
+  /**
+   * Where this exercise sits in today's journey. Drives the small status
+   * label in the header and the highlighted border on the "now" card.
+   */
+  status?: 'done' | 'now' | 'next' | 'idle'
   /** Session context threaded into the detail route so it opens live. */
   sessionId?: string
   onSaveSet: (setIndex: number, payload: SetPayload) => Promise<void>
@@ -200,6 +205,7 @@ export default function ExerciseTable({
   showSwipeHint,
   exerciseNotes,
   variant = 'card',
+  status = 'idle',
   sessionId,
   onSaveSet,
   onRemoveSet,
@@ -516,7 +522,8 @@ export default function ExerciseTable({
                 styles.card,
                 {
                   backgroundColor: palette.bgElevated,
-                  borderColor: palette.border,
+                  borderColor:
+                    status === 'now' ? palette.warning : palette.border,
                 },
               ]
         }
@@ -530,16 +537,40 @@ export default function ExerciseTable({
               accessibilityLabel="Open exercise details"
               style={styles.headerText}
             >
-              <Text style={[styles.title, { color: palette.primary }]}>
+              <Text style={[styles.title, { color: palette.textPrimary }]}>
                 {exercise.name}
               </Text>
               <Text
-                style={[styles.subtitle, { color: palette.textTertiary }]}
+                style={[styles.subtitle, { color: palette.textSecondary }]}
                 numberOfLines={1}
               >
-                {exercise.bodyPart}
+                {exercise.bodyPart.toLowerCase()}
               </Text>
             </Pressable>
+            {status !== 'idle' ? (
+              <Text
+                style={[
+                  styles.statusLabel,
+                  {
+                    color:
+                      status === 'done'
+                        ? palette.success
+                        : status === 'now'
+                          ? palette.warning
+                          : palette.textSecondary,
+                  },
+                ]}
+                accessibilityLabel={
+                  status === 'done'
+                    ? 'Done'
+                    : status === 'now'
+                      ? 'Current exercise'
+                      : 'Next up'
+                }
+              >
+                {status === 'done' ? 'DONE' : status === 'now' ? 'NOW' : 'NEXT UP'}
+              </Text>
+            ) : null}
             <Pressable
               onPress={handleToggleActions}
               accessibilityRole="button"
@@ -1675,18 +1706,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    ...typography.h2,
-    fontSize: 22,
+    ...typography.bodyStrong,
+    fontSize: 16,
   },
   subtitle: {
     ...typography.small,
-    marginTop: 2,
+    fontSize: 12,
+    marginTop: 1,
+  },
+  statusLabel: {
+    ...typography.mono,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    paddingTop: 4,
   },
   chevWrap: {
     width: 32,
     height: 32,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    borderRadius: radius.pill,
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

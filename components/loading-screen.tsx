@@ -4,88 +4,65 @@ import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withRepeat,
   withSequence,
   withTiming,
 } from 'react-native-reanimated'
 
+import { BodfitMark, BodfitWordmark } from '@/components/ui/bodfit-logo'
 import { spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
-import { EmbodiWordmark } from '@/components/ui/embodi-wordmark'
 
 interface LoadingScreenProps {
   message?: string
 }
 
-export default function LoadingScreen({
-  message = 'Loading your experience',
-}: LoadingScreenProps) {
+export default function LoadingScreen({ message = 'Loading your day' }: LoadingScreenProps) {
   const { palette } = useTheme()
+  const pulse = useSharedValue(1)
+
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1.06, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
+    )
+  }, [pulse])
+
+  const markStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+  }))
 
   return (
-    <View style={[styles.container, { backgroundColor: palette.bg }]}>
+    <View
+      style={[styles.container, { backgroundColor: palette.bg }]}
+      accessibilityRole="progressbar"
+      accessibilityLabel={message}
+    >
       <View style={styles.content}>
-        <EmbodiWordmark size="lg" align="center" />
-
-        <View style={styles.dotsContainer}>
-          <Dot delay={0} color={palette.primary} />
-          <Dot delay={150} color={palette.primary} />
-          <Dot delay={300} color={palette.primary} />
-        </View>
-
-        <Text style={[styles.loadingText, { color: palette.textTertiary }]}>
-          {message}
-        </Text>
+        <Animated.View style={markStyle}>
+          <BodfitMark size={72} />
+        </Animated.View>
+        <BodfitWordmark size="sm" showMark={false} />
+        <Text style={[styles.loadingText, { color: palette.textTertiary }]}>{message}</Text>
       </View>
     </View>
   )
 }
 
-function Dot({ delay, color }: { delay: number; color: string }) {
-  const opacity = useSharedValue(0.3)
-
-  useEffect(() => {
-    opacity.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(
-          withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.3, { duration: 500, easing: Easing.inOut(Easing.ease) }),
-        ),
-        -1,
-        false,
-      ),
-    )
-  }, [delay, opacity])
-
-  const style = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }))
-
-  return <Animated.View style={[styles.dot, { backgroundColor: color }, style]} />
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: spacing.huge,
-  },
-  dotsContainer: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    gap: spacing.lg,
   },
   loadingText: {
     ...typography.small,
+    marginTop: spacing.sm,
   },
 })

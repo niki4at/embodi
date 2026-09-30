@@ -29,6 +29,10 @@ import { groupPlanByPhase, PHASE_META } from '@/components/trainer/phases'
 import type { ExercisePlan } from '@/components/trainer/types'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { PillButton } from '@/components/ui/pill-button'
+import { BodfitWordmark } from '@/components/ui/bodfit-logo'
+import { HeroOrb, SummaryRows } from '@/components/ui/primitives'
+import { fonts } from '@/constants/fonts'
+import { buildCheckinSummary } from '@/utils/checkin-summary'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
@@ -131,6 +135,7 @@ export default function RecapScreen() {
     api.social.getPostForSession,
     sessionId ? { sessionId } : 'skip',
   )
+  const todaysCheckin = useQuery(api.checkin.getTodaysCheckin)
 
   const [isSaveModalVisible, setSaveModalVisible] = useState(false)
   const [routineName, setRoutineName] = useState('')
@@ -306,31 +311,25 @@ export default function RecapScreen() {
     }
   }, [isCompletion])
 
-  const renderHeader = (title: string) => (
+  const renderHeader = (stamp: string) => (
     <View style={styles.topBar}>
-      <TouchableOpacity
-        onPress={handleClose}
-        style={[
-          styles.iconButton,
-          { backgroundColor: palette.surface, borderColor: palette.border },
-        ]}
-        hitSlop={12}
-        accessibilityRole="button"
-        accessibilityLabel={isCompletion ? 'Close' : 'Go back'}
-      >
-        <IconSymbol
-          name={isCompletion ? 'xmark' : 'chevron.left'}
-          size={20}
-          color={palette.textPrimary}
-        />
-      </TouchableOpacity>
-      <Text
-        style={[styles.topBarTitle, { color: palette.textPrimary }]}
-        numberOfLines={1}
-      >
-        {title}
-      </Text>
-      <View style={styles.iconButton} />
+      {isCompletion ? (
+        <Text style={[styles.topBarStamp, { color: palette.textPrimary }]}>
+          {stamp}
+        </Text>
+      ) : (
+        <TouchableOpacity
+          onPress={handleClose}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Text style={[styles.topBarBack, { color: palette.textSecondary }]}>
+            {'\u2190'} Back
+          </Text>
+        </TouchableOpacity>
+      )}
+      <BodfitWordmark variant="header" />
     </View>
   )
 
@@ -362,21 +361,32 @@ export default function RecapScreen() {
     )
   }
 
-  const dateLabel = new Date(
-    insights?.dateMs ?? session.updatedAt,
-  ).toLocaleDateString(undefined, {
+  const completedDate = new Date(insights?.dateMs ?? session.updatedAt)
+  const dateLabel = completedDate.toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   })
+  const stamp = `${completedDate
+    .toLocaleDateString(undefined, { weekday: 'short' })
+    .toUpperCase()} \u00b7 ${completedDate.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  })}`
   const displayDurationMin = insights?.durationMin ?? session.durationMin
+  const summaryRows = buildCheckinSummary(
+    session.checkinId ? todaysCheckin : null,
+    session,
+    palette,
+    { includeSleep: false },
+  )
 
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: palette.bg }]}
       edges={['top']}
     >
-      {renderHeader(session.goal)}
+      {renderHeader(stamp)}
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
@@ -385,34 +395,29 @@ export default function RecapScreen() {
           entering={FadeInDown.duration(motion.duration.base)}
           style={styles.hero}
         >
-          <View
-            style={[
-              styles.heroBadge,
-              {
-                backgroundColor: isDiscarded
-                  ? palette.dangerMuted
-                  : palette.successMuted,
-              },
-            ]}
+          <HeroOrb size={146} muted={isDiscarded}>
+            <Text style={styles.orbEyebrow} allowFontScaling={false}>
+              {isDiscarded ? 'STOPPED' : 'DONE'}
+            </Text>
+            <View style={styles.heroTimeRow}>
+              <Text style={styles.heroTime} allowFontScaling={false}>
+                {displayDurationMin}
+              </Text>
+              <Text style={styles.heroTimeUnit} allowFontScaling={false}>
+                min
+              </Text>
+            </View>
+          </HeroOrb>
+          <Text
+            style={[styles.heroTitle, { color: palette.textPrimary }]}
+            accessibilityRole="header"
           >
-            <IconSymbol
-              name={isDiscarded ? 'xmark' : 'checkmark.circle.fill'}
-              size={30}
-              color={isDiscarded ? palette.danger : palette.success}
-            />
-          </View>
-          <Text style={[styles.heroTitle, { color: palette.textPrimary }]}>
-            {isDiscarded ? 'Workout discarded' : 'Workout complete'}
+            {isDiscarded ? 'Session stopped' : 'Session done'}
           </Text>
-          <View style={styles.heroTimeRow}>
-            <Text style={[styles.heroTime, { color: palette.textPrimary }]}>
-              {displayDurationMin}
-            </Text>
-            <Text style={[styles.heroTimeUnit, { color: palette.textSecondary }]}>
-              min
-            </Text>
-          </View>
           <Text style={[styles.heroMeta, { color: palette.textSecondary }]}>
+            {session.goal}
+          </Text>
+          <Text style={[styles.heroDate, { color: palette.textTertiary }]}>
             {dateLabel} {'\u00b7'} {session.modality}
           </Text>
         </Animated.View>
@@ -809,6 +814,11 @@ export default function RecapScreen() {
 
         {isCompletion && (
           <View style={styles.doneButton}>
+            {summaryRows.length > 0 ? (
+              <View style={styles.summaryBlock}>
+                <SummaryRows rows={summaryRows} />
+              </View>
+            ) : null}
             <PillButton label="Done" onPress={() => router.replace('/')} />
           </View>
         )}
@@ -975,33 +985,50 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
-    paddingTop: spacing.md,
+    paddingTop: spacing.xxl,
     paddingBottom: spacing.xl,
+    gap: 4,
   },
-  heroBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
+  orbEyebrow: {
+    ...typography.mono,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    color: 'rgba(255,255,255,0.9)',
   },
   heroTitle: {
-    ...typography.h2,
+    ...typography.h1,
+    fontSize: 24,
     textAlign: 'center',
+    marginTop: spacing.lg,
   },
   heroTimeRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
+    alignItems: 'baseline',
+    gap: 4,
   },
   heroTime: {
-    ...typography.display,
+    fontFamily: fonts.displayBold,
+    fontSize: 34,
+    lineHeight: 40,
+    color: '#FFFFFF',
   },
   heroTimeUnit: {
-    ...typography.h3,
-    marginBottom: spacing.sm,
+    ...typography.bodyStrong,
+    color: '#FFFFFF',
+  },
+  heroDate: {
+    ...typography.small,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  summaryBlock: {
+    marginBottom: spacing.xl,
+  },
+  topBarStamp: {
+    ...typography.mono,
+  },
+  topBarBack: {
+    ...typography.smallStrong,
   },
   heroMeta: {
     ...typography.small,
@@ -1032,7 +1059,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     minHeight: 96,
     borderRadius: radius.lg,
-    borderWidth: 1,
+    borderWidth: 0,
     padding: spacing.lg,
     gap: spacing.xs,
     justifyContent: 'center',
@@ -1056,7 +1083,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     borderRadius: radius.lg,
-    borderWidth: 1,
+    borderWidth: 0,
     padding: spacing.md,
   },
   highlightIcon: {

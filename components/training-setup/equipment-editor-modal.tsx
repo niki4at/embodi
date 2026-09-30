@@ -366,7 +366,7 @@ export function EquipmentEditorModal({
                 Private photo
               </Text>
               <Text style={[styles.photoHelp, { color: palette.textTertiary }]}>
-                Photos stay private. Embodi can suggest inventory details, but
+                Photos stay private. Bodfit can suggest inventory details, but
                 nothing is saved until you confirm.
               </Text>
               {scanSuggestion?.reason ? (

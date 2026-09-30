@@ -81,7 +81,7 @@ export function TrainingSetupContent() {
           Build workouts around your real setup
         </Text>
         <Text style={[styles.introText, { color: palette.textSecondary }]}>
-          Embodi uses these defaults to suggest a place and equipment intent. You
+          Bodfit uses these defaults to suggest a place and equipment intent. You
           can change either before every session.
         </Text>
       </View>

@@ -23,6 +23,7 @@ export function GradientText({
   lineHeight,
   letterSpacing = 0,
   accessibilityLabel,
+  outline = false,
 }: {
   children: string
   colors?: readonly [string, string]
@@ -32,6 +33,8 @@ export function GradientText({
   lineHeight?: number
   letterSpacing?: number
   accessibilityLabel?: string
+  /** Stroke the glyphs with the gradient instead of filling them. */
+  outline?: boolean
 }) {
   const [width, setWidth] = React.useState(0)
   const height = lineHeight ?? Math.round(fontSize * 1.25)
@@ -70,7 +73,9 @@ export function GradientText({
             </LinearGradient>
           </Defs>
           <SvgText
-            fill={`url(#${id})`}
+            fill={outline ? 'none' : `url(#${id})`}
+            stroke={outline ? `url(#${id})` : undefined}
+            strokeWidth={outline ? 1.5 : undefined}
             fontFamily={fontFamily}
             fontSize={fontSize}
             letterSpacing={letterSpacing}

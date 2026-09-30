@@ -12,11 +12,13 @@ import {
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { BodfitWordmark } from '@/components/ui/bodfit-logo'
 import { BodyFigure } from '@/components/ui/body-figure'
 import { CarouselDot } from '@/components/ui/carousel-dot'
-import { EmbodiWordmark } from '@/components/ui/embodi-wordmark'
+import { GradientText } from '@/components/ui/gradient-text'
 import { PillButton } from '@/components/ui/pill-button'
 import { motion, spacing, typography } from '@/constants/design'
+import { fonts } from '@/constants/fonts'
 import { useTheme } from '@/constants/theme-context'
 
 interface WelcomeScreenProps {
@@ -24,8 +26,8 @@ interface WelcomeScreenProps {
   onSignIn: () => void
 }
 
-const TERMS_URL = 'https://embodi.app/terms'
-const PRIVACY_URL = 'https://embodi.app/privacy'
+const TERMS_URL = 'https://embodi.expo.app/terms'
+const PRIVACY_URL = 'https://embodi.expo.app/privacy'
 const AUTO_ADVANCE_MS = 5000
 
 type Slide = {
@@ -37,32 +39,29 @@ type Slide = {
 
 const SLIDES: Slide[] = [
   {
-    id: 'understand',
-    headline: 'Understand your body.',
-    highlight: 'Build a better you.',
+    id: 'today',
+    headline: 'Built around',
+    highlight: 'how you feel today.',
     tagline:
-      'Personalised plans that adapt to your body, your goals, and your life.',
+      'A two-minute check-in on sleep, energy, and what hurts. The coach builds the session from there.',
   },
   {
     id: 'map-pain',
     headline: 'Map what hurts.',
     highlight: 'Move with confidence.',
     tagline:
-      'Tap any sore spot and we steer your session around it. No guesswork, no flare-ups.',
+      'Tap any sore spot and the session steers around it. No guesswork, no flare-ups.',
   },
   {
     id: 'adapt',
     headline: 'Plans that learn.',
     highlight: 'Progress that lasts.',
     tagline:
-      'Every check-in tunes tomorrow. The harder you train, the smarter your coach gets.',
+      'Every check-in tunes tomorrow. The more you train, the sharper your coach gets.',
   },
 ]
 
-export default function WelcomeScreen({
-  onGetStarted,
-  onSignIn,
-}: WelcomeScreenProps) {
+export default function WelcomeScreen({ onGetStarted, onSignIn }: WelcomeScreenProps) {
   const { palette } = useTheme()
   const { width, height: screenHeight } = useWindowDimensions()
   const scrollRef = useRef<ScrollView>(null)
@@ -86,8 +85,7 @@ export default function WelcomeScreen({
   useEffect(() => {
     if (!autoAdvance) return
     const id = setInterval(() => {
-      const next = (stepRef.current + 1) % SLIDES.length
-      goTo(next, true)
+      goTo((stepRef.current + 1) % SLIDES.length, true)
     }, AUTO_ADVANCE_MS)
     return () => clearInterval(id)
   }, [autoAdvance, goTo])
@@ -100,35 +98,14 @@ export default function WelcomeScreen({
     [step, width],
   )
 
-  const handleManualScroll = useCallback(() => {
-    setAutoAdvance(false)
-  }, [])
-
-  const handleDotPress = useCallback(
-    (index: number) => {
-      setAutoAdvance(false)
-      goTo(index, true)
-    },
-    [goTo],
-  )
-
-  // The body PNG is cropped tight to the figure at retina-friendly resolution
-  // (401 x 1109, aspect ~0.362). We size by height first so the figure fills
-  // the vertical space without distortion, then derive width from the aspect.
-  const figureHeight = Math.min(380, screenHeight * 0.42)
+  const figureHeight = Math.min(340, screenHeight * 0.38)
   const figureWidth = figureHeight * (401 / 1109)
 
   return (
-    <SafeAreaView
-      style={[styles.safe, { backgroundColor: palette.bg }]}
-      edges={['top', 'bottom']}
-    >
+    <SafeAreaView style={[styles.safe, { backgroundColor: palette.bg }]} edges={['top', 'bottom']}>
       <View style={styles.content}>
-        <Animated.View
-          entering={FadeInUp.duration(motion.duration.base)}
-          style={styles.headerRow}
-        >
-          <EmbodiWordmark size="md" />
+        <Animated.View entering={FadeInUp.duration(motion.duration.base)} style={styles.headerRow}>
+          <BodfitWordmark size="md" />
         </Animated.View>
 
         <Animated.View
@@ -144,28 +121,24 @@ export default function WelcomeScreen({
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={handleScroll}
-          onScrollBeginDrag={handleManualScroll}
+          onScrollBeginDrag={() => setAutoAdvance(false)}
           scrollEventThrottle={16}
           style={styles.copyScroll}
-          contentContainerStyle={styles.copyScrollContent}
         >
-          {SLIDES.map(slide => (
+          {SLIDES.map((slide) => (
             <View key={slide.id} style={[styles.copyBlock, { width }]}>
-              <Text
-                style={[styles.headline, { color: palette.textPrimary }]}
-                numberOfLines={2}
-              >
+              <Text style={[styles.headline, { color: palette.textPrimary }]} numberOfLines={2}>
                 {slide.headline}
               </Text>
-              <Text
-                style={[styles.headline, { color: palette.primary }]}
-                numberOfLines={2}
+              <GradientText
+                fontFamily={fonts.displayBold}
+                fontSize={26}
+                lineHeight={32}
+                letterSpacing={-0.5}
               >
                 {slide.highlight}
-              </Text>
-              <Text style={[styles.tagline, { color: palette.textSecondary }]}>
-                {slide.tagline}
-              </Text>
+              </GradientText>
+              <Text style={[styles.tagline, { color: palette.textSecondary }]}>{slide.tagline}</Text>
             </View>
           ))}
         </ScrollView>
@@ -176,34 +149,28 @@ export default function WelcomeScreen({
               key={slide.id}
               index={i}
               active={i === step}
-              activeColor={palette.primary}
+              activeColor={palette.textPrimary}
               inactiveColor={palette.surfaceHigh}
-              onPress={() => handleDotPress(i)}
+              onPress={() => {
+                setAutoAdvance(false)
+                goTo(i, true)
+              }}
             />
           ))}
         </View>
 
-        <Animated.View
-          entering={FadeInDown.delay(180).duration(motion.duration.base)}
-          style={styles.actions}
-        >
+        <Animated.View entering={FadeInDown.delay(180).duration(motion.duration.base)} style={styles.actions}>
           <PillButton label="Get started" onPress={onGetStarted} />
-          <PillButton
-            label="I already have an account"
-            variant="secondary"
-            onPress={onSignIn}
-          />
+          <PillButton label="I already have an account" variant="secondary" onPress={onSignIn} />
         </Animated.View>
 
-        <Animated.View
-          entering={FadeInDown.delay(240).duration(motion.duration.base)}
-          style={styles.termsRow}
-        >
+        <Animated.View entering={FadeInDown.delay(240).duration(motion.duration.base)} style={styles.termsRow}>
           <Text style={[styles.terms, { color: palette.textSecondary }]}>
             By continuing, you agree to our{' '}
             <Text
               style={[styles.termsLink, { color: palette.textPrimary }]}
               onPress={() => Linking.openURL(TERMS_URL).catch(() => {})}
+              accessibilityRole="link"
             >
               Terms
             </Text>{' '}
@@ -211,6 +178,7 @@ export default function WelcomeScreen({
             <Text
               style={[styles.termsLink, { color: palette.textPrimary }]}
               onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}
+              accessibilityRole="link"
             >
               Privacy Policy
             </Text>
@@ -222,9 +190,7 @@ export default function WelcomeScreen({
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-  },
+  safe: { flex: 1 },
   content: {
     flex: 1,
     paddingTop: spacing.lg,
@@ -241,16 +207,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: spacing.sm,
   },
-  copyScroll: {
-    flexGrow: 0,
-  },
-  copyScrollContent: {
-    alignItems: 'flex-start',
-  },
+  copyScroll: { flexGrow: 0 },
   copyBlock: {
     paddingHorizontal: spacing.xl,
     gap: 2,
-    minHeight: 130,
+    minHeight: 132,
   },
   headline: {
     ...typography.h1,

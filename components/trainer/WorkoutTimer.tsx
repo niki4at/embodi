@@ -172,7 +172,8 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   time: {
-    ...typography.small,
+    ...typography.mono,
+    fontSize: 12,
     fontVariant: ['tabular-nums'],
     lineHeight: 16,
   },

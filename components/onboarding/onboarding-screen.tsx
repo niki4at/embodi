@@ -15,8 +15,8 @@ import StepOne from './step-one'
 import StepTwo from './step-two'
 import StepThree from './step-three'
 import StepFour from './step-four'
-import { IconSymbol } from '@/components/ui/icon-symbol'
-import { motion, radius, spacing, typography } from '@/constants/design'
+import { BodfitWordmark } from '@/components/ui/bodfit-logo'
+import { motion, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 
 export interface OnboardingData {
@@ -148,57 +148,54 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         style={styles.keyboardView}
       >
         <View style={styles.headerBar}>
-          {currentStep > 1 ? (
-            <TouchableOpacity
-              style={[
-                styles.backButton,
-                {
-                  backgroundColor: palette.surface,
-                  borderColor: palette.border,
-                },
-              ]}
-              onPress={handleBack}
-              hitSlop={12}
-            >
-              <IconSymbol
-                name="chevron.left"
-                size={20}
-                color={palette.textPrimary}
-              />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.backPlaceholder} />
-          )}
-
-          <View style={styles.progressContainer}>
-            <View
-              style={[
-                styles.progressTrack,
-                { backgroundColor: palette.surfaceAlt },
-              ]}
-            >
+          <View style={styles.headerTop}>
+            {currentStep > 1 ? (
+              <TouchableOpacity
+                onPress={handleBack}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Back"
+              >
+                <Text style={[styles.backText, { color: palette.textSecondary }]}>
+                  {'\u2190'} Back
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <BodfitWordmark variant="header" />
+            )}
+            <View style={styles.headerRight}>
+              <Text
+                style={[styles.progressText, { color: palette.textSecondary }]}
+                accessibilityLabel={`Step ${currentStep} of ${TOTAL_STEPS}`}
+              >
+                {currentStep} / {TOTAL_STEPS}
+              </Text>
+              <TouchableOpacity
+                onPress={handleSkip}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Skip this step"
+              >
+                <Text style={[styles.skipText, { color: palette.textSecondary }]}>
+                  Skip
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={styles.segments} accessible={false}>
+            {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
               <View
+                key={i}
                 style={[
-                  styles.progressFill,
+                  styles.segment,
                   {
-                    backgroundColor: palette.primary,
-                    width: `${(currentStep / TOTAL_STEPS) * 100}%`,
+                    backgroundColor:
+                      i < currentStep ? palette.primary : palette.surfaceHigh,
                   },
                 ]}
               />
-            </View>
-            <Text
-              style={[styles.progressText, { color: palette.textTertiary }]}
-            >
-              {currentStep} of {TOTAL_STEPS}
-            </Text>
+            ))}
           </View>
-
-          <TouchableOpacity onPress={handleSkip} hitSlop={12}>
-            <Text style={[styles.skipText, { color: palette.textSecondary }]}>
-              Skip
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -228,40 +225,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: spacing.xl,
     paddingTop: 56,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.md,
+    gap: spacing.md,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 28,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.lg,
   },
-  backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
+  backText: {
+    ...typography.smallStrong,
   },
-  backPlaceholder: {
-    width: 38,
-    height: 38,
+  segments: {
+    flexDirection: 'row',
+    gap: spacing.md,
   },
-  progressContainer: {
+  segment: {
     flex: 1,
-    gap: 6,
-  },
-  progressTrack: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
+    height: 3,
+    borderRadius: 2,
   },
   progressText: {
-    ...typography.caption,
+    ...typography.mono,
   },
   skipText: {
     ...typography.smallStrong,
