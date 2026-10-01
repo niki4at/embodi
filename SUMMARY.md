@@ -55,7 +55,7 @@ Auth, welcome, loading and onboarding have no Figma frames; they were restyled t
 
 ## Staging preview (not production)
 
-- Web preview on EAS Hosting: **https://embodi--g8niug3e8e.expo.app** (created with `npx expo export --platform web` + `npx eas-cli@latest deploy`, no `--prod`). Production `embodi.expo.app` is untouched; no store submit, no Convex prod cutover.
+- Web preview on EAS Hosting: **https://embodi--8mpk0wrf64.expo.app** (created with `npx expo export --platform web` + `npx eas-cli@latest deploy`, no `--prod`). Production `embodi.expo.app` is untouched; no store submit, no Convex prod cutover.
 - The preview bundle points at the day-to-day Convex dev deployment `helpful-gopher-816` (per AGENTS.md). The two backend additions on this branch (`checkin.retuneTodaysSession` and the 10/20/40/50-minute `timeAvailable` literals) are not pushed to that deployment from this VM (no deploy key). Until `npx convex dev` is run against `helpful-gopher-816` from a logged-in machine, "Retune workout" and the 10/20/40/50 time tiles will fail on the preview; everything else runs against existing functions. The isolated anonymous deployment used for local testing has the full backend.
 
 ## Verify pass
