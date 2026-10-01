@@ -19,7 +19,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { IconSymbol } from '@/components/ui/icon-symbol'
-import { motion, radius, spacing, typography } from '@/constants/design'
+import { motion, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 
 /**

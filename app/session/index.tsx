@@ -341,7 +341,10 @@ export default function SessionScreen() {
     const map = new Map<string, 'done' | 'now' | 'next' | 'idle'>()
     let nowAssigned = false
     let nextAssigned = false
-    for (const exercise of planExercises) {
+    const displayOrder = isCustomSession
+      ? planExercises
+      : groups.flatMap(group => group.exercises.map(entry => entry.exercise))
+    for (const exercise of displayOrder) {
       if (exercise.skipped) {
         map.set(exercise.id, 'idle')
         continue
@@ -362,7 +365,7 @@ export default function SessionScreen() {
       }
     }
     return map
-  }, [planExercises, sets])
+  }, [planExercises, sets, groups, isCustomSession])
 
   const currentExercise = useMemo(
     () =>

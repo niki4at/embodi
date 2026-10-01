@@ -427,8 +427,14 @@ export default function HomeContent() {
   const firstName = (onboardingData?.name || 'there').split(' ')[0]
   const greeting = greetingForHour(suggestionNow.getHours())
 
-  const flareRegions = flare?.active ? flare.regions : []
-  const painAreas = todaysCheckin?.painAreas ?? []
+  const flareRegions = useMemo(
+    () => (flare?.active ? flare.regions : []),
+    [flare],
+  )
+  const painAreas = useMemo(
+    () => todaysCheckin?.painAreas ?? [],
+    [todaysCheckin],
+  )
 
   const contextLine = useMemo(() => {
     if (flareRegions.length > 0) {

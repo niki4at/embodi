@@ -320,9 +320,20 @@ export function OptionTile({
         style,
       ]}
     >
-      {dot ? <View style={[styles.tileDot, { backgroundColor: dot }]} /> : null}
-      <View style={[styles.tileText, centered && styles.tileTextCentered]}>
-        <Text style={[styles.tileTitle, { color: titleColor }]} numberOfLines={1}>
+      {dot ? (
+        <View
+          style={[
+            styles.tileDot,
+            centered && styles.tileDotCentered,
+            { backgroundColor: dot },
+          ]}
+        />
+      ) : null}
+      <View style={centered ? styles.tileTextCentered : styles.tileText}>
+        <Text
+          style={[styles.tileTitle, centered && styles.tileTitleCentered, { color: titleColor }]}
+          numberOfLines={1}
+        >
           {title}
         </Text>
         {subtitle ? (
@@ -330,7 +341,7 @@ export function OptionTile({
             style={[
               styles.tileSubtitle,
               { color: subtitleColor, opacity: isInk ? 0.8 : 1 },
-              centered && styles.tileTextCentered,
+              centered && styles.tileTitleCentered,
             ]}
             numberOfLines={1}
           >
@@ -661,7 +672,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   tileCentered: {
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
     paddingVertical: 12,
@@ -671,14 +682,20 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
   },
+  tileDotCentered: {
+    alignSelf: 'center',
+    marginBottom: 6,
+  },
   tileText: {
     flex: 1,
     gap: 1,
   },
   tileTextCentered: {
-    alignItems: 'center',
+    alignSelf: 'stretch',
+    gap: 1,
+  },
+  tileTitleCentered: {
     textAlign: 'center',
-    flex: 0,
   },
   tileTitle: {
     ...typography.bodyStrong,
@@ -706,7 +723,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   segmentCompact: {
-    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
     minHeight: 28,
     paddingHorizontal: 12,
   },

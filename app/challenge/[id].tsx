@@ -142,7 +142,6 @@ export default function ChallengeDetailScreen() {
   const m = challenge.metric
   const weeks: Week[] = challenge.program?.weeks ?? []
   const currentWeek = weeks[currentWeekIndex]
-  const nextWeek = weeks[Math.min(weeks.length - 1, currentWeekIndex + 1)]
 
   const current = latestValue ?? m.startValue ?? null
   const progressLine = (() => {
