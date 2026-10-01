@@ -76,7 +76,7 @@ Auth, welcome, loading and onboarding have no Figma frames; they were restyled t
 
 ## Staging preview (not production)
 
-- Web preview on EAS Hosting: **STAGING_URL_PLACEHOLDER** (created with `npx expo export --platform web` + `npx eas-cli@latest deploy`, no `--prod`). Production `embodi.expo.app` is untouched; no store submit, no Convex prod cutover.
+- Web preview on EAS Hosting: **https://embodi--eytcbs4u2e.expo.app** (created with `npx expo export --platform web` + `npx eas-cli@latest deploy`, no `--prod`). Production `embodi.expo.app` is untouched; no store submit, no Convex prod cutover.
 - The preview bundle points at the day-to-day Convex dev deployment `helpful-gopher-816` (per AGENTS.md). The backend changes on this branch (`checkin.retuneTodaysSession`, `painRatings`, `session.retune`, `challenges.unarchiveChallenge`, archived rows in `listChallenges`, 10/20/40/50 `timeAvailable`) are **not yet pushed** there: this VM has no Convex credentials (see verify-pass fix #1). The isolated anonymous deployment used for local testing has the full backend.
 
 ## Verify pass
