@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   energyTile: {
     flex: 1,
     minHeight: 64,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
   },
   painRow: {
     flexDirection: 'row',

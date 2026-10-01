@@ -30,6 +30,27 @@ Branch: `cursor/bodfit-redesign-f72d`. Source of truth: Figma `nODLRMV0kddwStwQF
 
 Auth, welcome, loading and onboarding have no Figma frames; they were restyled to the same system (Bodfit mark, segmented step bars, borderless inputs, ink/outline pills).
 
+## Verify-pass fixes (Grok 4.7 review, round 1)
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 1 | Backend not on `helpful-gopher-816` | **Still blocked from this VM**: no Convex credentials are available (`npx convex dev --once` against `dev:helpful-gopher-816` asks for an interactive login; the only secrets injected are Clerk, OpenAI, and `EXPO_TOKEN`). Add a **dev** deploy key for `helpful-gopher-816` as a Cloud Agent secret named `CONVEX_DEPLOY_KEY`, or run `npx convex dev --once` on this branch from a logged-in machine. Until then "Retune workout", per-spot pain badges, archived challenges, and the 10/20/40/50 time tiles fail on the staging preview. Never use a key for `valiant-salamander-348`. |
+| 2 | Archived tab empty, no way back | `listChallenges` now returns archived goals; the Archived tab lists them (grey), detail shows **Restore goal** (`unarchiveChallenge`). |
+| 3 | Where control not HOME / WORK / TRAVELLING | Three Figma segments. `WORK` maps to the backend `gym` environment and `TRAVELLING` to `travel`; `outdoors` is still reachable through "Edit for today". Sparkle marks the inferred segment, reason line, USING WHAT YOU HAVE / SELECT THE FOLLOWING, gear line, Edit for today unchanged. |
+| 4 | Retune copy vs behaviour | **True in-place retune.** `retuneTodaysSession` edits the existing plan only: time ratio trims/extends sets, lower energy shortens reps and adds rest, pain areas skip moves that load them. No new moves. Sheet copy "The coach retunes your N planned moves. It won't add new ones." is now accurate; a completed session gets "Saved for today". |
+| 5 | BODYFYT vs BODFIT | Kept **Bodfit** per product decision; Figma lockup lags. |
+| 6 | Goal cards | **Queued / Planning** labels; line is `current week focus · N wk` (or "Coach is building"). |
+| 7 | Frame 137:2623 | Implemented as the post-adjust session header: `← Adjust again` (reopens the sheet on Home), green mono `6 OF 7 MOVES · 45 mins`, modality eyebrow, retune title (e.g. "Shoulders-friendly"), **COACH SAYS** bubble with the retune note. Shown whenever a session carries `retune`. |
+| 8 | Suggested tonight | Photo from the Figma frame (`assets/images/suggested-tonight.jpg`) with the exact gradient wave path (Vector 7) and a soft paper wash. |
+| 9 | Chevron circle | Removed. "Add a move" stays (AGENTS.md: users add/replace exercises in the coach session); it is off-frame and intentional. |
+| 10 | Phase pill | Phase holding the NOW exercise reads IN PROGRESS before the first tick. |
+| 11 | Shared challenge chip | Communities the user belongs to render as rows in **In-progress** with `Shared challenge · N members`; Group challenges keeps only Join / Start (placeholder rows from 36:226 not copied). |
+| 12 | Note for the coach | Removed from step 4. |
+| 13 | Typeface | Eyebrows, counters and the BODFIT lockup now use **Intel One Mono** (Regular/Medium/Bold) as in the file; Sora stays for everything else (DM Mono dropped). |
+| 14 | Font scaling | Header lockup and the ready/recap/home orb labels scale with OS text size (capped at 1.3–1.4× so the orb copy stays inside the circle). Only the hero logo wordmark stays fixed. |
+| 15 | Pain badges | Check-in stores `painRatings` (area → 0–10); the adjust sheet shows one chip per spot with its own level. |
+| 16 | Dark mode | Spot-checked home, check-in, live session, adjust sheet in dark (see PR screenshots). |
+
 ## Behaviour kept (AGENTS.md)
 
 - Every workout entry goes through the daily check-in; recommendations, desk micro-sessions, "Take a breather" and challenge "Start" all seed the check-in.
@@ -40,8 +61,8 @@ Auth, welcome, loading and onboarding have no Figma frames; they were restyled t
 
 ## Known gaps / judgement calls
 
-- **Retune** rebuilds the session from the updated check-in when it has not been started (Figma copy promises an in-place retune of the same moves). A started session keeps its plan; the new values shape the next one.
-- Figma's `WORK` location segment is rendered as **Gym** (the backend has home/gym/outdoors/travel; no "work" environment).
+- Retune is deterministic (sets/reps/rest/skips), not an AI pass; it never adds moves. If the energy or time change needs new exercises the user takes "Full adjustment".
+- `WORK` maps to the backend `gym` environment; `outdoors` has no segment and lives behind "Edit for today".
 - "Run" type is stored as `cardio` + focus tag `running` (no `run` literal in the schema).
 - The finished-session frame shows three "9" boxes with no labels; not implemented since their meaning is undefined in the file. Session stats tiles (sets / exercises / PRs) sit in that slot instead.
 - "Edit Target" on a challenge creates a new version (no edit mutation exists); it says so in a confirm dialog.
@@ -55,8 +76,8 @@ Auth, welcome, loading and onboarding have no Figma frames; they were restyled t
 
 ## Staging preview (not production)
 
-- Web preview on EAS Hosting: **https://embodi--8mpk0wrf64.expo.app** (created with `npx expo export --platform web` + `npx eas-cli@latest deploy`, no `--prod`). Production `embodi.expo.app` is untouched; no store submit, no Convex prod cutover.
-- The preview bundle points at the day-to-day Convex dev deployment `helpful-gopher-816` (per AGENTS.md). The two backend additions on this branch (`checkin.retuneTodaysSession` and the 10/20/40/50-minute `timeAvailable` literals) are not pushed to that deployment from this VM (no deploy key). Until `npx convex dev` is run against `helpful-gopher-816` from a logged-in machine, "Retune workout" and the 10/20/40/50 time tiles will fail on the preview; everything else runs against existing functions. The isolated anonymous deployment used for local testing has the full backend.
+- Web preview on EAS Hosting: **STAGING_URL_PLACEHOLDER** (created with `npx expo export --platform web` + `npx eas-cli@latest deploy`, no `--prod`). Production `embodi.expo.app` is untouched; no store submit, no Convex prod cutover.
+- The preview bundle points at the day-to-day Convex dev deployment `helpful-gopher-816` (per AGENTS.md). The backend changes on this branch (`checkin.retuneTodaysSession`, `painRatings`, `session.retune`, `challenges.unarchiveChallenge`, archived rows in `listChallenges`, 10/20/40/50 `timeAvailable`) are **not yet pushed** there: this VM has no Convex credentials (see verify-pass fix #1). The isolated anonymous deployment used for local testing has the full backend.
 
 ## Verify pass
 

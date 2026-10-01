@@ -962,7 +962,7 @@ export default function CheckInScreen() {
                   {trainingContext.trainingEnvironment === 'home' &&
                   trainingContext.equipmentSnapshot.length === 0 ? (
                     <TextLink
-                      label="Add your home equipment \u2192"
+                      label={"Add your home equipment →"}
                       onPress={() => router.push('/training-setup' as Href)}
                     />
                   ) : null}

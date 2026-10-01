@@ -99,9 +99,13 @@ export default function SessionReadyScreen() {
   const isGenerating = session?.status === 'generating'
   const isFailed = session?.status === 'failed'
 
-  // A session that was already opened once goes straight to the list.
+  // A session that was already opened once, or retuned, goes straight to the list.
   useEffect(() => {
-    if (session && session.status !== 'generating' && session.status !== 'generated') {
+    if (
+      session &&
+      ((session.status !== 'generating' && session.status !== 'generated') ||
+        session.retune)
+    ) {
       setView('list')
     }
   }, [session])
@@ -165,8 +169,7 @@ export default function SessionReadyScreen() {
 
   const handleHome = useCallback(() => {
     Haptics.selectionAsync().catch(() => {})
-    if (router.canGoBack()) router.back()
-    else router.replace('/')
+    router.replace('/')
   }, [])
 
   const handleAdjustAgain = useCallback(() => {

@@ -333,6 +333,8 @@ export function OptionTile({
         <Text
           style={[styles.tileTitle, centered && styles.tileTitleCentered, { color: titleColor }]}
           numberOfLines={1}
+          adjustsFontSizeToFit={centered}
+          minimumFontScale={0.8}
         >
           {title}
         </Text>
