@@ -6,6 +6,7 @@ import {
 } from '@react-navigation/native'
 import { useFonts } from 'expo-font'
 import { Stack } from 'expo-router'
+import Head from 'expo-router/head'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import * as WebBrowser from 'expo-web-browser'
@@ -310,10 +311,21 @@ export default function RootLayout() {
     }
   }, [fontsLoaded])
 
-  if (!fontsLoaded) return null
+  const head = (
+    <Head>
+      <title>Bodfit</title>
+      <meta
+        name="description"
+        content="Bodfit: a coach that builds every session around how you feel today."
+      />
+    </Head>
+  )
+
+  if (!fontsLoaded) return head
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {head}
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
         <ConvexClientProvider>
           <PreferencesProvider>

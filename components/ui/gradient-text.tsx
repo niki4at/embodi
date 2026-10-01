@@ -1,5 +1,5 @@
 import React from 'react'
-import { Text, View, type StyleProp, type TextStyle } from 'react-native'
+import { View, type StyleProp, type ViewStyle } from 'react-native'
 import Svg, {
   Defs,
   LinearGradient,
@@ -10,9 +10,10 @@ import Svg, {
 import { gradients } from '@/constants/design'
 
 /**
- * Text filled with a horizontal gradient. Uses SVG so it works identically on
- * iOS, Android, and web without a masked-view dependency. Width is measured
- * from an invisible sibling so the SVG never clips.
+ * Text filled (or outlined) with a horizontal gradient. Uses SVG so it works
+ * identically on iOS, Android, and web without a masked-view dependency. The
+ * SVG spans the full width of its container, so late-loading web fonts never
+ * clip the glyphs.
  */
 export function GradientText({
   children,
@@ -27,7 +28,7 @@ export function GradientText({
 }: {
   children: string
   colors?: readonly [string, string]
-  style?: StyleProp<TextStyle>
+  style?: StyleProp<ViewStyle>
   fontFamily: string
   fontSize: number
   lineHeight?: number
@@ -44,26 +45,9 @@ export function GradientText({
     <View
       accessibilityRole="text"
       accessibilityLabel={accessibilityLabel ?? children}
-      style={{ height, alignSelf: 'flex-start' }}
+      onLayout={(e) => setWidth(Math.ceil(e.nativeEvent.layout.width))}
+      style={[{ height, alignSelf: 'stretch' }, style]}
     >
-      <Text
-        allowFontScaling={false}
-        onLayout={(e) => setWidth(Math.ceil(e.nativeEvent.layout.width) + 2)}
-        style={[
-          style,
-          {
-            fontFamily,
-            fontSize,
-            lineHeight: height,
-            letterSpacing,
-            opacity: 0,
-            position: 'absolute',
-          },
-        ]}
-        numberOfLines={1}
-      >
-        {children}
-      </Text>
       {width > 0 ? (
         <Svg width={width} height={height}>
           <Defs>
