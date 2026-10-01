@@ -638,7 +638,12 @@ export default function SessionScreen() {
     const stats = phaseProgress.find(p => p.phase === phase)
     if (!stats || stats.total === 0) return null
     if (stats.completed >= stats.total) return 'done' as const
-    if (stats.completed > 0) return 'in-progress' as const
+    const holdsCurrent = groups
+      .find(g => g.phase === phase)
+      ?.exercises.some(
+        ({ exercise }) => exerciseStatus.get(exercise.id) === 'now',
+      )
+    if (stats.completed > 0 || holdsCurrent) return 'in-progress' as const
     return 'start' as const
   }
 

@@ -44,6 +44,7 @@ export default function ChallengeDetailScreen() {
   const detail = useQuery(api.challenges.getChallengeDetail, { challengeId })
   const logProgress = useMutation(api.challenges.logProgress)
   const archiveChallenge = useMutation(api.challenges.archiveChallenge)
+  const unarchiveChallenge = useMutation(api.challenges.unarchiveChallenge)
   const deleteChallenge = useMutation(api.challenges.deleteChallenge)
 
   const [logVisible, setLogVisible] = useState(false)
@@ -139,6 +140,7 @@ export default function ChallengeDetailScreen() {
   const isGenerating = challenge.status === 'generating'
   const isFailed = challenge.status === 'failed'
   const isCompleted = challenge.status === 'completed'
+  const isArchived = challenge.status === 'archived'
   const m = challenge.metric
   const weeks: Week[] = challenge.program?.weeks ?? []
   const currentWeek = weeks[currentWeekIndex]
@@ -192,7 +194,15 @@ export default function ChallengeDetailScreen() {
           <View style={styles.headRow}>
             <View style={styles.headCopy}>
               <Eyebrow color={accent}>
-                {`${meta.label} \u00b7 ${weeks.length > 0 ? `Week ${currentWeekIndex + 1} of ${weeks.length}` : isGenerating ? 'Planning' : 'Active'}`}
+                {`${meta.label} \u00b7 ${
+                  isArchived
+                    ? 'Archived'
+                    : weeks.length > 0
+                      ? `Week ${currentWeekIndex + 1} of ${weeks.length}`
+                      : isGenerating
+                        ? 'Planning'
+                        : 'Active'
+                }`}
               </Eyebrow>
               <Text style={[styles.title, { color: palette.textPrimary }]} accessibilityRole="header">
                 {challenge.title}
@@ -361,12 +371,21 @@ export default function ChallengeDetailScreen() {
             <Text style={[styles.footerButtonText, { color: palette.textPrimary }]}>Edit Target</Text>
           </Pressable>
           <Pressable
-            onPress={handleArchive}
+            onPress={
+              isArchived
+                ? () => {
+                    Haptics.selectionAsync().catch(() => {})
+                    void unarchiveChallenge({ challengeId })
+                  }
+                : handleArchive
+            }
             accessibilityRole="button"
-            accessibilityLabel="Archive goal"
+            accessibilityLabel={isArchived ? 'Restore goal' : 'Archive goal'}
             style={({ pressed }) => [styles.footerButton, { borderColor: palette.borderStrong }, pressed && { opacity: 0.7 }]}
           >
-            <Text style={[styles.footerButtonText, { color: palette.textSecondary }]}>Archive goal</Text>
+            <Text style={[styles.footerButtonText, { color: isArchived ? palette.primary : palette.textSecondary }]}>
+              {isArchived ? 'Restore goal' : 'Archive goal'}
+            </Text>
           </Pressable>
         </View>
         <Pressable onPress={handleDelete} style={styles.deleteLink} accessibilityRole="button" accessibilityLabel="Delete challenge">

@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
-import { router, type Href } from 'expo-router'
-import React, { useCallback, useMemo, useState } from 'react'
+import { router, useLocalSearchParams, type Href } from 'expo-router'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   ScrollView,
@@ -84,6 +84,7 @@ type TodaysCheckin =
       energyLevel: number
       painLevel: number
       painAreas?: string[]
+      painRatings?: { area: string; level: number }[]
       sleepQuality: SleepQuality
       timeAvailable: string
       workoutType: string
@@ -238,6 +239,13 @@ export default function HomeContent() {
   const [isStartingCoachSession, setIsStartingCoachSession] = useState(false)
   const [contextEditorOpen, setContextEditorOpen] = useState(false)
   const [adjustOpen, setAdjustOpen] = useState(false)
+  const homeParams = useLocalSearchParams<{ adjust?: string }>()
+  useEffect(() => {
+    if (homeParams.adjust === '1') {
+      setAdjustOpen(true)
+      router.setParams({ adjust: undefined } as never)
+    }
+  }, [homeParams.adjust])
   const [deskEnabled, setDeskEnabled] = useState(true)
   const [contextOverride, setContextOverride] =
     useState<TrainingContextSelection | null>(null)
@@ -795,9 +803,10 @@ export default function HomeContent() {
         visible={adjustOpen}
         onClose={() => setAdjustOpen(false)}
         checkin={todaysCheckin ?? null}
-        planCount={sessionForAdjust?.planCount ?? 0}
-        sessionStarted={
-          sessionForAdjust !== null && sessionForAdjust.status !== 'generated'
+        planCount={
+          sessionForAdjust && sessionForAdjust.status !== 'completed'
+            ? sessionForAdjust.planCount
+            : 0
         }
         onFullAdjustment={() => {
           setAdjustOpen(false)
@@ -807,9 +816,14 @@ export default function HomeContent() {
           setAdjustOpen(false)
           openFreshCheckin({ step: '1', bodyMap: '1' })
         }}
-        onRetuned={(sessionId, regenerated) => {
+        onRetuned={({ sessionId, retuned }) => {
           setAdjustOpen(false)
-          if (regenerated && sessionId) navigateToSession(sessionId, 'ready')
+          if (retuned && sessionId) {
+            router.push({
+              pathname: '/session/ready',
+              params: { sessionId: String(sessionId), view: 'list', from: 'adjust' },
+            } as unknown as Href)
+          }
         }}
       />
 

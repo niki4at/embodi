@@ -10,7 +10,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native'
 import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated'
@@ -23,8 +22,6 @@ import {
   EQUIPMENT_INTENTS,
   isEquipmentIntent,
   isTrainingEnvironment,
-  TRAINING_ENVIRONMENT_LABELS,
-  TRAINING_ENVIRONMENTS,
   useForegroundPlaceMatch,
   type ContextSuggestionSource,
   type TrainingContextSelection,
@@ -201,6 +198,22 @@ const STEP_TITLE = [
   'What are we doing?',
 ] as const
 
+/**
+ * The Figma "Where" control has three segments: HOME / WORK / TRAVELLING.
+ * The backend enum is home / gym / outdoors / travel, so WORK maps to `gym`
+ * (the place with equipment you don't own) and TRAVELLING to `travel`;
+ * `outdoors` stays reachable through "Edit for today".
+ */
+const WHERE_SEGMENTS: { value: TrainingEnvironment; label: string }[] = [
+  { value: 'home', label: 'HOME' },
+  { value: 'gym', label: 'WORK' },
+  { value: 'travel', label: 'TRAVELLING' },
+]
+
+function whereSegmentFor(environment: TrainingEnvironment): TrainingEnvironment {
+  return environment === 'outdoors' ? 'travel' : environment
+}
+
 /** Location is only asked for gym-flavoured work; runs, mobility, and recovery skip it. */
 function asksForLocation(option: (typeof WORKOUT_TYPE_OPTIONS)[number] | null): boolean {
   if (!option) return false
@@ -218,7 +231,6 @@ interface CheckInFormData {
   workoutOption: number | null
   focusAreas: string[]
   intensityPreference: IntensityPreference | null
-  notes: string
 }
 
 export default function CheckInScreen() {
@@ -246,7 +258,6 @@ export default function CheckInScreen() {
   const [currentStep, setCurrentStep] = useState(initialStep)
   const [bodyMapMode, setBodyMapMode] = useState(params.bodyMap === '1')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [notesFocused, setNotesFocused] = useState(false)
   const [contextEditorOpen, setContextEditorOpen] = useState(false)
   const [homeSetupPrompted, setHomeSetupPrompted] = useState(false)
   const [trainingContext, setTrainingContext] =
@@ -265,7 +276,6 @@ export default function CheckInScreen() {
       : null,
     focusAreas: [],
     intensityPreference: null,
-    notes: '',
   }))
 
   useEffect(() => {
@@ -421,7 +431,7 @@ export default function CheckInScreen() {
     value: CheckInFormData[K],
   ) => setFormData((prev) => ({ ...prev, [key]: value }))
 
-  const { painLevel, painAreas } = useMemo(() => {
+  const { painLevel, painAreas, painRatingsList } = useMemo(() => {
     const entries = Object.entries(formData.painRatings) as [BodyPart, number][]
     const rated = entries.filter(([, lvl]) => lvl > 0)
     const max = rated.reduce((acc, [, lvl]) => Math.max(acc, lvl), 0)
@@ -431,7 +441,15 @@ export default function CheckInScreen() {
     ]
     const level =
       max > 0 ? max : formData.quickPainAreas.length > 0 ? 4 : 0
-    return { painLevel: level, painAreas: Array.from(new Set(areas)) }
+    const list = [
+      ...formData.quickPainAreas.map((area) => ({ area, level: 4 })),
+      ...rated.map(([part, lvl]) => ({ area: part as string, level: lvl })),
+    ]
+    return {
+      painLevel: level,
+      painAreas: Array.from(new Set(areas)),
+      painRatingsList: list,
+    }
   }, [formData.painRatings, formData.quickPainAreas])
 
   const intensitySuggestion = suggestedIntensity(
@@ -527,12 +545,12 @@ export default function CheckInScreen() {
           sleepQuality: formData.sleepQuality,
           painLevel,
           painAreas: painAreas.length > 0 ? painAreas : undefined,
+          painRatings: painRatingsList.length > 0 ? painRatingsList : undefined,
           stressLevel: stressOption.level,
           workoutType,
           focusAreas: focusAreas.length > 0 ? focusAreas : undefined,
           intensityPreference: formData.intensityPreference,
           timeAvailable: formData.timeAvailable,
-          notes: formData.notes.trim() || undefined,
           trainingEnvironment: trainingContext?.trainingEnvironment,
           equipmentIntent: trainingContext?.equipmentIntent,
           contextTags: trainingContext?.contextTags,
@@ -771,12 +789,15 @@ export default function CheckInScreen() {
   )
 
   const renderStepFour = () => {
-    const environmentOptions = TRAINING_ENVIRONMENTS.map((environment) => ({
-      value: environment,
-      label: TRAINING_ENVIRONMENT_LABELS[environment],
+    const suggestedSegment = contextSuggestion
+      ? whereSegmentFor(contextSuggestion.environment.value)
+      : null
+    const environmentOptions = WHERE_SEGMENTS.map((segment) => ({
+      value: segment.value,
+      label: segment.label,
       leading:
-        contextSuggestion?.environment.value === environment &&
-        contextSuggestion.environment.source !== 'manual' ? (
+        suggestedSegment === segment.value &&
+        contextSuggestion?.environment.source !== 'manual' ? (
           <InferredSparkle size={9} />
         ) : undefined,
     }))
@@ -880,7 +901,7 @@ export default function CheckInScreen() {
                 <>
                   <Segmented
                     options={environmentOptions}
-                    value={trainingContext.trainingEnvironment}
+                    value={whereSegmentFor(trainingContext.trainingEnvironment)}
                     onChange={setEnvironment}
                   />
                   {contextSuggestion &&
@@ -958,25 +979,6 @@ export default function CheckInScreen() {
           </>
         ) : null}
 
-        <Eyebrow style={styles.groupLabel}>Note for the coach</Eyebrow>
-        <TextInput
-          style={[
-            styles.notes,
-            {
-              backgroundColor: palette.surface,
-              color: palette.textPrimary,
-              borderColor: notesFocused ? palette.primary : 'transparent',
-            },
-          ]}
-          placeholder="Optional. Anything the coach should know today."
-          placeholderTextColor={palette.textTertiary}
-          value={formData.notes}
-          onChangeText={(text) => update('notes', text)}
-          onFocus={() => setNotesFocused(true)}
-          onBlur={() => setNotesFocused(false)}
-          multiline
-          accessibilityLabel="Note for the coach"
-        />
       </View>
     )
   }
@@ -1217,15 +1219,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     minHeight: 56,
-  },
-  notes: {
-    ...typography.body,
-    minHeight: 72,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    textAlignVertical: 'top',
   },
   footer: {
     position: 'absolute',

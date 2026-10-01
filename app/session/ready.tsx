@@ -45,6 +45,7 @@ import { buildCheckinSummary } from '@/utils/checkin-summary'
 type SessionParams = {
   sessionId?: string
   view?: string
+  from?: string
 }
 
 const ROW_HEIGHT = 56
@@ -85,7 +86,7 @@ export default function SessionReadyScreen() {
   const reorderPlan = useMutation(api.trainer.reorderSessionPlan)
 
   const [view, setView] = useState<'summary' | 'list'>(
-    params.view === 'list' ? 'list' : 'summary',
+    params.view === 'list' || params.from === 'adjust' ? 'list' : 'summary',
   )
   const [showCitations, setShowCitations] = useState(false)
   const [previewState, setPreviewState] = useState<{
@@ -166,6 +167,11 @@ export default function SessionReadyScreen() {
     Haptics.selectionAsync().catch(() => {})
     if (router.canGoBack()) router.back()
     else router.replace('/')
+  }, [])
+
+  const handleAdjustAgain = useCallback(() => {
+    Haptics.selectionAsync().catch(() => {})
+    router.replace({ pathname: '/', params: { adjust: '1' } } as unknown as Href)
   }, [])
 
   const handleChangeAnswer = useCallback(() => {
@@ -255,6 +261,8 @@ export default function SessionReadyScreen() {
 
   const hasAnyExercise = session.plan.length > 0
   const hasCitations = session.healthFacts.length > 0
+  const retune = session.retune ?? null
+  const activeMoves = planExercises.filter((ex) => !ex.skipped).length
 
   /* ------------------------------------------------------------ summary */
   if (view === 'summary') {
@@ -264,7 +272,7 @@ export default function SessionReadyScreen() {
           <Animated.View entering={FadeIn.duration(motion.duration.slow)} style={styles.orbWrap}>
             <HeroOrb size={150}>
               {isGenerating ? <ActivityIndicator color={palette.white} style={styles.orbSpinner} /> : null}
-              <Text style={styles.orbLabel} allowFontScaling={false}>
+              <Text style={styles.orbLabel} maxFontSizeMultiplier={1.3}>
                 {isFailed ? 'RETRY' : isGenerating ? 'COACH IS PLANNING' : 'READY'}
               </Text>
             </HeroOrb>
@@ -299,8 +307,15 @@ export default function SessionReadyScreen() {
     <GestureHandlerRootView style={styles.safeArea}>
       <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.bg }]} edges={['top']}>
         <View style={styles.topBar}>
-          <Pressable onPress={handleHome} hitSlop={12} accessibilityRole="button" accessibilityLabel="Home">
-            <Text style={[styles.back, { color: palette.textSecondary }]}>{'\u2190'} Home</Text>
+          <Pressable
+            onPress={retune ? handleAdjustAgain : handleHome}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={retune ? 'Adjust again' : 'Home'}
+          >
+            <Text style={[styles.back, { color: palette.textSecondary }]}>
+              {'\u2190'} {retune ? 'Adjust again' : 'Home'}
+            </Text>
           </Pressable>
           <Pressable
             onPress={hasCitations ? () => setShowCitations(true) : undefined}
@@ -313,24 +328,43 @@ export default function SessionReadyScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <Animated.View entering={FadeInDown.duration(motion.duration.base)}>
-            <GradientText
-              fontFamily={fonts.mono}
-              fontSize={11}
-              lineHeight={14}
-              letterSpacing={1}
-              colors={gradients.hero}
-            >
-              {`${(session.modality === 'generating...' ? 'SESSION' : session.modality).toUpperCase()} \u00b7 ${session.durationMin} MINS \u00b7 ${totalSets} SETS`}
-            </GradientText>
-            <Text style={[styles.title, { color: palette.textPrimary }]} accessibilityRole="header">
-              Your session is ready
-            </Text>
-            <Text style={[styles.subtitle, { color: palette.textSecondary }]}>{basisLine}</Text>
-          </Animated.View>
+          {retune ? (
+            <Animated.View entering={FadeInDown.duration(motion.duration.base)}>
+              <Text
+                style={[styles.retuneCount, { color: palette.success }]}
+                accessibilityLabel={`${activeMoves} of ${planExercises.length} moves, ${session.durationMin} minutes`}
+              >
+                {`${activeMoves} OF ${planExercises.length} MOVES \u00b7 ${session.durationMin} mins`}
+              </Text>
+              <Text style={[styles.retuneEyebrow, { color: palette.textSecondary }]}>
+                {session.modality === 'generating...' ? session.goal : session.modality}
+              </Text>
+              <Text style={[styles.title, styles.titleTight, { color: palette.textPrimary }]} accessibilityRole="header">
+                {retune.title}
+              </Text>
+            </Animated.View>
+          ) : (
+            <Animated.View entering={FadeInDown.duration(motion.duration.base)}>
+              <GradientText
+                fontFamily={fonts.mono}
+                fontSize={11}
+                lineHeight={14}
+                letterSpacing={1}
+                colors={gradients.hero}
+              >
+                {`${(session.modality === 'generating...' ? 'SESSION' : session.modality).toUpperCase()} \u00b7 ${session.durationMin} MINS \u00b7 ${totalSets} SETS`}
+              </GradientText>
+              <Text style={[styles.title, { color: palette.textPrimary }]} accessibilityRole="header">
+                Your session is ready
+              </Text>
+              <Text style={[styles.subtitle, { color: palette.textSecondary }]}>{basisLine}</Text>
+            </Animated.View>
+          )}
 
           <Animated.View entering={FadeInDown.delay(60).duration(motion.duration.base)} style={styles.advice}>
-            <CoachNote eyebrow="Coach's advice">{coachAdvice}</CoachNote>
+            <CoachNote eyebrow={retune ? 'Coach says' : "Coach's advice"}>
+              {retune ? retune.note : coachAdvice}
+            </CoachNote>
           </Animated.View>
 
           {groups.map((group, idx) =>
@@ -540,6 +574,18 @@ const styles = StyleSheet.create({
     ...typography.h1,
     fontSize: 24,
     marginTop: spacing.sm,
+  },
+  titleTight: {
+    marginTop: 2,
+  },
+  retuneCount: {
+    ...typography.mono,
+    fontSize: 11,
+    letterSpacing: 1,
+  },
+  retuneEyebrow: {
+    ...typography.small,
+    marginTop: spacing.md,
   },
   subtitle: {
     ...typography.small,

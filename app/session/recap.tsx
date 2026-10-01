@@ -396,14 +396,14 @@ export default function RecapScreen() {
           style={styles.hero}
         >
           <HeroOrb size={146} muted={isDiscarded}>
-            <Text style={styles.orbEyebrow} allowFontScaling={false}>
+            <Text style={styles.orbEyebrow} maxFontSizeMultiplier={1.3}>
               {isDiscarded ? 'STOPPED' : 'DONE'}
             </Text>
             <View style={styles.heroTimeRow}>
-              <Text style={styles.heroTime} allowFontScaling={false}>
+              <Text style={styles.heroTime} maxFontSizeMultiplier={1.3}>
                 {displayDurationMin}
               </Text>
-              <Text style={styles.heroTimeUnit} allowFontScaling={false}>
+              <Text style={styles.heroTimeUnit} maxFontSizeMultiplier={1.3}>
                 min
               </Text>
             </View>

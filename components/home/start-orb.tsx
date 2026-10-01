@@ -76,11 +76,11 @@ export function StartOrb({
             {content.spinning ? (
               <ActivityIndicator color={palette.white} style={styles.spinner} />
             ) : null}
-            <Text style={styles.word} allowFontScaling={false}>
+            <Text style={styles.word} maxFontSizeMultiplier={1.3}>
               {content.word}
             </Text>
             {content.meta ? (
-              <Text style={styles.meta} allowFontScaling={false}>
+              <Text style={styles.meta} maxFontSizeMultiplier={1.3}>
                 {content.meta}
               </Text>
             ) : null}

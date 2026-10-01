@@ -300,8 +300,9 @@ export default function RootLayout() {
     Sora_600SemiBold: require('@expo-google-fonts/sora/600SemiBold/Sora_600SemiBold.ttf'),
     Sora_700Bold: require('@expo-google-fonts/sora/700Bold/Sora_700Bold.ttf'),
     Sora_800ExtraBold: require('@expo-google-fonts/sora/800ExtraBold/Sora_800ExtraBold.ttf'),
-    DMMono_400Regular: require('@expo-google-fonts/dm-mono/400Regular/DMMono_400Regular.ttf'),
-    DMMono_500Medium: require('@expo-google-fonts/dm-mono/500Medium/DMMono_500Medium.ttf'),
+    IntelOneMono_400Regular: require('@expo-google-fonts/intel-one-mono/400Regular/IntelOneMono_400Regular.ttf'),
+    IntelOneMono_500Medium: require('@expo-google-fonts/intel-one-mono/500Medium/IntelOneMono_500Medium.ttf'),
+    IntelOneMono_700Bold: require('@expo-google-fonts/intel-one-mono/700Bold/IntelOneMono_700Bold.ttf'),
     ArchivoBlack_400Regular: require('@expo-google-fonts/archivo-black/400Regular/ArchivoBlack_400Regular.ttf'),
   })
 

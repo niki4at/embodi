@@ -99,7 +99,7 @@ export function BodfitWordmark({
     return (
       <Text
         style={[styles.header, { color: palette.textPrimary }]}
-        allowFontScaling={false}
+        maxFontSizeMultiplier={1.4}
         accessibilityRole="header"
         accessibilityLabel="Bodfit"
       >
@@ -148,9 +148,9 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
   },
   header: {
-    fontFamily: fonts.monoMedium,
+    fontFamily: fonts.monoBold,
     fontSize: 12,
     lineHeight: 16,
-    letterSpacing: 2.4,
+    letterSpacing: 1.8,
   },
 })

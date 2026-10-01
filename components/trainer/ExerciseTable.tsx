@@ -577,13 +577,7 @@ export default function ExerciseTable({
               accessibilityLabel={
                 actionsOpen ? 'Hide exercise actions' : 'Show exercise actions'
               }
-              style={[
-                styles.chevWrap,
-                {
-                  backgroundColor: palette.surfaceAlt,
-                  borderColor: palette.border,
-                },
-              ]}
+              style={styles.chevWrap}
             >
               <IconSymbol
                 name={actionsOpen ? 'chevron.up' : 'chevron.down'}

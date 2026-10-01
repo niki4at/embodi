@@ -1,6 +1,6 @@
 import { v } from 'convex/values'
 import { internal } from './_generated/api'
-import type { Id } from './_generated/dataModel'
+import type { Doc, Id } from './_generated/dataModel'
 import { internalQuery, mutation, query } from './_generated/server'
 
 // Recommendation seed shape (mirrors trainer.recommendationSeedArg)
@@ -67,6 +67,9 @@ const checkinDataArg = v.object({
   ),
   painLevel: v.number(),
   painAreas: v.optional(v.array(v.string())),
+  painRatings: v.optional(
+    v.array(v.object({ area: v.string(), level: v.number() }))
+  ),
   stressLevel: v.number(),
   workoutType: v.union(
     v.literal('strength'),
@@ -113,6 +116,9 @@ const checkinDocument = v.object({
   ),
   painLevel: v.number(),
   painAreas: v.optional(v.array(v.string())),
+  painRatings: v.optional(
+    v.array(v.object({ area: v.string(), level: v.number() }))
+  ),
   stressLevel: v.number(),
   workoutType: v.union(
     v.literal('strength'),
@@ -295,6 +301,7 @@ export const createCheckin = mutation({
       sleepQuality: data.sleepQuality,
       painLevel: data.painLevel,
       painAreas: data.painAreas,
+      painRatings: data.painRatings,
       stressLevel: data.stressLevel,
       workoutType: data.workoutType,
       focusAreas: data.focusAreas,
@@ -442,38 +449,139 @@ export const startSessionFromTodaysCheckin = mutation({
   },
 })
 
-// "Adjust for today": patch a few fields on today's check-in and, when the
-// linked session has not been started yet, rebuild it from the updated
-// check-in. A session with logged sets is left alone (the new values still
-// shape the next session built today).
+// "Adjust for today": patch a few fields on today's check-in and retune the
+// linked session IN PLACE. Only the moves already in the plan are touched:
+// time trims or extends sets, lower energy shortens reps and lengthens rest,
+// pain areas skip moves that load them. Nothing new is added.
+const timeAvailableArg = v.union(
+  v.literal('10'),
+  v.literal('15'),
+  v.literal('20'),
+  v.literal('30'),
+  v.literal('40'),
+  v.literal('45'),
+  v.literal('50'),
+  v.literal('60')
+)
+
+type PlanExercise = Doc<'workout_sessions'>['plan'][number]
+
+const PAIN_KEYWORDS: Record<string, string[]> = {
+  shoulders: ['shoulder', 'press', 'overhead', 'delt', 'lateral raise'],
+  'upper-back': ['upper back', 'row', 'lat', 'pull'],
+  neck: ['neck', 'overhead', 'shrug'],
+  'lower-back': ['lower back', 'deadlift', 'hinge', 'good morning', 'back extension'],
+  knees: ['knee', 'squat', 'lunge', 'step-up', 'step up', 'jump'],
+  wrists: ['wrist', 'push-up', 'push up', 'plank', 'press'],
+  ankles: ['ankle', 'calf', 'jump', 'run', 'hop'],
+  hips: ['hip', 'lunge', 'squat', 'bridge'],
+  chest: ['chest', 'press', 'push-up', 'push up', 'fly'],
+}
+
+function painKeywordsFor(area: string): string[] {
+  const direct = PAIN_KEYWORDS[area]
+  if (direct) return direct
+  const words = area
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/^(left|right)\s*/i, '')
+    .toLowerCase()
+  const specific = PAIN_KEYWORDS[words.replace(/\s+/g, '-')]
+  return specific ?? [words]
+}
+
+function exerciseLoadsArea(exercise: PlanExercise, area: string): boolean {
+  const haystack = `${exercise.name} ${exercise.bodyPart} ${exercise.modality}`.toLowerCase()
+  return painKeywordsFor(area).some((kw) => haystack.includes(kw))
+}
+
+function retunePlan(
+  plan: PlanExercise[],
+  input: {
+    oldMinutes: number
+    newMinutes: number
+    oldEnergy: number
+    newEnergy: number
+    painAreas: string[]
+  }
+): { plan: PlanExercise[]; changes: string[] } {
+  const changes: string[] = []
+  const ratio = input.oldMinutes > 0 ? input.newMinutes / input.oldMinutes : 1
+  const energyDrop = input.newEnergy < input.oldEnergy - 1
+  const energyRise = input.newEnergy > input.oldEnergy + 1
+  let skipped = 0
+  let trimmed = 0
+  let extended = 0
+
+  const next = plan.map((exercise) => {
+    const updated: PlanExercise = { ...exercise }
+    if (
+      !exercise.skipped &&
+      input.painAreas.some((area) => exerciseLoadsArea(exercise, area))
+    ) {
+      updated.skipped = true
+      skipped += 1
+    }
+    if (ratio < 0.95 && exercise.targetSets > 1) {
+      const sets = Math.max(1, Math.round(exercise.targetSets * ratio))
+      if (sets < exercise.targetSets) {
+        updated.targetSets = sets
+        trimmed += 1
+      }
+      if (exercise.durationMin) {
+        updated.durationMin = Math.max(1, Math.round(exercise.durationMin * ratio))
+      }
+    } else if (ratio > 1.15 && exercise.targetSets < 5) {
+      const sets = Math.min(5, Math.round(exercise.targetSets * ratio))
+      if (sets > exercise.targetSets) {
+        updated.targetSets = sets
+        extended += 1
+      }
+    }
+    if (energyDrop) {
+      const reps = Array.isArray(exercise.targetReps)
+        ? exercise.targetReps
+        : [exercise.targetReps ?? 0]
+      updated.targetReps = reps.map((r) => Math.max(1, Math.round(r * 0.8)))
+      updated.restSec = Math.min(180, (exercise.restSec || 60) + 15)
+    } else if (energyRise) {
+      updated.restSec = Math.max(30, (exercise.restSec || 60) - 10)
+    }
+    return updated
+  })
+
+  if (skipped > 0) {
+    changes.push(
+      `skipped ${skipped} ${skipped === 1 ? 'move' : 'moves'} that load your ${input.painAreas
+        .map((a) => a.replace(/-/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase())
+        .join(' and ')}`
+    )
+  }
+  if (trimmed > 0) changes.push(`trimmed sets to fit ${input.newMinutes} minutes`)
+  if (extended > 0) changes.push(`added sets to use the full ${input.newMinutes} minutes`)
+  if (energyDrop) changes.push('eased reps and added rest for lower energy')
+  if (energyRise) changes.push('tightened rest now that energy is up')
+  return { plan: next, changes }
+}
+
 export const retuneTodaysSession = mutation({
   args: {
     energyLevel: v.optional(v.number()),
     painLevel: v.optional(v.number()),
     painAreas: v.optional(v.array(v.string())),
-    timeAvailable: v.optional(
-      v.union(
-        v.literal('10'),
-        v.literal('15'),
-        v.literal('20'),
-        v.literal('30'),
-        v.literal('40'),
-        v.literal('45'),
-        v.literal('50'),
-        v.literal('60')
-      )
-    ),
+    timeAvailable: v.optional(timeAvailableArg),
   },
   returns: v.object({
     sessionId: v.union(v.id('workout_sessions'), v.null()),
-    regenerated: v.boolean(),
+    retuned: v.boolean(),
+    note: v.string(),
   }),
   handler: async (
     ctx,
     args
   ): Promise<{
     sessionId: Id<'workout_sessions'> | null
-    regenerated: boolean
+    retuned: boolean
+    note: string
   }> => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) {
@@ -503,62 +611,58 @@ export const retuneTodaysSession = mutation({
       await ctx.db.patch(todaysCheckin._id, updates)
     }
 
-    const existing = todaysCheckin.sessionId
+    const session = todaysCheckin.sessionId
       ? await ctx.db.get(todaysCheckin.sessionId)
       : null
-    if (!existing) {
-      return { sessionId: null, regenerated: false }
+    if (
+      !session ||
+      session.status === 'completed' ||
+      session.status === 'discarded' ||
+      session.status === 'failed' ||
+      session.plan.length === 0
+    ) {
+      return {
+        sessionId: session?._id ?? null,
+        retuned: false,
+        note: 'Saved. These answers shape the next session you build today.',
+      }
     }
 
-    const loggedSets = await ctx.db
-      .query('workout_sets')
-      .withIndex('by_sessionId', (q) => q.eq('sessionId', existing._id))
-      .first()
-    const canRebuild =
-      loggedSets === null &&
-      (existing.status === 'generated' ||
-        existing.status === 'generating' ||
-        existing.status === 'failed')
-    if (!canRebuild) {
-      return { sessionId: existing._id, regenerated: false }
-    }
-
-    const now = Date.now()
-    await ctx.db.patch(existing._id, { status: 'discarded', updatedAt: now })
-
-    const timeAvailable =
-      args.timeAvailable ?? todaysCheckin.timeAvailable
-    const sessionId = await ctx.db.insert('workout_sessions', {
-      userId,
-      goal: existing.goal,
-      modality: 'generating...',
-      durationMin: parseInt(timeAvailable, 10),
-      status: 'generating',
-      plan: [],
-      healthFacts: [],
-      citations: [],
-      checkinId: todaysCheckin._id,
-      recommendationSeed: existing.recommendationSeed,
-      trainingEnvironment: todaysCheckin.trainingEnvironment,
-      equipmentIntent: todaysCheckin.equipmentIntent,
-      contextTags: todaysCheckin.contextTags,
-      suggestionSource: todaysCheckin.suggestionSource,
-      suggestionReason: todaysCheckin.suggestionReason,
-      equipmentSnapshot: todaysCheckin.equipmentSnapshot,
-      unavailableEquipment: todaysCheckin.unavailableEquipment,
-      createdAt: now,
-      updatedAt: now,
-    })
-    await ctx.db.patch(todaysCheckin._id, { sessionId })
-
-    await ctx.scheduler.runAfter(0, internal.trainer.generateSessionPlan, {
-      sessionId,
-      userId,
-      checkinId: todaysCheckin._id,
-      recommendationSeed: existing.recommendationSeed,
+    const newMinutes = args.timeAvailable
+      ? parseInt(args.timeAvailable, 10)
+      : session.durationMin
+    const { plan, changes } = retunePlan(session.plan, {
+      oldMinutes: session.durationMin,
+      newMinutes,
+      oldEnergy: todaysCheckin.energyLevel,
+      newEnergy: args.energyLevel ?? todaysCheckin.energyLevel,
+      painAreas: args.painAreas ?? todaysCheckin.painAreas ?? [],
     })
 
-    return { sessionId, regenerated: true }
+    const activeCount = plan.filter((ex) => !ex.skipped).length
+    const painLabel = (args.painAreas ?? todaysCheckin.painAreas ?? [])[0]
+    const title = painLabel
+      ? `${painLabel
+          .replace(/-/g, ' ')
+          .replace(/([a-z])([A-Z])/g, '$1 $2')
+          .replace(/^(left|right)\s*/i, '')
+          .replace(/^\w/, (c) => c.toUpperCase())}-friendly`
+      : newMinutes < session.durationMin
+        ? 'Trimmed for today'
+        : 'Retuned for today'
+    const note =
+      changes.length > 0
+        ? `Kept your ${plan.length} planned moves and ${changes.join(', ')}. ${activeCount} of ${plan.length} are on for today.`
+        : `Your ${plan.length} planned moves already fit. Nothing changed.`
+
+    await ctx.db.patch(session._id, {
+      plan,
+      durationMin: newMinutes,
+      retune: { title, note, at: Date.now() },
+      updatedAt: Date.now(),
+    })
+
+    return { sessionId: session._id, retuned: changes.length > 0, note }
   },
 })
 

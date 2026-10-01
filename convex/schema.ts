@@ -224,6 +224,14 @@ export default defineSchema({
     // the session is completed. Actual duration = completedAt - startedAt.
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
+    // Set when "Adjust for today" retuned the planned moves in place.
+    retune: v.optional(
+      v.object({
+        title: v.string(),
+        note: v.string(),
+        at: v.number(),
+      })
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -750,6 +758,10 @@ export default defineSchema({
     ),
     painLevel: v.number(), // 0-10
     painAreas: v.optional(v.array(v.string())), // body areas if pain > 3
+    // Per-spot ratings from the body map (area id -> 0-10)
+    painRatings: v.optional(
+      v.array(v.object({ area: v.string(), level: v.number() }))
+    ),
     stressLevel: v.number(), // 1-5
     // Session preferences
     workoutType: v.union(

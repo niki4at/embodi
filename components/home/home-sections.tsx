@@ -1,7 +1,9 @@
 import * as Haptics from 'expo-haptics'
+import { Image } from 'expo-image'
+import { LinearGradient } from 'expo-linear-gradient'
 import React from 'react'
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
+import Svg, { Defs, LinearGradient as SvgGradient, Path, Stop } from 'react-native-svg'
 
 import {
   ArrowRow,
@@ -13,6 +15,7 @@ import { CATEGORY_META } from '@/constants/challenge-meta'
 import { gradients, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import type { Id } from '@/convex/_generated/dataModel'
+import { currentWeekIndex } from '@/utils/challenge-week'
 
 /* -------------------------------------------------------------------------- */
 /* Today's context tiles                                                       */
@@ -121,6 +124,8 @@ export type GoalCard = {
   category: keyof typeof CATEGORY_META
   status: 'generating' | 'active' | 'completed' | 'archived' | 'failed'
   weekCount: number
+  weekFocuses?: string[]
+  createdAt?: number
   percent: number
 }
 
@@ -149,13 +154,19 @@ export function GoalsStrip({
               ? 'Planning'
               : goal.status === 'completed'
                 ? 'Done'
-                : 'In progress'
+                : 'Queued'
+          const focus =
+            goal.weekFocuses && goal.weekFocuses.length > 0
+              ? goal.weekFocuses[
+                  currentWeekIndex(goal.createdAt ?? 0, goal.weekFocuses.length)
+                ]
+              : meta.label
           const detail =
             goal.status === 'generating'
               ? 'Coach is building'
               : goal.weekCount > 0
-                ? `${meta.label} \u00b7 ${goal.weekCount} weeks \u00b7 ${goal.percent}%`
-                : `${meta.label} \u00b7 ${goal.percent}%`
+                ? `${focus} \u00b7 ${goal.weekCount} wk`
+                : `${focus} \u00b7 ${goal.percent}%`
           return (
             <Pressable
               key={goal._id}
@@ -201,6 +212,12 @@ export function GoalsStrip({
 /* Suggested tonight                                                           */
 /* -------------------------------------------------------------------------- */
 
+const SUGGESTED_PHOTO = require('../../assets/images/suggested-tonight.jpg')
+
+/** Gradient wave traced from the Figma home frame (Vector 7). */
+const WAVE_PATH =
+  'M1.26248 0.750091C-2.00548 24.4628 10.7367 56.18 28.6324 58.108C46.5281 60.036 47.5808 75.46 59.6867 81.726C71.7926 87.9919 124.953 65.82 139.165 67.266C153.376 68.712 150.744 101.488 159.166 110.164C167.587 118.84 196.536 144.386 207.063 130.89C217.59 117.394 241.802 101.488 260.75 105.826'
+
 export function SuggestedCard({
   eyebrow,
   title,
@@ -223,18 +240,34 @@ export function SuggestedCard({
       accessibilityLabel={`${eyebrow}. ${title}${meta ? `. ${meta}` : ''}. Starts with a quick check-in.`}
       style={({ pressed }) => [styles.suggested, pressed && styles.pressed]}
     >
-      <LinearGradient
-        colors={['rgba(75,158,254,0.18)', 'rgba(201,145,241,0.28)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.suggestedGradient}
+      <Image
+        source={SUGGESTED_PHOTO}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        contentPosition="center"
+        accessibilityIgnoresInvertColors
+      />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: palette.bg, opacity: 0.5 }]} />
+      <Svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 261.5 135.5"
+        preserveAspectRatio="none"
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
       >
-        <View style={styles.suggestedWave}>
-          <View style={[styles.wave, { borderColor: 'rgba(75,158,254,0.55)' }]} />
-          <View style={[styles.wave, styles.waveTwo, { borderColor: 'rgba(201,145,241,0.6)' }]} />
-        </View>
+        <Defs>
+          <SvgGradient id="suggested-wave" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={gradients.hero[0]} />
+            <Stop offset="1" stopColor={gradients.hero[1]} />
+          </SvgGradient>
+        </Defs>
+        <Path d={WAVE_PATH} stroke="url(#suggested-wave)" strokeWidth={1.6} strokeLinecap="round" fill="none" />
+      </Svg>
+      <View style={styles.suggestedInner}>
+        <View style={styles.suggestedSpacer} />
         <View style={styles.suggestedCopy}>
-          <Text style={[styles.suggestedEyebrow, { color: palette.textSecondary }]}>
+          <Text style={[styles.suggestedEyebrow, { color: palette.textPrimary }]}>
             {eyebrow.toUpperCase()}
           </Text>
           <Text style={[styles.suggestedTitle, { color: palette.textPrimary }]}>
@@ -246,7 +279,7 @@ export function SuggestedCard({
             </Text>
           ) : null}
         </View>
-      </LinearGradient>
+      </View>
     </Pressable>
   )
 }
@@ -437,31 +470,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     overflow: 'hidden',
   },
-  suggestedGradient: {
+  suggestedInner: {
     minHeight: 150,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  suggestedWave: {
-    width: '48%',
-    height: 150,
-    overflow: 'hidden',
-  },
-  wave: {
-    position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    borderWidth: 2,
-    left: -70,
-    top: 30,
-  },
-  waveTwo: {
-    left: -30,
-    top: 70,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
+  suggestedSpacer: {
+    width: '50%',
   },
   suggestedCopy: {
     flex: 1,

@@ -23,6 +23,7 @@ type Checkin = {
   energyLevel: number
   painLevel: number
   painAreas?: string[]
+  painRatings?: { area: string; level: number }[]
   timeAvailable: string
 }
 
@@ -34,15 +35,15 @@ const TIME_CHOICES: { value: TimeAvailable; hint: string }[] = [
 
 /**
  * "Adjust for today" sheet. A light retune of energy, pain, and time on top
- * of today's check-in; the full check-in stays one tap away. Retuning a
- * not-yet-started session rebuilds it from the updated check-in.
+ * of today's check-in; the full check-in stays one tap away. Retuning edits
+ * the planned moves in place (sets, reps, rest, skips); it never adds new
+ * ones.
  */
 export function AdjustSheet({
   visible,
   onClose,
   checkin,
   planCount,
-  sessionStarted,
   onFullAdjustment,
   onEditBodyMap,
   onRetuned,
@@ -51,10 +52,13 @@ export function AdjustSheet({
   onClose: () => void
   checkin: Checkin | null
   planCount: number
-  sessionStarted: boolean
   onFullAdjustment: () => void
   onEditBodyMap: () => void
-  onRetuned: (sessionId: Id<'workout_sessions'> | null, regenerated: boolean) => void
+  onRetuned: (result: {
+    sessionId: Id<'workout_sessions'> | null
+    retuned: boolean
+    note: string
+  }) => void
 }) {
   const { palette } = useTheme()
   const retune = useMutation(api.checkin.retuneTodaysSession)
@@ -71,7 +75,16 @@ export function AdjustSheet({
     )
   }, [visible, checkin])
 
-  const painAreas = useMemo(() => checkin?.painAreas ?? [], [checkin])
+  const painSpots = useMemo(() => {
+    if (!checkin) return []
+    if (checkin.painRatings && checkin.painRatings.length > 0) {
+      return checkin.painRatings
+    }
+    return (checkin.painAreas ?? []).map((area) => ({
+      area,
+      level: checkin.painLevel,
+    }))
+  }, [checkin])
 
   const dirty =
     (energy !== null &&
@@ -89,7 +102,7 @@ export function AdjustSheet({
         energyLevel: level,
         timeAvailable: time ?? undefined,
       })
-      onRetuned(result.sessionId, result.regenerated)
+      onRetuned(result)
     } catch (error) {
       console.error('Failed to retune session', error)
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
@@ -100,11 +113,9 @@ export function AdjustSheet({
 
   const subtitle = !checkin
     ? 'No check-in yet today. Do the full check-in so the coach can build around you.'
-    : sessionStarted
-      ? "Your session is already under way, so these changes shape the next one you build today."
-      : planCount > 0
-        ? `The coach retunes your ${planCount} planned moves. It won't add new ones.`
-        : 'The coach rebuilds today around what you change here.'
+    : planCount > 0
+      ? `The coach retunes your ${planCount} planned moves. It won't add new ones.`
+      : 'Saved to today\u2019s check-in and used for the next session you build.'
 
   return (
     <BottomSheet
@@ -115,9 +126,7 @@ export function AdjustSheet({
       footer={
         checkin ? (
           <PillButton
-            label={
-              busy ? 'Retuning' : sessionStarted ? 'Save for next session' : 'Retune workout'
-            }
+            label={busy ? 'Retuning' : planCount > 0 ? 'Retune workout' : 'Save for today'}
             onPress={handleRetune}
             loading={busy}
             disabled={!dirty}
@@ -152,24 +161,22 @@ export function AdjustSheet({
 
       <Eyebrow style={styles.eyebrow}>Pain</Eyebrow>
       <View style={styles.painRow}>
-        {painAreas.length === 0 ? (
+        {painSpots.length === 0 ? (
           <Text style={[styles.painEmpty, { color: palette.textSecondary }]}>
             Nothing logged today
           </Text>
         ) : (
-          painAreas.map((area) => (
+          painSpots.map((spot) => (
             <Chip
-              key={area}
-              label={painAreaLabel(area)}
+              key={spot.area}
+              label={painAreaLabel(spot.area)}
               onPress={onEditBodyMap}
+              accessibilityLabel={`${painAreaLabel(spot.area)}, pain ${spot.level} of 10. Edit on body map.`}
               leading={
                 <View
-                  style={[
-                    styles.painBadge,
-                    { backgroundColor: painDot(checkin?.painLevel ?? 0, palette) },
-                  ]}
+                  style={[styles.painBadge, { backgroundColor: painDot(spot.level, palette) }]}
                 >
-                  <Text style={styles.painBadgeText}>{checkin?.painLevel ?? 0}</Text>
+                  <Text style={styles.painBadgeText}>{spot.level}</Text>
                 </View>
               }
               style={[styles.painChip, { backgroundColor: palette.primaryMuted, borderColor: palette.primary }]}
