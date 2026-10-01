@@ -580,10 +580,11 @@ export default function HomeContent() {
   }, [todaysCheckin, painAreas, flareRegions, overview, palette, openFreshCheckin])
 
   const readyInsight = insight && insight.status === 'ready' ? insight : null
-  const coachRec = readyInsight?.alignedRecommendations[0] ?? null
+  const coachRec = readyInsight?.alignedRecommendations?.[0] ?? null
   const suggestedRec =
-    readyInsight?.explorationRecommendations[0] ??
-    (readyInsight?.alignedRecommendations[1] ?? null)
+    readyInsight?.explorationRecommendations?.[0] ??
+    readyInsight?.alignedRecommendations?.[1] ??
+    null
 
   const coachText =
     readyInsight?.headline ??

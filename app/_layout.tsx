@@ -6,6 +6,7 @@ import {
 } from '@react-navigation/native'
 import { useFonts } from 'expo-font'
 import { Stack } from 'expo-router'
+import { Platform, View } from 'react-native'
 import Head from 'expo-router/head'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
@@ -26,7 +27,13 @@ import {
 import { ThemeProvider, useTheme } from '@/constants/theme-context'
 import { tokenCache } from '@/utils/clerkTokenCache'
 
-WebBrowser.maybeCompleteAuthSession()
+// Google's redirect often leaves a cross-origin opener. maybeCompleteAuthSession
+// then reads parent.location and throws, which prevents the app from mounting.
+try {
+  WebBrowser.maybeCompleteAuthSession()
+} catch {
+  // The callback screen finishes the session itself.
+}
 SplashScreen.preventAutoHideAsync().catch(() => {})
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
@@ -327,7 +334,17 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {head}
-      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <ClerkProvider
+        publishableKey={publishableKey}
+        tokenCache={tokenCache}
+        signInForceRedirectUrl="/"
+        signUpForceRedirectUrl="/"
+        signInFallbackRedirectUrl="/"
+        signUpFallbackRedirectUrl="/"
+      >
+        {Platform.OS === 'web' ? (
+          <View nativeID="clerk-captcha" collapsable={false} />
+        ) : null}
         <ConvexClientProvider>
           <PreferencesProvider>
             <ThemeProvider>

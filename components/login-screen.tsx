@@ -186,6 +186,19 @@ export default function LoginScreen() {
       setAuthMessage(`Continuing with ${label}`)
 
       const redirectUrl = Linking.createURL('/sso-callback')
+
+      // On web, a popup loses window.opener after Google's redirect, so the
+      // opener never receives the session and the page stays blank. A full-page
+      // redirect comes back to /sso-callback, which activates the session.
+      if (Platform.OS === 'web') {
+        await signIn?.authenticateWithRedirect({
+          strategy,
+          redirectUrl,
+          redirectUrlComplete: Linking.createURL('/'),
+        })
+        return
+      }
+
       const { createdSessionId, setActive } = await startSSOFlow({
         strategy,
         redirectUrl,
@@ -198,7 +211,8 @@ export default function LoginScreen() {
       } else {
         setIsAuthenticating(false)
       }
-    } catch {
+    } catch (error) {
+      console.error('SSO sign-in failed', error)
       setIsAuthenticating(false)
     }
   }
