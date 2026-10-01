@@ -26,8 +26,8 @@ interface WelcomeScreenProps {
   onSignIn: () => void
 }
 
-const TERMS_URL = 'https://embodi.expo.app/terms'
-const PRIVACY_URL = 'https://embodi.expo.app/privacy'
+const TERMS_URL = 'https://bodfit.expo.app/terms'
+const PRIVACY_URL = 'https://bodfit.expo.app/privacy'
 const AUTO_ADVANCE_MS = 5000
 
 type Slide = {

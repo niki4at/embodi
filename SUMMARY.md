@@ -4,7 +4,7 @@ Branch: `cursor/bodfit-redesign-f72d`. Source of truth: Figma `nODLRMV0kddwStwQF
 
 ## Brand
 
-- **Name**: Embodi → **Bodfit** everywhere a user can read it (`app.json` display name, web manifest, permission strings, onboarding/login copy, coach system prompts, share text). Infra IDs are untouched: bundle/package `com.nick4eto.embodi`, slug `embodi`, EAS project, Convex deployments, `embodi.expo.app` host. Deep-link scheme is now `['embodi', 'bodfit']` (old scheme kept first so Clerk SSO redirects keep working).
+- **Name**: Embodi → **Bodfit** everywhere a user can read it (`app.json` display name, web manifest, permission strings, onboarding/login copy, coach system prompts, share text). Native bundle/package stay `com.nick4eto.embodi`. Deep-link scheme is `['embodi', 'bodfit']` (old scheme kept first so Clerk SSO redirects keep working). Public web host is a **new** EAS project so `embodi.expo.app` stays up: slug `bodfit`, project `7ed99813-393e-4cee-8352-4de136a72e22`, production URL `https://bodfit.expo.app`. The original project `b91a84ce-6d3f-46f8-9967-2ad6414cce74` still owns `embodi.expo.app`. Convex day-to-day stays `helpful-gopher-816`.
 - **Logo**: `components/ui/bodfit-logo.tsx`. Mark = blue→lavender gradient tile with a geometric lowercase "b" (stem + ring + offset pulse dot). Wordmark `hero` (Sora ExtraBold "bod" + blue "fit") and `header` (tracked mono `BODFIT`, the lockup that sits top-right on every Figma frame). PNG assets regenerated from the same geometry via `pngjs` (SDF anti-aliasing): `icon.png`, `splash-icon.png`, `favicon.png`, Android adaptive foreground/background/monochrome. Template React logos removed.
 - **Tokens** (`constants/design.ts`): white paper, near-black ink, `#4B9EFE` primary, `#C991F1` lavender partner, coach purple `#B751FF`, energy dot scale, pain scale (yellow→orange→red), hero gradient. Full dark palette. Sora for all text, DM Mono for eyebrow labels, Archivo Black for the Challenges masthead. Buttons are pill-shaped ink / gradient / hairline-outline.
 
@@ -74,10 +74,13 @@ Auth, welcome, loading and onboarding have no Figma frames; they were restyled t
 - `npx expo lint` clean, `npx tsc --noEmit` clean, `vitest` 50/50.
 - Manual web walkthrough against an isolated anonymous Convex deployment: sign-in → home → full check-in (including body map rating) → "Coach is planning" → ready list → live session → "Something hurts" → complete → recap → challenges; light and dark mode.
 
-## Staging preview (not production)
+## Public web host
 
-- Web preview on EAS Hosting: **https://embodi--eytcbs4u2e.expo.app** (created with `npx expo export --platform web` + `npx eas-cli@latest deploy`, no `--prod`). Production `embodi.expo.app` is untouched; no store submit, no Convex prod cutover.
-- The preview bundle points at the day-to-day Convex dev deployment `helpful-gopher-816` (per AGENTS.md). The backend changes on this branch (`checkin.retuneTodaysSession`, `painRatings`, `session.retune`, `challenges.unarchiveChallenge`, archived rows in `listChallenges`, 10/20/40/50 `timeAvailable`) are **not yet pushed** there: this VM has no Convex credentials (see verify-pass fix #1). The isolated anonymous deployment used for local testing has the full backend.
+- **https://bodfit.expo.app** is the Bodfit production alias. It belongs to a new EAS project, `@nick4eto/bodfit` (`7ed99813-393e-4cee-8352-4de136a72e22`), because an EAS Hosting preview subdomain cannot be renamed on the existing project. The first deployment claimed the preview subdomain `bodfit`, then that deployment was promoted to production on this project only.
+- **https://embodi.expo.app** is unchanged. It stays on `@nick4eto/embodi` (`b91a84ce-6d3f-46f8-9967-2ad6414cce74`). Do not run `eas deploy --prod` against that project.
+- The Bodfit web bundle is exported with `EXPO_PUBLIC_CONVEX_URL=https://helpful-gopher-816.convex.cloud` (and the matching `.convex.site` URL). It does not point at Convex prod `valiant-salamander-348`.
+- Earlier preview on the old project: **https://embodi--eytcbs4u2e.expo.app** (no production promote). Leave it.
+- Backend changes on this branch (`checkin.retuneTodaysSession`, `painRatings`, `session.retune`, `challenges.unarchiveChallenge`, archived rows in `listChallenges`, 10/20/40/50 `timeAvailable`) are **not yet pushed** to `helpful-gopher-816`: this VM has no Convex credentials (see verify-pass fix #1). The isolated anonymous deployment used for local testing has the full backend.
 
 ## Verify pass
 

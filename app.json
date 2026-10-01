@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Bodfit",
-    "slug": "embodi",
+    "slug": "bodfit",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -86,12 +86,12 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b91a84ce-6d3f-46f8-9967-2ad6414cce74"
+        "projectId": "7ed99813-393e-4cee-8352-4de136a72e22"
       }
     },
     "owner": "nick4eto",
     "updates": {
-      "url": "https://u.expo.dev/b91a84ce-6d3f-46f8-9967-2ad6414cce74"
+      "url": "https://u.expo.dev/7ed99813-393e-4cee-8352-4de136a72e22"
     },
     "runtimeVersion": {
       "policy": "appVersion"
