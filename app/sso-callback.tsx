@@ -1,4 +1,4 @@
-import { useClerk, useSignIn, useSignUp } from '@clerk/clerk-expo'
+import { getClerkInstance, useClerk, useSignIn, useSignUp } from '@clerk/clerk-expo'
 import { useRouter, type Href } from 'expo-router'
 import * as WebBrowser from 'expo-web-browser'
 import { useEffect, useRef } from 'react'
@@ -64,10 +64,6 @@ export default function SSOCallback() {
         }
       }
 
-      const clerkWithNavigate = clerk as typeof clerk & {
-        navigate: (to: string) => Promise<unknown> | void
-      }
-      const originalNavigate = clerkWithNavigate.navigate.bind(clerkWithNavigate)
       const stayInApp = (to: string) => {
         if (!to || to.includes('accounts.dev') || to.includes('accounts.google.com')) {
           goHome()
@@ -86,21 +82,25 @@ export default function SSOCallback() {
         }
         goHome()
       }
-      clerkWithNavigate.navigate = (to) => {
-        stayInApp(to)
-      }
 
       try {
-        await clerk.handleRedirectCallback({
-          signInForceRedirectUrl: '/',
-          signUpForceRedirectUrl: '/',
-          signInFallbackRedirectUrl: '/',
-          signUpFallbackRedirectUrl: '/',
-        })
+        // useClerk()'s wrapper drops the custom navigate argument. The browser
+        // instance accepts it, which is what keeps a failed attempt off the
+        // hosted account portal.
+        const browserClerk = getClerkInstance()
+        await browserClerk.handleRedirectCallback(
+          {
+            signInForceRedirectUrl: '/',
+            signUpForceRedirectUrl: '/',
+            signInFallbackRedirectUrl: '/',
+            signUpFallbackRedirectUrl: '/',
+          },
+          async (to) => {
+            stayInApp(to)
+          },
+        )
       } catch (error) {
         console.error('Could not finish the sign-in redirect', error)
-      } finally {
-        clerkWithNavigate.navigate = originalNavigate
       }
 
       if (window.location.pathname.includes('sso-callback')) {
