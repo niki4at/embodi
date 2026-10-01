@@ -22,7 +22,7 @@ export default function SSOCallback() {
   const startedRef = useRef(false)
 
   useEffect(() => {
-    if (startedRef.current || !signInLoaded || !signUpLoaded) return
+    if (startedRef.current || !signInLoaded || !signUpLoaded || !clerk.loaded) return
     startedRef.current = true
 
     const goHome = () => {
@@ -41,6 +41,11 @@ export default function SSOCallback() {
       const params = new URL(window.location.href).searchParams
       const nonce = params.get('rotating_token_nonce')?.split('#')[0]?.trim()
 
+      if (!nonce && !signIn?.status && !signUp?.status) {
+        goHome()
+        return
+      }
+
       if (nonce && signIn) {
         try {
           await signIn.reload({ rotatingTokenNonce: nonce })
@@ -51,42 +56,51 @@ export default function SSOCallback() {
           if (sessionId) {
             const setActive = signUp?.createdSessionId ? setSignUpActive : setSignInActive
             await setActive?.({ session: sessionId })
+            goHome()
+            return
           }
         } catch (error) {
           console.error('Could not finish the Google sign-in', error)
         }
       }
 
+      const clerkWithNavigate = clerk as typeof clerk & {
+        navigate: (to: string) => Promise<unknown> | void
+      }
+      const originalNavigate = clerkWithNavigate.navigate.bind(clerkWithNavigate)
+      const stayInApp = (to: string) => {
+        if (!to || to.includes('accounts.dev') || to.includes('accounts.google.com')) {
+          goHome()
+          return
+        }
+        try {
+          const url = new URL(to, window.location.origin)
+          if (url.origin === window.location.origin) {
+            const path = `${url.pathname}${url.search}` || '/'
+            router.replace(path as Href)
+            return
+          }
+        } catch {
+          goHome()
+          return
+        }
+        goHome()
+      }
+      clerkWithNavigate.navigate = (to) => {
+        stayInApp(to)
+      }
+
       try {
-        await clerk.handleRedirectCallback(
-          {
-            signInForceRedirectUrl: '/',
-            signUpForceRedirectUrl: '/',
-            signInFallbackRedirectUrl: '/',
-            signUpFallbackRedirectUrl: '/',
-          },
-          async (to) => {
-            // A missed attempt would otherwise leave the app for the hosted
-            // Clerk account portal. Stay on Bodfit.
-            if (!to || to.includes('accounts.dev')) {
-              goHome()
-              return
-            }
-            if (to.startsWith('http')) {
-              const url = new URL(to)
-              if (url.origin === window.location.origin) {
-                const path = `${url.pathname}${url.search}` || '/'
-                router.replace(path as Href)
-                return
-              }
-              window.location.assign(to)
-              return
-            }
-            router.replace(to as Href)
-          },
-        )
+        await clerk.handleRedirectCallback({
+          signInForceRedirectUrl: '/',
+          signUpForceRedirectUrl: '/',
+          signInFallbackRedirectUrl: '/',
+          signUpFallbackRedirectUrl: '/',
+        })
       } catch (error) {
         console.error('Could not finish the sign-in redirect', error)
+      } finally {
+        clerkWithNavigate.navigate = originalNavigate
       }
 
       if (window.location.pathname.includes('sso-callback')) {

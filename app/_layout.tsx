@@ -6,7 +6,7 @@ import {
 } from '@react-navigation/native'
 import { useFonts } from 'expo-font'
 import { Stack } from 'expo-router'
-import { Platform, View } from 'react-native'
+import { Platform, Text, View } from 'react-native'
 import Head from 'expo-router/head'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
@@ -329,7 +329,25 @@ export default function RootLayout() {
     </Head>
   )
 
-  if (!fontsLoaded) return head
+  if (!fontsLoaded) {
+    return (
+      <>
+        {head}
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#FFFFFF',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: '#111111', fontSize: 22, fontWeight: '700' }}>
+            Bodfit
+          </Text>
+        </View>
+      </>
+    )
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
