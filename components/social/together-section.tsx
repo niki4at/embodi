@@ -3,6 +3,7 @@ import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import React, { useState } from 'react'
 import {
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -30,17 +31,14 @@ export function TogetherSection() {
   const { palette } = useTheme()
   const joinCommunity = useMutation(api.communities.joinCommunity)
 
-  const [chooserOpen, setChooserOpen] = useState(false)
   const [codeOpen, setCodeOpen] = useState(false)
   const [code, setCode] = useState('')
   const [joining, setJoining] = useState(false)
-  const [joinError, setJoinError] = useState<string | null>(null)
 
   const handleJoinWithCode = async () => {
     const trimmed = code.trim()
     if (!trimmed || joining) return
     setJoining(true)
-    setJoinError(null)
     try {
       const communityId = await joinCommunity({ inviteCode: trimmed })
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
@@ -51,9 +49,12 @@ export function TogetherSection() {
         params: { id: String(communityId) },
       })
     } catch (error) {
-      const reason =
-        error instanceof Error ? error.message.match(/Uncaught Error: ([^\n]+)/)?.[1] : undefined
-      setJoinError(reason ? `${reason}. Check the code and try again.` : 'Check the code and try again.')
+      Alert.alert(
+        'Could not join',
+        error instanceof Error
+          ? error.message.replace(/^.*Error: /, '')
+          : 'Check the code and try again.',
+      )
     } finally {
       setJoining(false)
     }
@@ -61,17 +62,11 @@ export function TogetherSection() {
 
   const handlePlus = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    setChooserOpen(true)
-  }
-
-  const chooseJoin = () => {
-    setChooserOpen(false)
-    setCodeOpen(true)
-  }
-
-  const chooseStart = () => {
-    setChooserOpen(false)
-    router.push('/community/new')
+    Alert.alert('Group challenge', undefined, [
+      { text: 'Join with a code', onPress: () => setCodeOpen(true) },
+      { text: 'Start a community', onPress: () => router.push('/community/new') },
+      { text: 'Cancel', style: 'cancel' },
+    ])
   }
 
   const rows = [
@@ -119,18 +114,6 @@ export function TogetherSection() {
       </View>
 
       <BottomSheet
-        visible={chooserOpen}
-        onClose={() => setChooserOpen(false)}
-        title="Group challenge"
-        subtitle="Train toward one goal with friends."
-      >
-        <View style={styles.chooser}>
-          <PillButton variant="gradient" label="Start a community" onPress={chooseStart} />
-          <PillButton variant="secondary" label="Join with a code" onPress={chooseJoin} />
-        </View>
-      </BottomSheet>
-
-      <BottomSheet
         visible={codeOpen}
         onClose={() => setCodeOpen(false)}
         title="Join with a code"
@@ -146,10 +129,7 @@ export function TogetherSection() {
       >
         <TextInput
           value={code}
-          onChangeText={(value) => {
-            setCode(value)
-            setJoinError(null)
-          }}
+          onChangeText={setCode}
           placeholder="e.g. em4k7t2p9x"
           placeholderTextColor={palette.textTertiary}
           autoCapitalize="none"
@@ -161,11 +141,6 @@ export function TogetherSection() {
             { backgroundColor: palette.surface, color: palette.textPrimary },
           ]}
         />
-        {joinError ? (
-          <Text style={[styles.joinError, { color: palette.danger }]} accessibilityRole="alert">
-            {joinError}
-          </Text>
-        ) : null}
       </BottomSheet>
     </View>
   )
@@ -247,7 +222,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: 7,
-    paddingBottom: 6.5,
+    paddingBottom: 7,
     borderBottomWidth: 0.5,
   },
   dot: {
@@ -274,17 +249,10 @@ const styles = StyleSheet.create({
     height: FAB_SIZE,
     marginTop: 23,
   },
-  chooser: {
-    gap: spacing.md,
-  },
   codeInput: {
     ...typography.body,
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: 14,
-  },
-  joinError: {
-    ...typography.small,
-    marginTop: spacing.sm,
   },
 })
