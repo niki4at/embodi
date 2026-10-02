@@ -80,7 +80,7 @@ const HERO_SIZES = {
 /**
  * Bodfit wordmark. `hero` pairs the mark with a Sora ExtraBold lowercase
  * wordmark ("fit" picks up the brand blue). `header` is the small tracked mono
- * lockup that sits top-right on every screen in the Figma file.
+ * lockup used in screen headers.
  */
 export function BodfitWordmark({
   variant = 'hero',
