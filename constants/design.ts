@@ -26,7 +26,6 @@ export const lightPalette = {
   border: '#E4E4E8',
   borderStrong: '#868686',
   divider: '#ECECEF',
-  track: '#D9D9D9',
 
   textPrimary: '#0B0B0D',
   textSecondary: '#868686',
@@ -94,7 +93,6 @@ export const darkPalette = {
   border: '#26262F',
   borderStrong: '#4A4A56',
   divider: '#1C1C24',
-  track: '#2A2A36',
 
   textPrimary: '#F7F7FA',
   textSecondary: '#9C9CA6',
@@ -162,8 +160,6 @@ export const palette: Palette = lightPalette
 export const gradients = {
   hero: ['#4B9EFE', '#C991F1'] as const,
   heroSoft: ['rgba(75,158,254,0.85)', 'rgba(201,145,241,0.85)'] as const,
-  cta: ['rgba(75,158,254,0.8)', 'rgba(201,145,241,0.8)'] as const,
-  ring: ['#71B1FE', '#D4A7F4'] as const,
   name: ['#449FFF', '#FF8BEC'] as const,
 } as const
 

@@ -19,7 +19,7 @@ import Svg, { Circle, Path } from 'react-native-svg'
 import { BodfitWordmark } from '@/components/ui/bodfit-logo'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
 import { PillButton } from '@/components/ui/pill-button'
-import { CoachAvatar } from '@/components/ui/primitives'
+import { CoachAvatar, Eyebrow } from '@/components/ui/primitives'
 import { CATEGORY_META } from '@/constants/challenge-meta'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { fonts } from '@/constants/fonts'
@@ -37,7 +37,7 @@ type Week = {
 }
 
 export default function ChallengeDetailScreen() {
-  const { palette, resolved } = useTheme()
+  const { palette } = useTheme()
   const params = useLocalSearchParams<{ id: string }>()
   const challengeId = params.id as Id<'challenges'>
 
@@ -144,7 +144,6 @@ export default function ChallengeDetailScreen() {
   const m = challenge.metric
   const weeks: Week[] = challenge.program?.weeks ?? []
   const currentWeek = weeks[currentWeekIndex]
-  const nextCardBg = resolved === 'dark' ? palette.surface : 'rgba(217, 217, 217, 0.6)'
 
   const current = latestValue ?? m.startValue ?? null
   const progressLine = (() => {
@@ -192,25 +191,23 @@ export default function ChallengeDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInUp.duration(motion.duration.base)}>
-          <Text style={[styles.eyebrow, { color: accent }]} numberOfLines={1}>
-            {`${meta.label.toUpperCase()} \u00b7 ${
-              isArchived
-                ? 'Archived'
-                : weeks.length > 0
-                  ? `Week ${currentWeekIndex + 1} of ${weeks.length}`
-                  : isGenerating
-                    ? 'Planning'
-                    : 'Active'
-            }`}
-          </Text>
           <View style={styles.headRow}>
-            <Text
-              style={[styles.title, { color: palette.textPrimary }]}
-              accessibilityRole="header"
-              numberOfLines={2}
-            >
-              {challenge.title}
-            </Text>
+            <View style={styles.headCopy}>
+              <Eyebrow color={accent}>
+                {`${meta.label} \u00b7 ${
+                  isArchived
+                    ? 'Archived'
+                    : weeks.length > 0
+                      ? `Week ${currentWeekIndex + 1} of ${weeks.length}`
+                      : isGenerating
+                        ? 'Planning'
+                        : 'Active'
+                }`}
+              </Eyebrow>
+              <Text style={[styles.title, { color: palette.textPrimary }]} accessibilityRole="header">
+                {challenge.title}
+              </Text>
+            </View>
             {!isGenerating ? (
               <Text style={[styles.percent, { color: isCompleted ? palette.success : accent }]}>
                 {percent}%
@@ -219,7 +216,7 @@ export default function ChallengeDetailScreen() {
           </View>
           {!isGenerating ? (
             <View
-              style={[styles.track, { backgroundColor: palette.track }]}
+              style={[styles.track, { backgroundColor: palette.surfaceHigh }]}
               accessibilityRole="progressbar"
               accessibilityValue={{ min: 0, max: 100, now: percent }}
             >
@@ -243,7 +240,7 @@ export default function ChallengeDetailScreen() {
         </Animated.View>
 
         {isGenerating ? (
-          <View style={[styles.nextCard, { backgroundColor: nextCardBg }]}>
+          <View style={[styles.nextCard, { backgroundColor: palette.surface }]}>
             <ActivityIndicator size="small" color={palette.primary} />
             <Text style={[styles.nextSummary, { color: palette.textSecondary }]}>
               Your coach is building a multi-week program. This usually takes a few seconds.
@@ -259,11 +256,9 @@ export default function ChallengeDetailScreen() {
         ) : currentWeek ? (
           <Animated.View
             entering={FadeInDown.duration(motion.duration.base).delay(40)}
-            style={[styles.nextCard, { backgroundColor: nextCardBg }]}
+            style={[styles.nextCard, { backgroundColor: palette.surface }]}
           >
-            <Text style={[styles.eyebrow, { color: palette.primary }]}>
-              {`NEXT UP \u00b7 WEEK ${currentWeek.weekNumber}`}
-            </Text>
+            <Eyebrow color={palette.primary}>{`Next up \u00b7 week ${currentWeek.weekNumber}`}</Eyebrow>
             <Text style={[styles.nextTitle, { color: palette.textPrimary }]}>{currentWeek.target}</Text>
             <Text style={[styles.nextSummary, { color: palette.textSecondary }]} numberOfLines={2}>
               {currentWeek.summary}
@@ -290,8 +285,8 @@ export default function ChallengeDetailScreen() {
         ) : null}
 
         {weeks.length > 0 ? (
-          <Animated.View entering={FadeInDown.duration(motion.duration.base).delay(80)} style={styles.programSection}>
-            <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>PROGRAM</Text>
+          <Animated.View entering={FadeInDown.duration(motion.duration.base).delay(80)} style={styles.section}>
+            <Eyebrow>Program</Eyebrow>
             <ProgramPath
               weeks={weeks}
               currentIndex={currentWeekIndex}
@@ -305,9 +300,9 @@ export default function ChallengeDetailScreen() {
         ) : null}
 
         {!isGenerating && !isFailed ? (
-          <Animated.View entering={FadeInDown.duration(motion.duration.base).delay(120)} style={styles.logSection}>
-            <Text style={[styles.eyebrow, { color: palette.textSecondary }]}>PROGRESS LOG</Text>
-            <View style={[styles.logCard, { borderColor: palette.track }]}>
+          <Animated.View entering={FadeInDown.duration(motion.duration.base).delay(120)} style={styles.section}>
+            <Eyebrow>Progress log</Eyebrow>
+            <View style={[styles.logCard, { borderColor: palette.border }]}>
               <View style={styles.logHead}>
                 <View style={styles.logCopy}>
                   <Text style={[styles.logValue, { color: palette.textPrimary }]}>
@@ -315,7 +310,7 @@ export default function ChallengeDetailScreen() {
                   </Text>
                   <Text style={[styles.logHint, { color: palette.textSecondary }]}>
                     {m.targetValue !== undefined
-                      ? `of ${m.targetValue.toLocaleString()} ${m.unit} target \u00b7 ${manualEntries.length} ${manualEntries.length === 1 ? 'log' : 'logs'}`
+                      ? `of ${m.targetValue.toLocaleString()} ${m.unit} target \u00b7 ${manualEntries.length} logs`
                       : `${manualEntries.length} logs so far`}
                   </Text>
                 </View>
@@ -330,8 +325,22 @@ export default function ChallengeDetailScreen() {
                 accessibilityLabel="Log progress"
                 style={({ pressed }) => [styles.logCta, { borderColor: palette.primary }, pressed && { opacity: 0.7 }]}
               >
-                <Text style={[styles.logCtaText, { color: palette.primary }]}>Log Progress</Text>
+                <Text style={[styles.smallCtaText, { color: palette.primary }]}>Log Progress</Text>
               </Pressable>
+              {manualEntries
+                .slice()
+                .reverse()
+                .slice(0, 4)
+                .map((entry) => (
+                  <View key={entry._id} style={[styles.logRow, { borderTopColor: palette.divider }]}>
+                    <Text style={[styles.logRowValue, { color: palette.textPrimary }]}>
+                      {entry.value} {entry.unit}
+                    </Text>
+                    <Text style={[styles.logRowNote, { color: palette.textSecondary }]} numberOfLines={1}>
+                      {entry.note || new Date(entry.recordedAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                ))}
             </View>
           </Animated.View>
         ) : null}
@@ -422,16 +431,10 @@ export default function ChallengeDetailScreen() {
 }
 
 /**
- * Winding program path from frame 40:362: 27pt week nodes on a 44pt pitch
- * snaking left and right, ticks for finished weeks, a play glyph for the
- * current one, hollow rings ahead, and the goal-day node labelled on its left.
- * The coach cheers from the right.
+ * Winding program path: one node per week snaking left-right down the card,
+ * ticks for finished weeks, a play glyph for the current one, hollow rings
+ * ahead, and a final "goal day" node. The coach cheers from the side.
  */
-const NODE = 27
-const NODE_PITCH = 44
-const NODE_XS = [0.055, 0.375, 0.123, 0.49, 0.806]
-const FINAL_X = 0.395
-
 function ProgramPath({
   weeks,
   currentIndex,
@@ -448,18 +451,19 @@ function ProgramPath({
   const { palette } = useTheme()
   const [width, setWidth] = useState(0)
   const nodes = [...weeks.map((w) => ({ kind: 'week' as const, week: w })), { kind: 'final' as const }]
-  const half = NODE / 2
-  const height = (nodes.length - 1) * NODE_PITCH + NODE + 2
-  const points = nodes.map((node, i) => ({
-    x: width * (node.kind === 'final' ? FINAL_X : NODE_XS[i % NODE_XS.length]),
-    y: half + i * NODE_PITCH,
+  const rowHeight = 64
+  const height = nodes.length * rowHeight + 24
+  const xs = [0.12, 0.42, 0.2, 0.55, 0.85, 0.35]
+  const points = nodes.map((_, i) => ({
+    x: width * xs[i % xs.length],
+    y: 24 + i * rowHeight,
   }))
   const path = points
     .map((p, i) => {
       if (i === 0) return `M ${p.x} ${p.y}`
       const prev = points[i - 1]
       const cx = (prev.x + p.x) / 2
-      return `C ${cx} ${prev.y + NODE_PITCH * 0.55}, ${cx} ${p.y - NODE_PITCH * 0.55}, ${p.x} ${p.y}`
+      return `C ${cx} ${prev.y + rowHeight * 0.55}, ${cx} ${p.y - rowHeight * 0.55}, ${p.x} ${p.y}`
     })
     .join(' ')
 
@@ -472,7 +476,7 @@ function ProgramPath({
     >
       {width > 0 ? (
         <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
-          <Path d={path} stroke={palette.textSecondary} strokeWidth={1} fill="none" />
+          <Path d={path} stroke={palette.textSecondary} strokeWidth={1.2} fill="none" />
           {points.map((p, i) => {
             const isFinal = i === nodes.length - 1
             const done = !isFinal && i < currentIndex
@@ -482,10 +486,10 @@ function ProgramPath({
                 key={i}
                 cx={p.x}
                 cy={p.y}
-                r={done || active ? half : half - 0.5}
+                r={14}
                 fill={done || active ? accent : palette.bg}
-                stroke={isFinal ? palette.accent : palette.textSecondary}
-                strokeWidth={done || active ? 0 : 1}
+                stroke={isFinal ? palette.accent : accent}
+                strokeWidth={done || active ? 0 : 1.2}
               />
             )
           })}
@@ -498,18 +502,11 @@ function ProgramPath({
             const done = !isFinal && i < currentIndex
             const active = !isFinal && i === currentIndex
             const glyph = isFinal ? '' : done ? '\u2713' : active ? '\u25B6' : ''
-            const nodeLeft = p.x - half
+            const labelLeft = p.x + 22
             return (
-              <View key={i} style={[styles.node, { left: nodeLeft, top: p.y - half }]} pointerEvents="none">
-                <Text style={[active ? styles.nodePlay : styles.nodeTick, { color: palette.white }]}>{glyph}</Text>
-                <View
-                  style={[
-                    styles.nodeLabel,
-                    isFinal
-                      ? { right: NODE + 6, width: Math.max(80, nodeLeft - 6), alignItems: 'flex-end' }
-                      : { left: NODE + 4, width: Math.max(60, width - nodeLeft - NODE - 4) },
-                  ]}
-                >
+              <View key={i} style={[styles.node, { left: p.x - 14, top: p.y - 14 }]} pointerEvents="none">
+                <Text style={[styles.nodeGlyph, { color: palette.white }]}>{glyph}</Text>
+                <View style={[styles.nodeLabel, { left: 28, width: Math.max(80, width - labelLeft - 8) }]}>
                   <Text
                     style={[
                       styles.nodeTitle,
@@ -531,11 +528,9 @@ function ProgramPath({
         : null}
       <View style={styles.cheer} pointerEvents="none">
         <View style={[styles.cheerBubble, { borderColor: palette.accent }]}>
-          <Text style={[styles.cheerText, { color: palette.accent }]}>keep going you&apos;ve got this!</Text>
+          <Text style={[styles.cheerText, { color: palette.accent }]}>keep going, you&apos;ve got this!</Text>
         </View>
-        <View style={styles.cheerAvatar}>
-          <CoachAvatar size={36} />
-        </View>
+        <CoachAvatar size={34} />
       </View>
     </View>
   )
@@ -553,7 +548,7 @@ function MiniBars({ values, accent }: { values: number[]; accent: string }) {
       {recent.map((v, i) => (
         <View
           key={i}
-          style={[styles.bar, { height: 6 + (v / max) * 15, backgroundColor: accent }]}
+          style={[styles.bar, { height: 6 + (v / max) * 18, backgroundColor: accent }]}
         />
       ))}
     </View>
@@ -568,91 +563,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 17,
-    marginTop: 12,
-    paddingLeft: 26,
-    paddingRight: 44,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
   },
-  back: {
-    fontFamily: fonts.uiSemiBold,
-    fontSize: 12,
-    lineHeight: 15,
-  },
+  back: { ...typography.smallStrong },
   scrollContent: {
-    paddingTop: 19,
-    paddingLeft: 16,
-    paddingRight: 46,
+    paddingHorizontal: spacing.xl,
     paddingBottom: spacing.huge,
-  },
-  eyebrow: {
-    fontFamily: fonts.mono,
-    fontSize: 9,
-    lineHeight: 12,
   },
   headRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     gap: spacing.md,
-    marginTop: 2,
   },
-  title: {
-    flex: 1,
-    fontFamily: fonts.displayBold,
-    fontSize: 16,
-    lineHeight: 20,
-  },
+  headCopy: { flex: 1, gap: 4 },
+  title: { ...typography.h1, fontSize: 22 },
   percent: {
     fontFamily: fonts.displaySemiBold,
-    fontSize: 20,
-    lineHeight: 25,
-    marginRight: 3,
+    fontSize: 26,
+    lineHeight: 32,
   },
   track: {
     height: 3,
-    borderRadius: 1.5,
-    marginTop: 4,
+    borderRadius: 2,
+    marginTop: spacing.md,
     overflow: 'hidden',
   },
-  fill: { height: 3, borderRadius: 1.5 },
+  fill: { height: 3, borderRadius: 2 },
   progressLine: {
-    fontFamily: fonts.uiRegular,
-    fontSize: 9,
-    lineHeight: 11,
-    marginTop: 7,
+    ...typography.small,
+    fontSize: 12,
+    marginTop: spacing.sm,
   },
   nextCard: {
-    alignSelf: 'center',
-    width: 269,
-    maxWidth: '100%',
-    marginTop: 21,
-    borderRadius: 15,
-    paddingTop: 11,
-    paddingBottom: 12,
-    paddingHorizontal: 14,
+    marginTop: spacing.xl,
+    marginHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: 6,
   },
-  nextTitle: {
-    fontFamily: fonts.displayBold,
-    fontSize: 14,
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  nextSummary: {
-    fontFamily: fonts.uiRegular,
-    fontSize: 9,
-    lineHeight: 11,
-    marginTop: 4,
-  },
+  nextTitle: { ...typography.bodyStrong, fontSize: 17 },
+  nextSummary: { ...typography.small },
   nextActions: {
     flexDirection: 'row',
-    gap: 33,
-    marginTop: 14,
-    paddingLeft: 3,
+    gap: spacing.md,
+    marginTop: spacing.sm,
   },
   smallCta: {
-    width: 99,
-    height: 25,
-    borderRadius: 5,
+    flex: 1,
+    minHeight: 36,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -660,87 +622,56 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: 'transparent',
   },
-  smallCtaText: {
-    fontFamily: fonts.uiSemiBold,
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  programSection: {
-    marginTop: 28,
-    gap: 20,
+  smallCtaText: { ...typography.smallStrong },
+  section: {
+    marginTop: spacing.xxl,
+    gap: spacing.md,
   },
   path: {
     position: 'relative',
   },
   node: {
     position: 'absolute',
-    width: NODE,
-    height: NODE,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  nodeTick: {
-    fontFamily: fonts.uiSemiBold,
-    fontSize: 15,
-    lineHeight: 19,
-  },
-  nodePlay: {
-    fontFamily: fonts.uiSemiBold,
-    fontSize: 9,
-    lineHeight: 11,
-    marginLeft: 2,
+  nodeGlyph: {
+    ...typography.smallStrong,
+    fontSize: 12,
   },
   nodeLabel: {
     position: 'absolute',
     top: -2,
+    gap: 1,
   },
-  nodeTitle: {
-    fontFamily: fonts.uiSemiBold,
-    fontSize: 10,
-    lineHeight: 13,
-  },
-  nodeMeta: {
-    fontFamily: fonts.mono,
-    fontSize: 7,
-    lineHeight: 10,
-  },
+  nodeTitle: { ...typography.smallStrong, fontSize: 12 },
+  nodeMeta: { ...typography.mono, fontSize: 9 },
   cheer: {
     position: 'absolute',
-    right: -3,
-    top: 22,
+    right: 0,
+    top: 40,
     alignItems: 'flex-end',
+    gap: 4,
   },
   cheerBubble: {
-    width: 77,
-    height: 38,
     borderWidth: 1,
-    borderRadius: 19,
+    borderRadius: radius.lg,
     paddingHorizontal: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 6,
+    maxWidth: 120,
   },
   cheerText: {
     fontFamily: fonts.uiRegular,
-    fontSize: 7.5,
-    lineHeight: 9,
-    textAlign: 'center',
-  },
-  cheerAvatar: {
-    marginTop: -2,
-    marginRight: 71,
-  },
-  logSection: {
-    marginTop: 19,
-    gap: 11,
+    fontSize: 10,
+    lineHeight: 13,
   },
   logCard: {
     borderWidth: 1,
-    borderRadius: 15,
-    paddingTop: 18,
-    paddingLeft: 13,
-    paddingRight: 19,
-    paddingBottom: 15,
-    marginRight: -6,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
   },
   logHead: {
     flexDirection: 'row',
@@ -748,69 +679,56 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
   },
-  logCopy: { flex: 1, gap: 1 },
-  logValue: {
-    fontFamily: fonts.displayBold,
-    fontSize: 14,
-    lineHeight: 18,
-  },
-  logHint: {
-    fontFamily: fonts.uiRegular,
-    fontSize: 9,
-    lineHeight: 11,
-  },
+  logCopy: { flex: 1, gap: 2 },
+  logValue: { ...typography.h3, fontSize: 18 },
+  logHint: { ...typography.small, fontSize: 12 },
   bars: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 2,
-    marginBottom: 4,
+    gap: 3,
   },
   bar: {
     width: 4,
+    borderRadius: 1,
   },
   logCta: {
-    height: 25,
-    marginTop: 15,
-    marginLeft: 7,
+    minHeight: 36,
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logCtaText: {
-    fontFamily: fonts.uiSemiBold,
-    fontSize: 10,
-    lineHeight: 13,
+  logRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
+  logRowValue: { ...typography.smallStrong },
+  logRowNote: { ...typography.small, flex: 1, textAlign: 'right' },
   footerActions: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 34,
-    marginTop: 30,
+    gap: spacing.xxl,
+    marginTop: spacing.xxxl,
   },
   footerButton: {
-    width: 96,
-    height: 25,
-    borderWidth: 0.5,
-    borderRadius: 5,
+    minWidth: 120,
+    minHeight: 36,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
   },
-  footerButtonText: {
-    fontFamily: fonts.uiSemiBold,
-    fontSize: 10,
-    lineHeight: 13,
-  },
+  footerButtonText: { ...typography.smallStrong, fontSize: 12 },
   deleteLink: {
     alignSelf: 'center',
-    marginTop: 16,
+    marginTop: spacing.xl,
     padding: spacing.sm,
   },
-  deleteText: {
-    fontFamily: fonts.uiRegular,
-    fontSize: 10,
-    lineHeight: 13,
-  },
+  deleteText: { ...typography.small },
   input: {
     ...typography.body,
     borderRadius: radius.md,

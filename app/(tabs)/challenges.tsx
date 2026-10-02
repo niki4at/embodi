@@ -1,6 +1,5 @@
 import { useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
-import { LinearGradient } from 'expo-linear-gradient'
 import { router, type Href } from 'expo-router'
 import React, { useCallback, useMemo, useState } from 'react'
 import {
@@ -18,8 +17,10 @@ import { useFloatingTabBarInset } from '@/components/navigation/floating-tab-bar
 import { TogetherSection } from '@/components/social/together-section'
 import { BodfitWordmark } from '@/components/ui/bodfit-logo'
 import { GradientText } from '@/components/ui/gradient-text'
-import { CATEGORY_META } from '@/constants/challenge-meta'
-import { gradients, motion } from '@/constants/design'
+import { PillButton } from '@/components/ui/pill-button'
+import { Chip } from '@/components/ui/primitives'
+import { CATEGORY_META, CATEGORY_ORDER } from '@/constants/challenge-meta'
+import { gradients, motion, radius, spacing, typography } from '@/constants/design'
 import { fonts } from '@/constants/fonts'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
@@ -61,12 +62,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'archived', label: 'Archived' },
 ]
 
-/**
- * Spacing below mirrors the bodyfyt "challenges" frame (36:226, 415pt wide):
- * header 59, masthead 88/115, subtitle 152, tabs 199, tab rule 218, one
- * challenge row every 130pt, Create button 33pt under the last row, GROUP
- * CHALLENGES 45pt under the button, then 29pt group rows beside the FAB.
- */
+
 export default function ChallengesScreen() {
   const { palette } = useTheme()
   const tabBarInset = useFloatingTabBarInset()
@@ -111,7 +107,6 @@ export default function ChallengesScreen() {
   const sharedVisible = filter === 'in-progress' ? communities ?? [] : []
 
   const isLoading = challenges === undefined
-  const rule = palette.borderStrong
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.bg }]} edges={['top']}>
@@ -119,7 +114,7 @@ export default function ChallengesScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarInset }]}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeInUp.duration(motion.duration.base)} style={styles.header}>
+        <Animated.View entering={FadeInUp.duration(motion.duration.base)}>
           <View style={styles.topBar}>
             <Text style={[styles.topBarLabel, { color: palette.textPrimary }]}>
               GOALS {'\u00b7'} {inProgress.length} in progress
@@ -133,8 +128,9 @@ export default function ChallengesScreen() {
             </Text>
             <GradientText
               fontFamily={fonts.masthead}
-              fontSize={27}
-              lineHeight={29}
+              fontSize={28}
+              lineHeight={34}
+              letterSpacing={0.5}
               colors={gradients.hero}
               outline
               accessibilityLabel="Challenges"
@@ -147,7 +143,7 @@ export default function ChallengesScreen() {
           </Text>
         </Animated.View>
 
-        <View style={[styles.filters, { borderBottomColor: rule }]} accessibilityRole="tablist">
+        <View style={[styles.filters, { borderBottomColor: palette.divider }]} accessibilityRole="tablist">
           {FILTERS.map((item) => {
             const active = item.id === filter
             return (
@@ -157,30 +153,35 @@ export default function ChallengesScreen() {
                   Haptics.selectionAsync().catch(() => {})
                   setFilter(item.id)
                 }}
-                hitSlop={{ top: 10, bottom: 4, left: 8, right: 8 }}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: active }}
+                style={styles.filterTab}
               >
                 <Text
                   style={[
                     styles.filterLabel,
-                    active ? styles.filterLabelActive : null,
                     { color: active ? palette.textPrimary : palette.textSecondary },
                   ]}
                 >
                   {item.label}
                 </Text>
+                <View
+                  style={[
+                    styles.filterUnderline,
+                    { backgroundColor: active ? palette.textPrimary : 'transparent' },
+                  ]}
+                />
               </Pressable>
             )
           })}
         </View>
 
         {isLoading ? (
-          <View style={styles.loadingRow}>
+          <View style={styles.loadingState}>
             <ActivityIndicator size="small" color={palette.primary} />
           </View>
         ) : visible.length === 0 && sharedVisible.length === 0 ? (
-          <EmptyRow filter={filter} onPress={handleNew} />
+          <EmptyState filter={filter} />
         ) : (
           <View>
             {visible.map((challenge, index) => (
@@ -188,11 +189,7 @@ export default function ChallengesScreen() {
                 key={challenge._id}
                 entering={FadeInDown.duration(motion.duration.base).delay(index * 40)}
               >
-                <ChallengeRow
-                  challenge={challenge}
-                  first={index === 0}
-                  onPress={() => handleOpen(challenge._id)}
-                />
+                <ChallengeRow challenge={challenge} onPress={() => handleOpen(challenge._id)} />
               </Animated.View>
             ))}
             {sharedVisible.map((community, index) => (
@@ -204,7 +201,6 @@ export default function ChallengesScreen() {
               >
                 <CommunityRow
                   community={community}
-                  first={visible.length === 0 && index === 0}
                   onPress={() =>
                     router.push({
                       pathname: '/community/[id]',
@@ -217,21 +213,9 @@ export default function ChallengesScreen() {
           </View>
         )}
 
-        <Pressable
-          onPress={handleNew}
-          accessibilityRole="button"
-          accessibilityLabel="Create a new challenge"
-          style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}
-        >
-          <LinearGradient
-            colors={[...gradients.cta]}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={styles.ctaFill}
-          >
-            <Text style={styles.ctaLabel}>Create a new challenge</Text>
-          </LinearGradient>
-        </Pressable>
+        <View style={styles.cta}>
+          <PillButton variant="gradient" label="Create a new challenge" onPress={handleNew} />
+        </View>
 
         <TogetherSection />
       </ScrollView>
@@ -239,69 +223,11 @@ export default function ChallengesScreen() {
   )
 }
 
-/**
- * One challenge entry: percent with the next date on the right, title, a
- * Week / progress line, a 3pt track, and the mono category tag. Rows after
- * the first are separated by the same 0.5pt rule that sits under the tabs.
- */
-function RowShell({
-  first,
-  children,
-  onPress,
-  accessibilityLabel,
-  hasBadge = false,
-}: {
-  first: boolean
-  children: React.ReactNode
-  onPress: () => void
-  accessibilityLabel: string
-  hasBadge?: boolean
-}) {
-  const { palette } = useTheme()
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [
-        styles.row,
-        hasBadge && styles.rowWithBadge,
-        !first && { borderTopWidth: 0.5, borderTopColor: palette.borderStrong },
-        pressed && { opacity: 0.7 },
-      ]}
-    >
-      {children}
-    </Pressable>
-  )
-}
-
-function ProgressTrack({ percent, color }: { percent: number; color: string }) {
-  const { palette } = useTheme()
-  return (
-    <View
-      style={[styles.track, { backgroundColor: palette.track }]}
-      accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: 100, now: percent }}
-    >
-      {percent > 0 ? (
-        <View
-          style={[
-            styles.fill,
-            { width: `${Math.max(2, Math.min(100, percent))}%`, backgroundColor: color },
-          ]}
-        />
-      ) : null}
-    </View>
-  )
-}
-
 function ChallengeRow({
   challenge,
-  first,
   onPress,
 }: {
   challenge: ChallengeListItem
-  first: boolean
   onPress: () => void
 }) {
   const { palette } = useTheme()
@@ -315,7 +241,6 @@ function ChallengeRow({
       ? palette.primary
       : palette.accent
   const week = currentWeekIndex(challenge.createdAt, challenge.weekCount) + 1
-  const statusColor = isCompleted ? palette.success : isArchived ? palette.textTertiary : accent
 
   const detail = (() => {
     if (isGenerating) return 'Coach is building your program'
@@ -323,10 +248,10 @@ function ChallengeRow({
     const parts: string[] = []
     if (challenge.weekCount > 0) parts.push(`Week ${week} of ${challenge.weekCount}`)
     if (challenge.metric.targetValue !== undefined) {
-      const current = challenge.latestValue ?? challenge.metric.startValue ?? 0
-      const unit = challenge.metric.unit
+      const current =
+        challenge.latestValue ?? challenge.metric.startValue ?? 0
       parts.push(
-        `${current.toLocaleString()}${unit} out of ${challenge.metric.targetValue.toLocaleString()}${unit} done`,
+        `${current.toLocaleString()} ${challenge.metric.unit} of ${challenge.metric.targetValue.toLocaleString()} ${challenge.metric.unit}`,
       )
     } else {
       parts.push(`${challenge.completedSessions} sessions logged`)
@@ -352,18 +277,28 @@ function ChallengeRow({
   }`
 
   return (
-    <RowShell
-      first={first}
+    <Pressable
       onPress={onPress}
+      accessibilityRole="button"
       accessibilityLabel={`${challenge.title}. ${challenge.percent} percent. ${detail}`}
+      style={({ pressed }) => [
+        styles.row,
+        { borderBottomColor: palette.divider },
+        pressed && { opacity: 0.7 },
+      ]}
     >
       <View style={styles.rowTop}>
         {isGenerating ? (
-          <View style={styles.percentSlot}>
-            <ActivityIndicator size="small" color={accent} />
-          </View>
+          <ActivityIndicator size="small" color={accent} />
         ) : (
-          <Text style={[styles.percent, { color: statusColor }]}>{challenge.percent}%</Text>
+          <Text
+            style={[
+              styles.percent,
+              { color: isCompleted ? palette.success : isArchived ? palette.textTertiary : accent },
+            ]}
+          >
+            {challenge.percent}%
+          </Text>
         )}
         {nextUp ? (
           <Text style={[styles.nextUp, { color: palette.textPrimary }]}>{nextUp}</Text>
@@ -375,19 +310,37 @@ function ChallengeRow({
       <Text style={[styles.rowDetail, { color: palette.textSecondary }]} numberOfLines={1}>
         {detail}
       </Text>
-      <ProgressTrack percent={isGenerating ? 0 : challenge.percent} color={statusColor} />
+      {!isGenerating ? (
+        <View
+          style={[styles.track, { backgroundColor: palette.surfaceHigh }]}
+          accessibilityRole="progressbar"
+          accessibilityValue={{ min: 0, max: 100, now: challenge.percent }}
+        >
+          <View
+            style={[
+              styles.fill,
+              {
+                width: `${Math.max(2, Math.min(100, challenge.percent))}%`,
+                backgroundColor: isCompleted
+                  ? palette.success
+                  : isArchived
+                    ? palette.textTertiary
+                    : accent,
+              },
+            ]}
+          />
+        </View>
+      ) : null}
       <Text style={[styles.rowFooter, { color: palette.textSecondary }]}>{footer}</Text>
-    </RowShell>
+    </Pressable>
   )
 }
 
 function CommunityRow({
   community,
-  first,
   onPress,
 }: {
   community: CommunityListItem
-  first: boolean
   onPress: () => void
 }) {
   const { palette } = useTheme()
@@ -398,19 +351,22 @@ function CommunityRow({
         day: 'numeric',
       })
     : null
-  const unit = community.metric.unit
   const detail = community.myTarget
-    ? `${community.myProgress.toLocaleString()}${unit} out of ${community.myTarget.toLocaleString()}${unit} done`
-    : `${community.myProgress.toLocaleString()}${unit} logged`
+    ? `${community.myProgress.toLocaleString()} of ${community.myTarget.toLocaleString()} ${community.metric.unit} \u00b7 ${community.goalLabel}`
+    : `${community.myProgress.toLocaleString()} ${community.metric.unit} \u00b7 ${community.goalLabel}`
   return (
-    <RowShell
-      first={first}
-      hasBadge
+    <Pressable
       onPress={() => {
         Haptics.selectionAsync().catch(() => {})
         onPress()
       }}
+      accessibilityRole="button"
       accessibilityLabel={`${community.name}. Shared challenge with ${community.memberCount} members. ${detail}`}
+      style={({ pressed }) => [
+        styles.row,
+        { borderBottomColor: palette.divider },
+        pressed && { opacity: 0.7 },
+      ]}
     >
       <View style={styles.rowTop}>
         <Text style={[styles.percent, { color: palette.accent }]}>
@@ -426,223 +382,204 @@ function CommunityRow({
       <Text style={[styles.rowDetail, { color: palette.textSecondary }]} numberOfLines={1}>
         {detail}
       </Text>
-      <ProgressTrack
-        percent={percent ?? 0}
-        color={percent !== null && percent >= 100 ? palette.success : palette.accent}
-      />
+      {percent !== null ? (
+        <View
+          style={[styles.track, { backgroundColor: palette.surfaceHigh }]}
+          accessibilityRole="progressbar"
+          accessibilityValue={{ min: 0, max: 100, now: percent }}
+        >
+          <View
+            style={[
+              styles.fill,
+              {
+                width: `${Math.max(2, Math.min(100, percent))}%`,
+                backgroundColor: percent >= 100 ? palette.success : palette.accent,
+              },
+            ]}
+          />
+        </View>
+      ) : null}
       <View style={styles.rowFooterRow}>
-        <Text style={[styles.rowFooter, { color: palette.textSecondary }]} numberOfLines={1}>
-          {community.goalLabel.toUpperCase()}
+        <Text style={[styles.rowFooter, { color: palette.textSecondary }]}>
+          {`TOGETHER \u00b7 ${community.goalLabel}`.toUpperCase()}
         </Text>
-        <View style={[styles.sharedBadge, { borderColor: palette.accent }]}>
-          <Text style={[styles.sharedBadgeText, { color: palette.textPrimary }]}>
+        <View style={[styles.sharedChip, { backgroundColor: palette.accentMuted, borderColor: palette.accent }]}>
+          <Text style={[styles.sharedChipText, { color: palette.textPrimary }]}>
             Shared challenge {'\u00b7'} {community.memberCount}{' '}
             {community.memberCount === 1 ? 'member' : 'members'}
           </Text>
         </View>
       </View>
-    </RowShell>
+    </Pressable>
   )
 }
 
-/**
- * The frame has no empty state, so an empty tab keeps the exact row anatomy
- * (percent, title, line, track, tag) to hold the 130pt rhythm instead of
- * collapsing the list.
- */
-function EmptyRow({ filter, onPress }: { filter: Filter; onPress: () => void }) {
+function EmptyState({ filter }: { filter: Filter }) {
   const { palette } = useTheme()
-  const copy =
-    filter === 'in-progress'
-      ? {
-          value: '0%',
-          title: 'Pick something to chase',
-          detail: 'Your coach builds a multi-week program around it',
-          tag: 'NO CHALLENGES YET',
-        }
-      : filter === 'done'
-        ? {
-            value: '0',
-            title: 'Nothing finished yet',
-            detail: 'Completed challenges land here',
-            tag: 'DONE \u00b7 0',
-          }
-        : {
-            value: '0',
-            title: 'Nothing archived',
-            detail: 'Archived challenges land here',
-            tag: 'ARCHIVED \u00b7 0',
-          }
-  return (
-    <RowShell first onPress={onPress} accessibilityLabel={`${copy.title}. ${copy.detail}`}>
-      <View style={styles.rowTop}>
-        <Text style={[styles.percent, { color: palette.textTertiary }]}>{copy.value}</Text>
+  if (filter !== 'in-progress') {
+    return (
+      <View style={styles.empty}>
+        <Text style={[styles.emptyBody, { color: palette.textSecondary }]}>
+          {filter === 'done'
+            ? 'Finished challenges land here.'
+            : 'Archived challenges land here.'}
+        </Text>
       </View>
-      <Text style={[styles.rowTitle, { color: palette.textPrimary }]} numberOfLines={1}>
-        {copy.title}
+    )
+  }
+  return (
+    <View style={styles.empty}>
+      <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>Pick something to chase</Text>
+      <Text style={[styles.emptyBody, { color: palette.textSecondary }]}>
+        Start a challenge and Bodfit builds a multi-week program, then steers your daily sessions
+        toward it.
       </Text>
-      <Text style={[styles.rowDetail, { color: palette.textSecondary }]} numberOfLines={1}>
-        {copy.detail}
-      </Text>
-      <ProgressTrack percent={0} color={palette.primary} />
-      <Text style={[styles.rowFooter, { color: palette.textSecondary }]}>{copy.tag}</Text>
-    </RowShell>
+      <View style={styles.exampleChips}>
+        {CATEGORY_ORDER.map((id) => (
+          <Chip
+            key={id}
+            label={CATEGORY_META[id].blurb}
+            onPress={() =>
+              router.push({
+                pathname: '/challenge/new',
+                params: { category: id },
+              } as unknown as Href)
+            }
+          />
+        ))}
+      </View>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   scrollContent: {
-    paddingTop: 12,
-  },
-  header: {
-    paddingLeft: 26,
-    paddingRight: 44,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 17,
+    marginBottom: spacing.lg,
   },
   topBarLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 12,
-    lineHeight: 17,
+    ...typography.mono,
   },
   masthead: {
-    marginTop: 12,
+    gap: 0,
   },
   mastheadThe: {
     fontFamily: fonts.masthead,
-    fontSize: 25,
-    lineHeight: 27,
+    fontSize: 26,
+    lineHeight: 30,
+    letterSpacing: 0.5,
   },
   subtitle: {
-    fontFamily: fonts.uiRegular,
-    fontSize: 11,
-    lineHeight: 14,
-    marginTop: 8,
+    ...typography.small,
+    fontSize: 14,
+    marginTop: spacing.sm,
   },
   filters: {
     flexDirection: 'row',
-    gap: 23,
-    marginTop: 33,
-    marginRight: 18,
-    paddingLeft: 20,
-    paddingBottom: 4,
-    borderBottomWidth: 0.5,
+    gap: spacing.xl,
+    marginTop: spacing.xl,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  filterTab: {
+    paddingTop: 6,
+    gap: 8,
   },
   filterLabel: {
-    fontFamily: fonts.uiMedium,
-    fontSize: 12,
-    lineHeight: 15,
+    ...typography.smallStrong,
   },
-  filterLabelActive: {
-    fontFamily: fonts.uiSemiBold,
+  filterUnderline: {
+    height: 2,
+    borderRadius: 1,
   },
-  loadingRow: {
-    height: 130,
+  loadingState: {
+    paddingVertical: spacing.huge,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   row: {
-    paddingTop: 19,
-    paddingBottom: 22,
-    paddingLeft: 20,
-    paddingRight: 31,
-    marginRight: 15,
-  },
-  rowWithBadge: {
-    paddingBottom: 10,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 4,
   },
   rowTop: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  percentSlot: {
-    height: 28,
-    justifyContent: 'center',
   },
   percent: {
     fontFamily: fonts.displaySemiBold,
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 26,
+    lineHeight: 32,
+    letterSpacing: -0.5,
   },
   nextUp: {
-    fontFamily: fonts.uiSemiBold,
-    fontSize: 9,
-    lineHeight: 11,
-    marginTop: 3,
+    ...typography.smallStrong,
+    fontSize: 12,
   },
   rowTitle: {
-    fontFamily: fonts.displayBold,
-    fontSize: 11,
-    lineHeight: 14,
+    ...typography.bodyStrong,
+    fontSize: 16,
   },
   rowDetail: {
-    fontFamily: fonts.uiRegular,
-    fontSize: 9,
-    lineHeight: 11,
-    marginTop: 2,
+    ...typography.small,
   },
   track: {
     height: 3,
-    borderRadius: 1.5,
-    marginTop: 10,
-    marginRight: 52,
+    borderRadius: 2,
+    marginTop: spacing.sm,
+    marginRight: '20%',
     overflow: 'hidden',
   },
   fill: {
     height: 3,
-    borderRadius: 1.5,
+    borderRadius: 2,
   },
   rowFooter: {
-    fontFamily: fonts.mono,
-    fontSize: 9,
-    lineHeight: 12,
-    marginTop: 9,
-    flexShrink: 1,
+    ...typography.mono,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    marginTop: spacing.sm,
   },
   rowFooterRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
   },
-  sharedBadge: {
-    height: 13,
-    marginTop: 17,
-    marginRight: -14,
-    paddingHorizontal: 7,
-    borderRadius: 30,
-    borderWidth: 0.5,
-    backgroundColor: 'rgba(201, 145, 241, 0.4)',
-    justifyContent: 'center',
+  sharedChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
   },
-  sharedBadgeText: {
-    fontFamily: fonts.uiRegular,
-    fontSize: 7,
-    lineHeight: 9,
+  sharedChipText: {
+    ...typography.small,
+    fontSize: 11,
   },
   cta: {
-    marginTop: 11,
-    marginLeft: 24,
-    marginRight: 61,
-    height: 34,
-    borderRadius: 15,
-    overflow: 'hidden',
+    marginTop: spacing.xxl,
   },
-  ctaFill: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  empty: {
+    paddingVertical: spacing.xxl,
+    gap: spacing.sm,
   },
-  ctaLabel: {
-    fontFamily: fonts.uiSemiBold,
-    fontSize: 15,
-    lineHeight: 19,
-    color: '#FFFFFF',
+  emptyTitle: {
+    ...typography.h3,
+  },
+  emptyBody: {
+    ...typography.small,
+    fontSize: 14,
+  },
+  exampleChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
 })
