@@ -67,7 +67,7 @@ export function HomeHeader({
 const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.xxxl + spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   brandRow: {
