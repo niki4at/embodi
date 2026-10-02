@@ -37,6 +37,7 @@ import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
 import { computeCycleStatus, type CyclePhase } from '@/convex/cycle'
 import { labelForRegion } from '@/constants/flare-regions'
+import { useTrainingPreferences } from '@/hooks/use-training-preferences'
 
 import { AdjustSheet } from './adjust-sheet'
 import { FlareChip } from './flare-chip'
@@ -208,7 +209,7 @@ export default function HomeContent() {
   const [tab, setTab] = useState<HomeTab>('today')
 
   const onboardingData = useQuery(api.onboarding.getOnboarding)
-  const trainingPreferences = useQuery(api.trainingPreferences.get)
+  const trainingPreferences = useTrainingPreferences()
   const equipmentInventory = useQuery(api.equipment.listActive)
   const todaysCheckin = useQuery(api.checkin.getTodaysCheckin) as TodaysCheckin
   const todaysSession = useQuery(api.trainer.getTodaysSession) as TodaysSession

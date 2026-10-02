@@ -56,6 +56,7 @@ import {
 } from '@/constants/checkin-labels'
 import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
+import { useTrainingPreferences } from '@/hooks/use-training-preferences'
 
 import { PainBodyMap, type BodyPart, type PainRatings } from './PainBodyMap'
 
@@ -296,7 +297,7 @@ export default function CheckInScreen() {
   const workoutType: WorkoutType | null = workoutOption?.value ?? null
 
   const onboardingData = useQuery(api.onboarding.getOnboarding)
-  const trainingPreferences = useQuery(api.trainingPreferences.get)
+  const trainingPreferences = useTrainingPreferences()
   const equipmentInventory = useQuery(api.equipment.listActive)
   const createCheckin = useMutation(api.checkin.createCheckin)
   const recordContextEvent = useMutation(api.trainingContext.recordEvent)

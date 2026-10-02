@@ -28,6 +28,7 @@ import { motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
+import { useTrainingPreferences } from '@/hooks/use-training-preferences'
 import { compressAndUploadPhoto } from '@/utils/photoUpload'
 
 const MAX_PHOTOS = 5
@@ -58,7 +59,7 @@ export default function ShareComposerScreen() {
     api.trainer.getSessionWithSets,
     sessionId ? { sessionId } : 'skip',
   )
-  const trainingPreferences = useQuery(api.trainingPreferences.get)
+  const trainingPreferences = useTrainingPreferences()
   const generateUploadUrl = useMutation(api.social.generatePostPhotoUploadUrl)
   const createPost = useMutation(api.social.createPost)
 
