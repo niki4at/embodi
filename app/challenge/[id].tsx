@@ -422,10 +422,10 @@ export default function ChallengeDetailScreen() {
 }
 
 /**
- * Winding program path from frame 40:362: 27pt week nodes on a 44pt pitch
- * snaking left and right, ticks for finished weeks, a play glyph for the
- * current one, hollow rings ahead, and the goal-day node labelled on its left.
- * The coach cheers from the right.
+ * Winding program path from frame 40:362: a five-week window around the
+ * current week as 27pt nodes on a 44pt pitch, ticks for finished weeks, a play
+ * glyph for the current one, hollow rings ahead, and the goal-day node
+ * labelled on its left. The coach cheers from the right.
  */
 const NODE = 27
 const NODE_PITCH = 44
@@ -451,19 +451,30 @@ function ProgramPath({
 }) {
   const { palette } = useTheme()
   const [width, setWidth] = useState(0)
-  const nodes = [...weeks.map((w) => ({ kind: 'week' as const, week: w })), { kind: 'final' as const }]
+  const start = Math.min(
+    Math.max(0, currentIndex - 2),
+    Math.max(0, weeks.length - NODE_XS.length),
+  )
+  const nodes = [
+    ...weeks
+      .slice(start, start + NODE_XS.length)
+      .map((w) => ({ kind: 'week' as const, week: w })),
+    { kind: 'final' as const },
+  ]
   const half = NODE / 2
   const height = (nodes.length - 1) * NODE_PITCH + NODE + 2
   const points = nodes.map((node, i) => ({
-    x: width * (node.kind === 'final' ? FINAL_X : NODE_XS[i % NODE_XS.length]),
+    x: width * (node.kind === 'final' ? FINAL_X : NODE_XS[i]),
     y: half + i * NODE_PITCH,
   }))
   const path = points
     .map((p, i) => {
       if (i === 0) return `M ${p.x} ${p.y}`
       const prev = points[i - 1]
-      const cx = (prev.x + p.x) / 2
-      return `C ${cx} ${prev.y + NODE_PITCH * 0.55}, ${cx} ${p.y - NODE_PITCH * 0.55}, ${p.x} ${p.y}`
+      if (p.x >= prev.x) {
+        return `C ${prev.x + (p.x - prev.x) * 0.75} ${prev.y}, ${p.x} ${prev.y + (p.y - prev.y) * 0.25}, ${p.x} ${p.y}`
+      }
+      return `C ${prev.x} ${prev.y + (p.y - prev.y) * 0.75}, ${prev.x - (prev.x - p.x) * 0.25} ${p.y}, ${p.x} ${p.y}`
     })
     .join(' ')
 
@@ -479,8 +490,8 @@ function ProgramPath({
           <Path d={path} stroke={palette.textSecondary} strokeWidth={1} fill="none" />
           {points.map((p, i) => {
             const isFinal = i === nodes.length - 1
-            const done = !isFinal && i < currentIndex
-            const active = !isFinal && i === currentIndex
+            const done = !isFinal && start + i < currentIndex
+            const active = !isFinal && start + i === currentIndex
             return (
               <Circle
                 key={i}
@@ -499,8 +510,8 @@ function ProgramPath({
         ? nodes.map((node, i) => {
             const p = points[i]
             const isFinal = node.kind === 'final'
-            const done = !isFinal && i < currentIndex
-            const active = !isFinal && i === currentIndex
+            const done = !isFinal && start + i < currentIndex
+            const active = !isFinal && start + i === currentIndex
             const glyph = isFinal ? '' : done ? '\u2713' : active ? '\u25B6' : ''
             const nodeLeft = p.x - half
             const labelLeft = nodeLeft + NODE + 4
@@ -515,19 +526,22 @@ function ProgramPath({
                     styles.nodeLabel,
                     finalOnLeft
                       ? { right: NODE + 6, width: nodeLeft - 6, alignItems: 'flex-end' }
-                      : { left: NODE + 4, width: Math.max(60, labelRoom) },
+                      : { left: NODE + 4, width: Math.max(60, labelRoom), alignItems: 'flex-start' },
                   ]}
                 >
                   <Text
                     style={[
                       styles.nodeTitle,
-                      { color: isFinal ? palette.accent : palette.textPrimary },
+                      { color: isFinal ? palette.accent : palette.textPrimary, backgroundColor: palette.bg },
                     ]}
                     numberOfLines={1}
                   >
                     {isFinal ? finalLabel : node.week.focus}
                   </Text>
-                  <Text style={[styles.nodeMeta, { color: palette.textSecondary }]} numberOfLines={1}>
+                  <Text
+                    style={[styles.nodeMeta, { color: palette.textSecondary, backgroundColor: palette.bg }]}
+                    numberOfLines={1}
+                  >
                     {isFinal
                       ? finalDate ?? ''
                       : `${node.week.target}${active ? ' \u00b7 THIS WEEK' : ''}`}
