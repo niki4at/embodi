@@ -8,8 +8,8 @@ import { useTheme } from '@/constants/theme-context'
 export type HomeTab = 'today' | 'week'
 
 /**
- * Home masthead: the mono BODFIT lockup on its own row at the top right, then
- * "Today | This Week" text tabs over a hairline (Figma frame 1:2).
+ * Home masthead: "Today | This Week" text tabs on the left and the mono BODFIT
+ * lockup on the right, centred on the tab labels, over a hairline.
  */
 export function HomeHeader({
   tab,
@@ -21,9 +21,6 @@ export function HomeHeader({
   const { palette } = useTheme()
   return (
     <View style={[styles.wrap, { borderBottomColor: palette.divider }]}>
-      <View style={styles.brandRow}>
-        <BodfitWordmark variant="header" />
-      </View>
       <View style={styles.tabs} accessibilityRole="tablist">
         {(
           [
@@ -60,24 +57,29 @@ export function HomeHeader({
           )
         })}
       </View>
+      <View style={styles.brand}>
+        <BodfitWordmark variant="header" />
+      </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   wrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xxxl + spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  brandRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
   tabs: {
     flexDirection: 'row',
     gap: spacing.xl,
-    marginTop: spacing.lg,
+  },
+  brand: {
+    minHeight: typography.smallStrong.lineHeight,
+    justifyContent: 'center',
   },
   tab: {
     gap: spacing.xs,
