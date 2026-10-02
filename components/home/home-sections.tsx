@@ -36,7 +36,7 @@ export type ContextTile = {
 export function ContextTiles({ tiles }: { tiles: ContextTile[] }) {
   const { palette } = useTheme()
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, styles.contextSection]}>
       <Eyebrow>Today&apos;s context</Eyebrow>
       <View style={styles.tileGrid}>
         {tiles.map((tile) => (
@@ -93,7 +93,7 @@ export function CoachSection({
 }) {
   const { palette } = useTheme()
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, styles.coachSection]}>
       <Eyebrow>AI coach</Eyebrow>
       <CoachNote
         eyebrow="Coach"
@@ -303,6 +303,7 @@ export function QuickActions({
             label={action.label}
             onPress={action.onPress}
             last={index === actions.length - 1}
+            compact
           />
         ))}
       </View>
@@ -334,7 +335,7 @@ export function DeskSection({
 }) {
   const { palette } = useTheme()
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, styles.deskSection]}>
       <Eyebrow
         right={
           <Switch
@@ -409,8 +410,17 @@ export function HeroGradientDivider() {
 const styles = StyleSheet.create({
   pressed: { opacity: 0.75 },
   section: {
-    marginTop: spacing.xxxl,
-    gap: spacing.md,
+    marginTop: spacing.xxl,
+    gap: spacing.sm,
+  },
+  contextSection: {
+    marginTop: spacing.lg,
+  },
+  coachSection: {
+    gap: spacing.xs,
+  },
+  deskSection: {
+    gap: spacing.xl,
   },
   tileGrid: {
     flexDirection: 'row',
@@ -422,8 +432,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     borderRadius: radius.lg,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    minHeight: 68,
+    paddingVertical: spacing.sm,
+    minHeight: 60,
     justifyContent: 'center',
     gap: 4,
   },
@@ -454,8 +464,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.lg,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    minHeight: 84,
+    paddingVertical: spacing.sm,
+    minHeight: 72,
     gap: 4,
   },
   goalTitle: {
@@ -466,7 +476,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   suggested: {
-    marginTop: spacing.lg,
+    marginTop: 30,
     borderRadius: radius.lg,
     overflow: 'hidden',
   },
@@ -521,7 +531,7 @@ const styles = StyleSheet.create({
   deskCards: {
     flex: 1,
     gap: spacing.sm,
-    paddingTop: 6,
+    paddingTop: 13,
   },
   deskCard: {
     borderWidth: 1,

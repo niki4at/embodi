@@ -72,7 +72,7 @@ export function StartOrb({
         accessibilityState={{ disabled, busy: content.spinning }}
       >
         <Animated.View style={animatedStyle}>
-          <HeroOrb size={156}>
+          <HeroOrb size={146}>
             {content.spinning ? (
               <ActivityIndicator color={palette.white} style={styles.spinner} />
             ) : null}
@@ -128,7 +128,6 @@ const styles = StyleSheet.create({
   wrap: {
     alignItems: 'center',
     paddingTop: spacing.xl,
-    gap: spacing.sm,
   },
   spinner: {
     marginBottom: 6,
@@ -163,14 +162,15 @@ const styles = StyleSheet.create({
     ...typography.h3,
     fontSize: 19,
     textAlign: 'center',
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
   subtitle: {
     ...typography.small,
     textAlign: 'center',
+    marginTop: spacing.xxs,
   },
   adjust: {
-    marginTop: spacing.md,
+    marginTop: spacing.lg,
     minHeight: 34,
     paddingHorizontal: 14,
   },

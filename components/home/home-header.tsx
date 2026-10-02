@@ -8,8 +8,8 @@ import { useTheme } from '@/constants/theme-context'
 export type HomeTab = 'today' | 'week'
 
 /**
- * Home masthead: "Today | This Week" text tabs on the left, the mono BODFIT
- * lockup on the right, and a hairline underneath.
+ * Home masthead: the mono BODFIT lockup on its own row at the top right, then
+ * "Today | This Week" text tabs over a hairline (Figma frame 1:2).
  */
 export function HomeHeader({
   tab,
@@ -21,6 +21,9 @@ export function HomeHeader({
   const { palette } = useTheme()
   return (
     <View style={[styles.wrap, { borderBottomColor: palette.divider }]}>
+      <View style={styles.brandRow}>
+        <BodfitWordmark variant="header" />
+      </View>
       <View style={styles.tabs} accessibilityRole="tablist">
         {(
           [
@@ -57,27 +60,27 @@ export function HomeHeader({
           )
         })}
       </View>
-      <BodfitWordmark variant="header" />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
+    paddingTop: spacing.xl,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
   tabs: {
     flexDirection: 'row',
     gap: spacing.xl,
+    marginTop: spacing.lg,
   },
   tab: {
-    paddingTop: 6,
-    gap: 6,
+    gap: spacing.xs,
   },
   tabLabel: {
     ...typography.smallStrong,

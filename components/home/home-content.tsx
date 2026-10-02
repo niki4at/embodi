@@ -688,7 +688,6 @@ export default function HomeContent() {
           <>
             <Animated.View
               entering={FadeInUp.duration(motion.duration.base)}
-              style={styles.header}
             >
               <Text style={[styles.greeting, { color: palette.textPrimary }]}>
                 {greeting},
@@ -856,10 +855,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-  },
-  header: {
-    gap: 2,
+    paddingTop: spacing.sm,
   },
   greeting: {
     ...typography.h1,
@@ -871,13 +867,13 @@ const styles = StyleSheet.create({
     ...typography.small,
     fontSize: 14,
     lineHeight: 20,
-    marginTop: spacing.md,
+    marginTop: spacing.xs,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
   smallChip: {
     minHeight: 30,

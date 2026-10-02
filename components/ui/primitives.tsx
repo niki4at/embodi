@@ -542,11 +542,13 @@ export function ArrowRow({
   onPress,
   dot,
   last = false,
+  compact = false,
 }: {
   label: string
   onPress: () => void
   dot?: string
   last?: boolean
+  compact?: boolean
 }) {
   const { palette } = useTheme()
   return (
@@ -557,8 +559,10 @@ export function ArrowRow({
       }}
       accessibilityRole="button"
       accessibilityLabel={label}
+      hitSlop={compact ? { top: 4, bottom: 4 } : undefined}
       style={({ pressed }) => [
         styles.arrowRow,
+        compact && styles.arrowRowCompact,
         { borderBottomColor: last ? 'transparent' : palette.divider },
         pressed && styles.pressed,
       ]}
@@ -773,6 +777,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     minHeight: 48,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  arrowRowCompact: {
+    minHeight: 36,
   },
   arrowDot: {
     width: 6,
