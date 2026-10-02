@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 
 import { mutation, query } from './_generated/server'
+import { deskTroubleSpot, workPosition, workStyle } from './lib/workStyle'
 
 const trainingEnvironment = v.union(
   v.literal('home'),
@@ -63,6 +64,7 @@ const preferencesDocument = v.object({
   _creationTime: v.number(),
   userId: v.string(),
   ...preferencesFields,
+  workStyle: v.optional(workStyle),
   createdAt: v.number(),
   updatedAt: v.number(),
   weeklyRhythm: v.array(dayRhythm),
@@ -96,8 +98,20 @@ export const get = query({
       .withIndex('by_userId', (q) => q.eq('userId', identity.subject))
       .unique()
     if (!preferences) return null
+    // Built field by field: older clients sharing this deployment have written
+    // extra keys onto these rows, and spreading them would fail `returns`.
     return {
-      ...preferences,
+      _id: preferences._id,
+      _creationTime: preferences._creationTime,
+      userId: preferences.userId,
+      weeklySchedule: preferences.weeklySchedule,
+      locationEnabled: preferences.locationEnabled,
+      sharingDefault: preferences.sharingDefault,
+      defaultContext: preferences.defaultContext,
+      shareGenericLocation: preferences.shareGenericLocation,
+      workStyle: preferences.workStyle,
+      createdAt: preferences.createdAt,
+      updatedAt: preferences.updatedAt,
       weeklyRhythm: preferences.weeklySchedule.map((entry) => ({
         day: entry.weekday,
         defaultEnvironment:
@@ -240,6 +254,59 @@ export const update = mutation({
         await ctx.db.delete(event._id)
       }
     }
+    return null
+  },
+})
+
+export const saveWorkStyle = mutation({
+  args: {
+    position: v.optional(workPosition),
+    deskHoursPerDay: v.optional(v.number()),
+    troubleSpots: v.optional(v.array(deskTroubleSpot)),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Not authenticated')
+    if (
+      args.deskHoursPerDay !== undefined &&
+      (args.deskHoursPerDay < 0 || args.deskHoursPerDay > 24)
+    ) {
+      throw new Error('Desk hours must be between 0 and 24')
+    }
+
+    const existing = await ctx.db
+      .query('training_preferences')
+      .withIndex('by_userId', (q) => q.eq('userId', identity.subject))
+      .unique()
+    const now = Date.now()
+    const nextWorkStyle = {
+      position: args.position ?? existing?.workStyle?.position,
+      deskHoursPerDay:
+        args.deskHoursPerDay ?? existing?.workStyle?.deskHoursPerDay,
+      troubleSpots: args.troubleSpots ?? existing?.workStyle?.troubleSpots,
+    }
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        workStyle: nextWorkStyle,
+        updatedAt: now,
+      })
+      return null
+    }
+    await ctx.db.insert('training_preferences', {
+      userId: identity.subject,
+      weeklySchedule: [],
+      locationEnabled: false,
+      sharingDefault: 'private',
+      defaultContext: {
+        trainingEnvironment: 'home',
+        equipmentIntent: 'bodyweight',
+      },
+      workStyle: nextWorkStyle,
+      createdAt: now,
+      updatedAt: now,
+    })
     return null
   },
 })

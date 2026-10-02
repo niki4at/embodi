@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
+import { workStyle } from './lib/workStyle'
+
 const citationRef = v.object({
   id: v.string(),
   title: v.string(),
@@ -671,6 +673,7 @@ export default defineSchema({
     ),
     shareGenericLocation: v.optional(v.boolean()),
     defaultContext: trainingContextSelection,
+    workStyle: v.optional(workStyle),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index('by_userId', ['userId']),

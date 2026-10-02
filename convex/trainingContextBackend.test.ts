@@ -187,4 +187,33 @@ describe('training context backend', () => {
     expect(encrypted?.encryptedCoordinates).not.toContain('51.501')
     expect(encrypted?.encryptionKeyVersion).toBe('1')
   })
+
+  it('returns preferences that carry a saved desk work style', async () => {
+    const t = convexTest(schema, modules)
+    const user = asUser(t, 'desk-user')
+
+    await user.mutation(api.trainingPreferences.saveWorkStyle, {
+      position: 'sitting',
+      deskHoursPerDay: 6,
+      troubleSpots: ['neck'],
+    })
+    await user.mutation(api.trainingPreferences.update, {
+      sharingDefault: 'backers',
+    })
+    await user.mutation(api.trainingPreferences.saveWorkStyle, {
+      deskHoursPerDay: 8,
+    })
+
+    const preferences = await user.query(api.trainingPreferences.get, {})
+    expect(preferences).toMatchObject({
+      sharingDefault: 'backers',
+      weeklyRhythm: [],
+      socialLocationSharing: 'private',
+      workStyle: {
+        position: 'sitting',
+        deskHoursPerDay: 8,
+        troubleSpots: ['neck'],
+      },
+    })
+  })
 })
