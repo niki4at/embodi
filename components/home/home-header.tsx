@@ -1,25 +1,15 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
-import { BodfitMark, BodfitWordmark } from '@/components/ui/bodfit-logo'
+import { BodfitWordmark } from '@/components/ui/bodfit-logo'
 import { spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 
 export type HomeTab = 'today' | 'week'
 
-const TAB_TOP_PADDING = 6
-const TAB_LABEL_GAP = 6
-const TAB_UNDERLINE_HEIGHT = 2
-const TAB_HEIGHT =
-  TAB_TOP_PADDING +
-  typography.smallStrong.lineHeight +
-  TAB_LABEL_GAP +
-  TAB_UNDERLINE_HEIGHT
-
 /**
- * Home masthead: the Bodfit mark and mono lockup anchor the left edge (in line
- * with the greeting), "Today | This Week" text tabs sit on the right, and a
- * hairline runs underneath with the active underline resting on it.
+ * Home masthead: "Today | This Week" text tabs on the left, the mono BODFIT
+ * lockup on the right, and a hairline underneath.
  */
 export function HomeHeader({
   tab,
@@ -31,10 +21,6 @@ export function HomeHeader({
   const { palette } = useTheme()
   return (
     <View style={[styles.wrap, { borderBottomColor: palette.divider }]}>
-      <View style={styles.brand}>
-        <BodfitMark size={20} />
-        <BodfitWordmark variant="header" />
-      </View>
       <View style={styles.tabs} accessibilityRole="tablist">
         {(
           [
@@ -58,7 +44,6 @@ export function HomeHeader({
                   styles.tabLabel,
                   { color: active ? palette.textPrimary : palette.textSecondary },
                 ]}
-                maxFontSizeMultiplier={1.3}
               >
                 {item.label}
               </Text>
@@ -72,6 +57,7 @@ export function HomeHeader({
           )
         })}
       </View>
+      <BodfitWordmark variant="header" />
     </View>
   )
 }
@@ -85,26 +71,19 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  brand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    minHeight: TAB_HEIGHT,
-    paddingBottom: TAB_UNDERLINE_HEIGHT,
-  },
   tabs: {
     flexDirection: 'row',
     gap: spacing.xl,
   },
   tab: {
-    paddingTop: TAB_TOP_PADDING,
-    gap: TAB_LABEL_GAP,
+    paddingTop: 6,
+    gap: 6,
   },
   tabLabel: {
     ...typography.smallStrong,
   },
   tabUnderline: {
-    height: TAB_UNDERLINE_HEIGHT,
+    height: 2,
     borderRadius: 1,
   },
 })
