@@ -17,7 +17,7 @@ import {
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { EmbodiWordmark } from '@/components/ui/embodi-wordmark'
+import { BodfitWordmark } from '@/components/ui/bodfit-logo'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { PillButton } from '@/components/ui/pill-button'
 import { SocialLogo, type SocialBrand } from '@/components/ui/social-logo'
@@ -32,16 +32,16 @@ type Mode = 'welcome' | 'sign-in' | 'sign-up' | 'verify'
 const COPY = {
   'sign-in': {
     title: 'Welcome back.',
-    tagline: 'Sign in to pick up where you left off.',
+    tagline: 'Sign in and pick up where you left off.',
     primaryLabel: 'Sign in',
     busyLabel: 'Signing in',
-    footerPrompt: 'New to Embody?',
+    footerPrompt: 'New to Bodfit?',
     footerAction: 'Create account',
     footerSwitch: 'sign-up' as const,
   },
   'sign-up': {
     title: 'Create your account.',
-    tagline: 'Start a personalized plan in under a minute.',
+    tagline: 'Two minutes to your first session built around today.',
     primaryLabel: 'Create account',
     busyLabel: 'Creating account',
     footerPrompt: 'Already have an account?',
@@ -186,6 +186,19 @@ export default function LoginScreen() {
       setAuthMessage(`Continuing with ${label}`)
 
       const redirectUrl = Linking.createURL('/sso-callback')
+
+      // On web, a popup loses window.opener after Google's redirect, so the
+      // opener never receives the session and the page stays blank. A full-page
+      // redirect comes back to /sso-callback, which activates the session.
+      if (Platform.OS === 'web') {
+        await signIn?.authenticateWithRedirect({
+          strategy,
+          redirectUrl,
+          redirectUrlComplete: Linking.createURL('/'),
+        })
+        return
+      }
+
       const { createdSessionId, setActive } = await startSSOFlow({
         strategy,
         redirectUrl,
@@ -198,7 +211,8 @@ export default function LoginScreen() {
       } else {
         setIsAuthenticating(false)
       }
-    } catch {
+    } catch (error) {
+      console.error('SSO sign-in failed', error)
       setIsAuthenticating(false)
     }
   }
@@ -238,7 +252,7 @@ export default function LoginScreen() {
               entering={FadeInUp.duration(motion.duration.base)}
               style={styles.header}
             >
-              <EmbodiWordmark size="md" align="left" />
+              <BodfitWordmark size="sm" align="left" />
               <Text style={[styles.title, { color: palette.textPrimary }]}>
                 Check your inbox.
               </Text>
@@ -261,9 +275,7 @@ export default function LoginScreen() {
                   styles.inputContainer,
                   {
                     backgroundColor: palette.surface,
-                    borderColor: codeFocused
-                      ? palette.primary
-                      : palette.borderStrong,
+                    borderColor: codeFocused ? palette.primary : 'transparent',
                   },
                 ]}
               >
@@ -323,7 +335,7 @@ export default function LoginScreen() {
             entering={FadeInUp.duration(motion.duration.base)}
             style={styles.header}
           >
-            <EmbodiWordmark size="md" align="left" />
+            <BodfitWordmark size="sm" align="left" />
             <Text style={[styles.title, { color: palette.textPrimary }]}>
               {copy.title}
             </Text>
@@ -344,15 +356,13 @@ export default function LoginScreen() {
                 styles.inputContainer,
                 {
                   backgroundColor: palette.surface,
-                  borderColor: emailFocused
-                    ? palette.primary
-                    : palette.borderStrong,
+                  borderColor: emailFocused ? palette.primary : 'transparent',
                 },
               ]}
             >
               <TextInput
                 style={[styles.input, { color: palette.textPrimary }]}
-                placeholder="you@embodi.app"
+                placeholder="you@example.com"
                 placeholderTextColor={palette.textTertiary}
                 value={email}
                 onChangeText={setEmail}
@@ -392,9 +402,7 @@ export default function LoginScreen() {
                 styles.inputContainer,
                 {
                   backgroundColor: palette.surface,
-                  borderColor: passwordFocused
-                    ? palette.primary
-                    : palette.borderStrong,
+                  borderColor: passwordFocused ? palette.primary : 'transparent',
                 },
               ]}
             >
@@ -505,22 +513,12 @@ function BackButton({ onPress }: BackButtonProps) {
     <Pressable
       onPress={onPress}
       hitSlop={12}
-      style={({ pressed }) => [
-        styles.backButton,
-        {
-          backgroundColor: palette.surface,
-          borderColor: palette.border,
-          opacity: pressed ? 0.7 : 1,
-        },
-      ]}
+      style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.7 : 1 }]}
       accessibilityRole="button"
       accessibilityLabel="Back"
     >
-      <IconSymbol
-        name="chevron.left"
-        size={20}
-        color={palette.textPrimary}
-      />
+      <IconSymbol name="arrow.left" size={18} color={palette.textSecondary} />
+      <Text style={[styles.backText, { color: palette.textSecondary }]}>Back</Text>
     </Pressable>
   )
 }
@@ -535,10 +533,7 @@ function SocialButton({ brand, label, onPress }: SocialButtonProps) {
   const { palette } = useTheme()
   return (
     <TouchableOpacity
-      style={[
-        styles.socialButton,
-        { backgroundColor: palette.surface, borderColor: palette.border },
-      ]}
+      style={[styles.socialButton, { backgroundColor: palette.surface }]}
       onPress={onPress}
       activeOpacity={0.85}
       accessibilityRole="button"
@@ -563,12 +558,13 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 6,
+  },
+  backText: {
+    ...typography.smallStrong,
   },
   scrollContent: {
     flexGrow: 1,
@@ -603,16 +599,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   inputLabel: {
-    ...typography.smallStrong,
+    ...typography.eyebrow,
     marginBottom: spacing.sm,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     borderWidth: 1,
     paddingHorizontal: spacing.lg,
-    height: 58,
+    height: 54,
   },
   input: {
     ...typography.body,
@@ -642,7 +638,7 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     paddingHorizontal: spacing.md,
-    ...typography.caption,
+    ...typography.eyebrow,
   },
   socialRow: {
     flexDirection: 'row',
@@ -651,9 +647,8 @@ const styles = StyleSheet.create({
   },
   socialButton: {
     flex: 1,
-    height: 56,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    height: 52,
+    borderRadius: radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
   },

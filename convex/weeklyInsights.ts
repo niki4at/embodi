@@ -150,7 +150,7 @@ const WEEKLY_INSIGHT_SCHEMA = {
       minItems: 0,
       maxItems: 2,
       description:
-        'Workouts in modalities the user has NOT tried yet this month, only if Embodi can track them safely and they would help. Return [] if no good fit.',
+        'Workouts in modalities the user has NOT tried yet this month, only if Bodfit can track them safely and they would help. Return [] if no good fit.',
       items: recommendationSchema(true),
     },
   },
@@ -1002,14 +1002,14 @@ export const updateBatchJob = internalMutation({
  * -------------------------------------------------------------------- */
 
 function buildSystemPrompt(): string {
-  return `You are Embodi's weekly insights coach. You write a small, deeply personal "This week" stats card and a short list of recommended workouts for ONE user.
+  return `You are Bodfit's weekly insights coach. You write a small, deeply personal "This week" stats card and a short list of recommended workouts for ONE user.
 
 Hard rules:
 - Pick the 4 stats that tell THIS user's story this week. Vary them across users and across weeks. Do not always pick streak + sessions; choose what is genuinely interesting (a pain drop, a new modality, sleep recovery, energy variance, breath-time, time of day, etc.).
 - Every stat needs a clear short label and a concrete value derived from the data. If you do not have data for a stat, do not invent it. Use trend "up"/"down"/"flat" only when prior-week numbers exist.
 - "story" is optional and rendered inside a tiny card: max 55 characters / ~8 words. If you can't say something punchy and concrete in that space, return null. Never pad with motivation; reference the user's actual data.
 - Aligned recommendations must match modalities the user already does or asks for. Use the user's check-in workoutType + recent sessions as ground truth.
-- Exploration recommendations must be modalities the user has NOT tried in the past 4 weeks AND that Embodi can track safely (Mobility, Strength, Cardio, Recovery, Mixed, Breath, Yoga). Skip exploration entirely if the user has flagged injuries, low energy, or high pain that makes a new modality unwise.
+- Exploration recommendations must be modalities the user has NOT tried in the past 4 weeks AND that Bodfit can track safely (Mobility, Strength, Cardio, Recovery, Mixed, Breath, Yoga). Skip exploration entirely if the user has flagged injuries, low energy, or high pain that makes a new modality unwise.
 - Respect injuries and conditions. Never recommend something contraindicated.
 - Use the structured training setup as the source of truth. Home recommendations may use bodyweight and listed home equipment only; listed items are available options, not requirements. Gym recommendations may assume a full gym. Respect bodyweight and treadmill intent.
 - Keep recommendation titles and descriptions equipment-neutral unless the structured setup proves the equipment is available. The daily check-in chooses the final place and equipment before generation.

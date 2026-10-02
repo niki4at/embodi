@@ -12,8 +12,6 @@ import {
   ActivityIndicator,
   Alert,
   type AlertButton,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,27 +20,28 @@ import {
 } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import Animated, { FadeInDown } from 'react-native-reanimated'
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context'
+import { LinearGradient } from 'expo-linear-gradient'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 import AddExerciseSheet from '@/components/trainer/AddExerciseSheet'
 import CitationsPanel from '@/components/trainer/CitationsPanel'
 import CoachBubble from '@/components/trainer/CoachBubble'
 import ExerciseMenuSheet from '@/components/trainer/ExerciseMenuSheet'
 import ExerciseTable from '@/components/trainer/ExerciseTable'
-import { MovementJourneyBar } from '@/components/trainer/MovementJourneyBar'
+import { HurtSheet, type HurtReport } from '@/components/trainer/HurtSheet'
 import {
   computePhaseProgress,
   groupPlanByPhase,
   PHASE_META,
+  type ExercisePhase,
 } from '@/components/trainer/phases'
 import { CoachComment, ExercisePlan } from '@/components/trainer/types'
 import WorkoutTimer from '@/components/trainer/WorkoutTimer'
+import { BodfitWordmark } from '@/components/ui/bodfit-logo'
 import { IconSymbol } from '@/components/ui/icon-symbol'
 import { PillButton } from '@/components/ui/pill-button'
-import { motion, radius, spacing, typography } from '@/constants/design'
+import { Eyebrow } from '@/components/ui/primitives'
+import { gradients, motion, radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
 import { Id } from '@/convex/_generated/dataModel'
@@ -50,16 +49,19 @@ import { useSessionLogging } from '@/hooks/use-session-logging'
 
 type SessionParams = {
   sessionId?: string
+  intent?: string
 }
 
 type TimerHandle = ReturnType<typeof setTimeout>
 
-const SCROLL_HIDE_DELAY_MS = 1200
-const SCROLL_THRESHOLD_PX = 6
+const PHASE_DOT: Record<ExercisePhase, 'energyOkay' | 'energyLow' | 'flare'> = {
+  warmup: 'energyOkay',
+  main: 'energyLow',
+  cooldown: 'flare',
+}
 
 export default function SessionScreen() {
-  const { palette, resolved, shadows } = useTheme()
-  const insets = useSafeAreaInsets()
+  const { palette } = useTheme()
   const params = useLocalSearchParams<SessionParams>()
   const sessionId =
     typeof params.sessionId === 'string'
@@ -76,6 +78,9 @@ export default function SessionScreen() {
   const markSessionStarted = useMutation(api.trainer.markSessionStarted)
   const reorderExercise = useMutation(api.trainer.reorderSessionExercise)
   const removeExercise = useMutation(api.trainer.removeExerciseFromSession)
+  const setExerciseSkipped = useMutation(api.trainer.setExerciseSkipped)
+  const setFlareUp = useMutation(api.flareUp.setFlareUp)
+  const flare = useQuery(api.flareUp.getFlareUp)
   const prefetchComments = useAction(api.trainer.prefetchCoachComments)
 
   const [showCitations, setShowCitations] = useState(false)
@@ -83,14 +88,14 @@ export default function SessionScreen() {
   const [isCompleting, setIsCompleting] = useState(false)
   const [menuExerciseId, setMenuExerciseId] = useState<string | null>(null)
   const [addSheetOpen, setAddSheetOpen] = useState(false)
-  const [journeyVisible, setJourneyVisible] = useState(false)
+  const [hurtOpen, setHurtOpen] = useState(false)
+  const [menuPrompt, setMenuPrompt] = useState<string | undefined>(undefined)
+  const swapIntentHandled = useRef(false)
 
   const hideTimerRef = useRef<TimerHandle | null>(null)
-  const journeyTimerRef = useRef<TimerHandle | null>(null)
   const scheduledTimers = useRef<TimerHandle[]>([])
   const coachQueueRef = useRef<CoachComment[]>([])
   const commentsLoaded = useRef(false)
-  const lastScrollY = useRef(0)
 
   const session = sessionData?.session
   const isCustomSession = session?.source === 'custom'
@@ -148,7 +153,6 @@ export default function SessionScreen() {
     const timers = scheduledTimers.current
     return () => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
-      if (journeyTimerRef.current) clearTimeout(journeyTimerRef.current)
       timers.forEach(timer => clearTimeout(timer))
     }
   }, [])
@@ -223,26 +227,6 @@ export default function SessionScreen() {
       )
     }
   }, [session, sessionId, markSessionStarted])
-
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const y = event.nativeEvent.contentOffset.y
-      const delta = Math.abs(y - lastScrollY.current)
-      lastScrollY.current = y
-
-      if (delta < SCROLL_THRESHOLD_PX) return
-
-      if (!journeyVisible) setJourneyVisible(true)
-
-      if (journeyTimerRef.current) {
-        clearTimeout(journeyTimerRef.current)
-      }
-      journeyTimerRef.current = setTimeout(() => {
-        setJourneyVisible(false)
-      }, SCROLL_HIDE_DELAY_MS)
-    },
-    [journeyVisible],
-  )
 
   const handleAfterSetLogged = useCallback(
     (exerciseId: string) => triggerComment('after_set', exerciseId),
@@ -342,10 +326,109 @@ export default function SessionScreen() {
   )
 
   const handleReplace = useCallback((exerciseId: string) => {
+    setMenuPrompt(undefined)
     setMenuExerciseId(exerciseId)
   }, [])
 
-  const handleCloseMenu = useCallback(() => setMenuExerciseId(null), [])
+  const handleCloseMenu = useCallback(() => {
+    setMenuExerciseId(null)
+    setMenuPrompt(undefined)
+  }, [])
+
+  // Per-exercise journey status: done when all target sets are logged, "now"
+  // is the first unfinished exercise, "next" the one after it.
+  const exerciseStatus = useMemo(() => {
+    const map = new Map<string, 'done' | 'now' | 'next' | 'idle'>()
+    let nowAssigned = false
+    let nextAssigned = false
+    const displayOrder = isCustomSession
+      ? planExercises
+      : groups.flatMap(group => group.exercises.map(entry => entry.exercise))
+    for (const exercise of displayOrder) {
+      if (exercise.skipped) {
+        map.set(exercise.id, 'idle')
+        continue
+      }
+      const logged = sets.filter(
+        s => s.exerciseId === exercise.id && !s.isWarmup,
+      ).length
+      if (exercise.targetSets > 0 && logged >= exercise.targetSets) {
+        map.set(exercise.id, 'done')
+      } else if (!nowAssigned) {
+        map.set(exercise.id, 'now')
+        nowAssigned = true
+      } else if (!nextAssigned) {
+        map.set(exercise.id, 'next')
+        nextAssigned = true
+      } else {
+        map.set(exercise.id, 'idle')
+      }
+    }
+    return map
+  }, [planExercises, sets, groups, isCustomSession])
+
+  const currentExercise = useMemo(
+    () =>
+      planExercises.find(ex => exerciseStatus.get(ex.id) === 'now') ?? null,
+    [planExercises, exerciseStatus],
+  )
+
+  // "Swap a move or shorten it" from the ready screen lands here with
+  // intent=swap: open the replace sheet on the current exercise once.
+  useEffect(() => {
+    if (params.intent !== 'swap' || swapIntentHandled.current) return
+    if (!currentExercise) return
+    swapIntentHandled.current = true
+    setMenuExerciseId(currentExercise.id)
+  }, [params.intent, currentExercise])
+
+  const persistHurtArea = useCallback(
+    async (area: string) => {
+      const regions = Array.from(new Set([...(flare?.regions ?? []), area]))
+      await setFlareUp({ active: true, regions }).catch(err =>
+        console.error('flare-up update error', err),
+      )
+    },
+    [flare?.regions, setFlareUp],
+  )
+
+  const handleHurtAccept = useCallback(
+    async (report: HurtReport) => {
+      setHurtOpen(false)
+      await persistHurtArea(report.area)
+      if (!sessionId || !currentExercise) return
+      switch (report.severity) {
+        case 'twinge':
+          return
+        case 'sore':
+          setMenuPrompt(
+            `Swap this for a variation that spares my ${report.areaLabel.toLowerCase()} and keeps the same muscle group.`,
+          )
+          setMenuExerciseId(currentExercise.id)
+          return
+        case 'stop':
+          await setExerciseSkipped({
+            sessionId,
+            exerciseId: currentExercise.id,
+            skipped: true,
+          }).catch(err => console.error('skip error', err))
+          return
+        default: {
+          const _exhaustive: never = report.severity
+          return _exhaustive
+        }
+      }
+    },
+    [persistHurtArea, sessionId, currentExercise, setExerciseSkipped],
+  )
+
+  const handleHurtNote = useCallback(
+    async (report: HurtReport) => {
+      setHurtOpen(false)
+      await persistHurtArea(report.area)
+    },
+    [persistHurtArea],
+  )
 
   const handleOpenAddExercise = useCallback(() => {
     Haptics.selectionAsync()
@@ -503,203 +586,222 @@ export default function SessionScreen() {
     )
   }
 
-  const sessionShadow =
-    resolved === 'dark' ? shadows.primaryDark : shadows.primary
   const allSetsLogged =
     totalTargetSets > 0 && workingSetsLogged >= totalTargetSets
+  const setsProgress =
+    totalTargetSets > 0 ? Math.min(1, workingSetsLogged / totalTargetSets) : 0
+
+  const currentSetNumber = currentExercise
+    ? sets.filter(s => s.exerciseId === currentExercise.id && !s.isWarmup)
+        .length + 1
+    : null
 
   const renderExerciseTable = (exercise: ExercisePlan, planIndex: number) => {
     const hasSets = sets.some(s => s.exerciseId === exercise.id)
     return (
-      <ExerciseTable
-        key={exercise.id}
-        exercise={exercise}
-        sets={sets}
-        sessionId={sessionId}
-        planIndex={planIndex}
-        planLength={planExercises.length}
-        hasLoggedSets={hasSets}
-        showSwipeHint={planIndex === 0}
-        onSaveSet={(setIndex, payload) =>
-          handleLogSet(exercise.id, setIndex, payload)
-        }
-        onRemoveSet={setIndex => handleRemoveSet(exercise.id, setIndex)}
-        onInsertSetAfter={afterSetIndex =>
-          handleInsertSetAfter(exercise.id, afterSetIndex)
-        }
-        onDeleteSetAt={setIndex => handleDeleteSetAt(exercise.id, setIndex)}
-        onSetType={(setIndex, setType) =>
-          handleSetType(exercise.id, setIndex, setType)
-        }
-        onSetRest={restSec => handleSetRest(exercise.id, restSec)}
-        onPrefetchComment={handlePrefetchComment}
-        exerciseNotes={exerciseNotesByExerciseId[exercise.id]}
-        onSaveExerciseNotes={notes => handleSaveExerciseNotes(exercise.id, notes)}
-        onReplace={() => handleReplace(exercise.id)}
-        onReposition={direction => handleReposition(exercise.id, direction)}
-        onRemove={() => handleRemove(exercise.id, hasSets)}
-        skipped={exercise.skipped}
-        onToggleSkip={next => handleToggleSkip(exercise.id, next)}
-      />
+      <View key={exercise.id} style={styles.tableWrap}>
+        <ExerciseTable
+          exercise={exercise}
+          sets={sets}
+          sessionId={sessionId}
+          planIndex={planIndex}
+          planLength={planExercises.length}
+          hasLoggedSets={hasSets}
+          showSwipeHint={planIndex === 0}
+          status={exerciseStatus.get(exercise.id) ?? 'idle'}
+          onSaveSet={(setIndex, payload) =>
+            handleLogSet(exercise.id, setIndex, payload)
+          }
+          onRemoveSet={setIndex => handleRemoveSet(exercise.id, setIndex)}
+          onInsertSetAfter={afterSetIndex =>
+            handleInsertSetAfter(exercise.id, afterSetIndex)
+          }
+          onDeleteSetAt={setIndex => handleDeleteSetAt(exercise.id, setIndex)}
+          onSetType={(setIndex, setType) =>
+            handleSetType(exercise.id, setIndex, setType)
+          }
+          onSetRest={restSec => handleSetRest(exercise.id, restSec)}
+          onPrefetchComment={handlePrefetchComment}
+          exerciseNotes={exerciseNotesByExerciseId[exercise.id]}
+          onSaveExerciseNotes={notes => handleSaveExerciseNotes(exercise.id, notes)}
+          onReplace={() => handleReplace(exercise.id)}
+          onReposition={direction => handleReposition(exercise.id, direction)}
+          onRemove={() => handleRemove(exercise.id, hasSets)}
+          skipped={exercise.skipped}
+          onToggleSkip={next => handleToggleSkip(exercise.id, next)}
+        />
+      </View>
     )
+  }
+
+  const phaseStatus = (phase: ExercisePhase) => {
+    const stats = phaseProgress.find(p => p.phase === phase)
+    if (!stats || stats.total === 0) return null
+    if (stats.completed >= stats.total) return 'done' as const
+    const holdsCurrent = groups
+      .find(g => g.phase === phase)
+      ?.exercises.some(
+        ({ exercise }) => exerciseStatus.get(exercise.id) === 'now',
+      )
+    if (stats.completed > 0 || holdsCurrent) return 'in-progress' as const
+    return 'start' as const
   }
 
   return (
     <GestureHandlerRootView style={styles.safeArea}>
-    <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: palette.bg }]}
-      edges={['top']}
-    >
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={[
-            styles.iconButton,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-            },
-          ]}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <IconSymbol
-            name="chevron.left"
-            size={20}
-            color={palette.textPrimary}
-          />
-        </TouchableOpacity>
-        <View style={styles.topBarCenter}>
-          <Text
-            style={[styles.topBarTitle, { color: palette.textPrimary }]}
-            numberOfLines={1}
-          >
-            {session.goal}
-          </Text>
-          {session.status === 'generated' ||
-          session.status === 'in-progress' ? (
-            <WorkoutTimer
-              startedAt={session.startedAt}
-              plannedDurationMin={session.durationMin}
-            />
-          ) : null}
-        </View>
-        <View style={styles.topBarActions}>
-          <TouchableOpacity
-            onPress={handleOpenAddExercise}
-            style={[
-              styles.iconButton,
-              {
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
-              },
-            ]}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Add exercise"
-          >
-            <IconSymbol name="plus" size={20} color={palette.textPrimary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleOpenMenu}
-            style={[
-              styles.iconButton,
-              {
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
-              },
-            ]}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Session options"
-          >
-            <IconSymbol name="ellipsis" size={20} color={palette.textPrimary} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {isCustomSession ? null : (
-        <MovementJourneyBar
-          progress={phaseProgress}
-          visible={journeyVisible}
-          topInset={insets.top + 44}
-        />
-      )}
-
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={32}
+      <SafeAreaView
+        style={[styles.safeArea, { backgroundColor: palette.bg }]}
+        edges={['top']}
       >
-        <Animated.View entering={FadeInDown.duration(motion.duration.base)}>
-          <Text style={[styles.sessionTitle, { color: palette.textPrimary }]}>
-            Movement journey
-          </Text>
-          <Text
-            style={[styles.sessionMeta, { color: palette.textSecondary }]}
+        <View style={[styles.topBar, { borderBottomColor: palette.divider }]}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            style={styles.topBarSide}
           >
-            {session.modality} · {session.durationMin} min · {workingSetsLogged}
-            /{totalTargetSets} sets
-          </Text>
-        </Animated.View>
+            <IconSymbol name="arrow.left" size={18} color={palette.textSecondary} />
+          </TouchableOpacity>
+          <View style={styles.topBarCenter}>
+            {session.status === 'generated' ||
+            session.status === 'in-progress' ? (
+              <WorkoutTimer
+                startedAt={session.startedAt}
+                plannedDurationMin={session.durationMin}
+              />
+            ) : null}
+          </View>
+          <View style={[styles.topBarSide, styles.topBarRight]}>
+            <TouchableOpacity
+              onPress={handleOpenMenu}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Session options"
+            >
+              <BodfitWordmark variant="header" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-        {isCustomSession
-          ? planExercises.map((exercise, planIndex) =>
-              renderExerciseTable(exercise, planIndex),
-            )
-          : groups.map(group =>
-              group.exercises.length === 0 ? null : (
-                <View key={group.phase} style={styles.phaseBlock}>
-                  <View style={styles.phaseHeader}>
-                    <Text style={styles.phaseEmoji}>
-                      {PHASE_META[group.phase].emoji}
-                    </Text>
-                    <Text
-                      style={[styles.phaseLabel, { color: palette.primary }]}
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={32}
+        >
+          <Animated.View entering={FadeInDown.duration(motion.duration.base)}>
+            <View style={styles.titleRow}>
+              <Text style={[styles.sessionTitle, { color: palette.textPrimary }]}>
+                {isCustomSession ? session.goal : 'Movement journey'}
+              </Text>
+              <Text
+                style={[styles.setsCount, { color: palette.textSecondary }]}
+                accessibilityLabel={`${workingSetsLogged} of ${totalTargetSets} sets logged`}
+              >
+                {workingSetsLogged} / {totalTargetSets} SETS
+              </Text>
+            </View>
+            <View
+              style={[styles.progressTrack, { backgroundColor: palette.surfaceHigh }]}
+              accessibilityRole="progressbar"
+              accessibilityValue={{ min: 0, max: 100, now: Math.round(setsProgress * 100) }}
+            >
+              <LinearGradient
+                colors={[...gradients.hero]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={[styles.progressFill, { width: `${Math.max(2, setsProgress * 100)}%` }]}
+              />
+            </View>
+          </Animated.View>
+
+          {isCustomSession
+            ? planExercises.map((exercise, planIndex) =>
+                renderExerciseTable(exercise, planIndex),
+              )
+            : groups.map(group => {
+                if (group.exercises.length === 0) return null
+                const status = phaseStatus(group.phase)
+                return (
+                  <View key={group.phase} style={styles.phaseBlock}>
+                    <Eyebrow
+                      dot={palette[PHASE_DOT[group.phase]]}
+                      right={
+                        status ? (
+                          <View
+                            style={[
+                              styles.statusPill,
+                              {
+                                backgroundColor:
+                                  status === 'done'
+                                    ? palette.successMuted
+                                    : status === 'in-progress'
+                                      ? palette.warningMuted
+                                      : palette.flareMuted,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.statusPillText,
+                                {
+                                  color:
+                                    status === 'done'
+                                      ? palette.success
+                                      : status === 'in-progress'
+                                        ? palette.warning
+                                        : palette.flare,
+                                },
+                              ]}
+                            >
+                              {status === 'done'
+                                ? 'DONE'
+                                : status === 'in-progress'
+                                  ? 'IN PROGRESS'
+                                  : 'START'}
+                            </Text>
+                          </View>
+                        ) : undefined
+                      }
+                      style={styles.phaseHeader}
                     >
                       {PHASE_META[group.phase].label}
-                    </Text>
+                    </Eyebrow>
+                    {group.exercises.map(({ exercise, planIndex }) =>
+                      renderExerciseTable(exercise, planIndex),
+                    )}
                   </View>
-                  {group.exercises.map(({ exercise, planIndex }) =>
-                    renderExerciseTable(exercise, planIndex),
-                  )}
-                </View>
-              ),
-            )}
+                )
+              })}
 
-        {session.status === 'generating' ? (
-          <View
-            style={[
-              styles.generatingPill,
-              {
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
-              },
-            ]}
+          {session.status === 'generating' ? (
+            <View style={styles.generatingPill} accessibilityLiveRegion="polite">
+              <ActivityIndicator size="small" color={palette.primary} />
+              <Text
+                style={[styles.generatingText, { color: palette.textSecondary }]}
+              >
+                More moves on the way
+              </Text>
+            </View>
+          ) : null}
+
+          <TouchableOpacity
+            onPress={handleOpenAddExercise}
+            accessibilityRole="button"
+            accessibilityLabel="Add an exercise"
+            style={styles.addRow}
           >
-            <ActivityIndicator size="small" color={palette.primary} />
-            <Text
-              style={[styles.generatingText, { color: palette.textSecondary }]}
-            >
-              More moves on the way…
-            </Text>
-          </View>
-        ) : null}
+            <IconSymbol name="plus" size={16} color={palette.primary} />
+            <Text style={[styles.addText, { color: palette.primary }]}>Add a move</Text>
+          </TouchableOpacity>
 
-        <View style={{ height: spacing.huge * 2 }} />
-      </ScrollView>
+          <View style={{ height: spacing.huge * 2 + 40 }} />
+        </ScrollView>
 
-      <View
-        style={[
-          styles.footer,
-          { backgroundColor: palette.bg, borderTopColor: palette.divider },
-        ]}
-      >
-        <CoachBubble comment={activeComment} />
-        <View style={sessionShadow}>
+        <View style={[styles.footer, { backgroundColor: palette.bg }]}>
+          <CoachBubble comment={activeComment} />
           <PillButton
+            variant="gradient"
             label={
               isCompleting
                 ? 'Saving'
@@ -711,29 +813,49 @@ export default function SessionScreen() {
             disabled={isCompleting}
             loading={isCompleting}
           />
+          <PillButton
+            label="Something hurts"
+            variant="secondary"
+            onPress={() => {
+              Haptics.selectionAsync().catch(() => {})
+              setHurtOpen(true)
+            }}
+          />
         </View>
-      </View>
 
-      <CitationsPanel
-        visible={showCitations}
-        facts={session.healthFacts}
-        onClose={() => setShowCitations(false)}
-      />
-      <ExerciseMenuSheet
-        visible={menuExercise !== null}
-        sessionId={sessionId}
-        exercise={menuExercise}
-        plan={planExercises}
-        hasLoggedSets={menuExerciseHasSets}
-        onClose={handleCloseMenu}
-        initialMode="replace"
-      />
-      <AddExerciseSheet
-        visible={addSheetOpen}
-        sessionId={sessionId}
-        onClose={handleCloseAddExercise}
-      />
-    </SafeAreaView>
+        <CitationsPanel
+          visible={showCitations}
+          facts={session.healthFacts}
+          onClose={() => setShowCitations(false)}
+        />
+        <ExerciseMenuSheet
+          visible={menuExercise !== null}
+          sessionId={sessionId}
+          exercise={menuExercise}
+          plan={planExercises}
+          hasLoggedSets={menuExerciseHasSets}
+          onClose={handleCloseMenu}
+          initialMode="replace"
+          initialPrompt={menuPrompt}
+        />
+        <AddExerciseSheet
+          visible={addSheetOpen}
+          sessionId={sessionId}
+          onClose={handleCloseAddExercise}
+        />
+        <HurtSheet
+          visible={hurtOpen}
+          onClose={() => setHurtOpen(false)}
+          exerciseName={currentExercise?.name ?? null}
+          contextLine={
+            currentExercise
+              ? `${currentExercise.name}, set ${currentSetNumber}. Picked up from this move.`
+              : 'Tell the coach where it hurts and today adapts.'
+          }
+          onAccept={report => void handleHurtAccept(report)}
+          onNoteOnly={report => void handleHurtNote(report)}
+        />
+      </SafeAreaView>
     </GestureHandlerRootView>
   )
 }
@@ -754,76 +876,91 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-    gap: spacing.sm,
+    paddingBottom: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
+  topBarSide: {
+    width: 90,
     justifyContent: 'center',
   },
-  topBarActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+  topBarRight: {
+    alignItems: 'flex-end',
   },
   topBarCenter: {
     flex: 1,
     alignItems: 'center',
-    gap: 1,
-  },
-  topBarTitle: {
-    ...typography.bodyStrong,
-    textAlign: 'center',
   },
   scroll: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.huge + 80,
+    paddingTop: spacing.lg,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: spacing.md,
   },
   sessionTitle: {
     ...typography.h1,
-    marginBottom: spacing.xs,
+    fontSize: 22,
+    flexShrink: 1,
   },
-  sessionMeta: {
-    ...typography.small,
-    marginBottom: spacing.lg,
+  setsCount: {
+    ...typography.mono,
+    fontSize: 11,
+    paddingBottom: 4,
+  },
+  progressTrack: {
+    height: 3,
+    borderRadius: 2,
+    marginTop: spacing.sm,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 3,
+    borderRadius: 2,
   },
   phaseBlock: {
-    marginBottom: spacing.xs,
+    marginTop: spacing.xl,
   },
   phaseHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
     marginBottom: spacing.sm,
   },
-  phaseEmoji: {
-    fontSize: 18,
-    lineHeight: 22,
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: radius.xs,
   },
-  phaseLabel: {
-    ...typography.h3,
-    fontSize: 18,
+  statusPillText: {
+    ...typography.mono,
+    fontSize: 10,
+    letterSpacing: 0.8,
+  },
+  tableWrap: {
+    marginBottom: spacing.md,
   },
   generatingPill: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
     paddingVertical: spacing.sm,
     marginTop: spacing.sm,
   },
   generatingText: {
     ...typography.small,
+  },
+  addRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: spacing.md,
+  },
+  addText: {
+    ...typography.smallStrong,
   },
   footer: {
     position: 'absolute',
@@ -832,8 +969,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingBottom: spacing.xxl,
+    gap: spacing.md,
   },
   failedIcon: {
     width: 72,

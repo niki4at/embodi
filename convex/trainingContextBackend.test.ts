@@ -77,6 +77,7 @@ describe('training context backend', () => {
       ],
     })
     expect(equipment[0]?.equipment._id).toBe(equipmentId)
+    if (!suggestion) throw new Error('Expected a training suggestion')
     expect(suggestion.environment.value).toBe('gym')
     expect(suggestion.activeEquipmentKeys).toContain('dumbbell')
   })
@@ -118,6 +119,7 @@ describe('training context backend', () => {
       timeOfDay: 'morning',
     })
 
+    if (!suggestion) throw new Error('Expected a training suggestion')
     expect(suggestion.environment.value).toBe('home')
     expect(suggestion.equipmentIntent.value).toBe('treadmill')
   })
@@ -133,6 +135,7 @@ describe('training context backend', () => {
       timeOfDay: 'morning',
     })
 
+    if (!suggestion) throw new Error('Expected a training suggestion')
     expect(suggestion.environment.value).toBe('outdoors')
     expect(suggestion.equipmentIntent.value).toBe('bodyweight')
   })
@@ -183,5 +186,34 @@ describe('training context backend', () => {
     expect(strangerPlaces).toEqual([])
     expect(encrypted?.encryptedCoordinates).not.toContain('51.501')
     expect(encrypted?.encryptionKeyVersion).toBe('1')
+  })
+
+  it('returns preferences that carry a saved desk work style', async () => {
+    const t = convexTest(schema, modules)
+    const user = asUser(t, 'desk-user')
+
+    await user.mutation(api.trainingPreferences.saveWorkStyle, {
+      position: 'sitting',
+      deskHoursPerDay: 6,
+      troubleSpots: ['neck'],
+    })
+    await user.mutation(api.trainingPreferences.update, {
+      sharingDefault: 'backers',
+    })
+    await user.mutation(api.trainingPreferences.saveWorkStyle, {
+      deskHoursPerDay: 8,
+    })
+
+    const preferences = await user.query(api.trainingPreferences.get, {})
+    expect(preferences).toMatchObject({
+      sharingDefault: 'backers',
+      weeklyRhythm: [],
+      socialLocationSharing: 'private',
+      workStyle: {
+        position: 'sitting',
+        deskHoursPerDay: 8,
+        troubleSpots: ['neck'],
+      },
+    })
   })
 })

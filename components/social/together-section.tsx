@@ -1,28 +1,33 @@
 import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
+import { LinearGradient } from 'expo-linear-gradient'
 import { router } from 'expo-router'
 import React, { useState } from 'react'
 import {
   Alert,
-  Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native'
 
-import { Avatar } from '@/components/social/avatar'
-import { IconSymbol } from '@/components/ui/icon-symbol'
-import { radius, spacing, typography } from '@/constants/design'
+import { BottomSheet } from '@/components/ui/bottom-sheet'
+import { PillButton } from '@/components/ui/pill-button'
+import { ArrowRow, Eyebrow } from '@/components/ui/primitives'
+import { gradients, radius, spacing, typography } from '@/constants/design'
+import { fonts } from '@/constants/fonts'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
-import { daysUntil } from '@/utils/timeAgo'
+
+function daysUntil(timestamp: number): number {
+  return Math.max(0, Math.ceil((timestamp - Date.now()) / (24 * 60 * 60 * 1000)))
+}
 
 /**
- * "Together" strip on the Challenges tab: your communities, plus entry
- * points to start one or join with a code.
+ * "Group challenges": the communities you belong to as plain arrow rows, plus
+ * a gradient "+" to join with a code or start a new one. Distinct from the
+ * personal challenges list above it.
  */
 export function TogetherSection() {
   const { palette } = useTheme()
@@ -51,325 +56,149 @@ export function TogetherSection() {
         'Could not join',
         error instanceof Error
           ? error.message.replace(/^.*Error: /, '')
-          : 'Check the code and try again.'
+          : 'Check the code and try again.',
       )
     } finally {
       setJoining(false)
     }
   }
 
+  const handlePlus = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    Alert.alert('Group challenge', undefined, [
+      { text: 'Join with a code', onPress: () => setCodeOpen(true) },
+      { text: 'Start a community', onPress: () => router.push('/community/new') },
+      { text: 'Cancel', style: 'cancel' },
+    ])
+  }
+
+  const rows = (communities ?? []).map((community) => ({
+    key: String(community._id),
+    label: `${community.name} \u00b7 ${
+      community.eventDate
+        ? `${daysUntil(community.eventDate)} days to go`
+        : community.goalLabel
+    }`,
+    onPress: () => {
+      void Haptics.selectionAsync()
+      router.push({
+        pathname: '/community/[id]',
+        params: { id: String(community._id) },
+      })
+    },
+  }))
+
   return (
     <View style={styles.section}>
-      <Text style={[typography.caption, { color: palette.textTertiary }]}>
-        TOGETHER
-      </Text>
-
-      {communities && communities.length > 0 ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.cardsRow}
-        >
-          {communities.map((community) => (
-            <Pressable
-              key={String(community._id)}
-              onPress={() => {
-                void Haptics.selectionAsync()
-                router.push({
-                  pathname: '/community/[id]',
-                  params: { id: String(community._id) },
-                })
-              }}
-              style={[
-                styles.card,
-                {
-                  backgroundColor: palette.surface,
-                  borderColor: palette.border,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${community.name}`}
-            >
-              <Text
-                style={[typography.bodyStrong, { color: palette.textPrimary }]}
-                numberOfLines={1}
-              >
-                {community.name}
-              </Text>
-              <Text
-                style={[typography.small, { color: palette.textTertiary }]}
-                numberOfLines={1}
-              >
-                {community.eventDate
-                  ? `${daysUntil(community.eventDate)} days to go`
-                  : community.goalLabel}
-                {' \u00b7 '}
-                {community.memberCount}
-              </Text>
-
-              <View style={styles.avatarsRow}>
-                {community.memberPreviews.slice(0, 4).map((member, index) => (
-                  <View
-                    key={member.userId}
-                    style={[
-                      styles.avatarWrap,
-                      {
-                        marginLeft: index === 0 ? 0 : -10,
-                        borderColor: palette.surface,
-                      },
-                    ]}
-                  >
-                    <Avatar
-                      url={member.avatarUrl}
-                      name={member.displayName}
-                      size={26}
-                    />
-                  </View>
-                ))}
-              </View>
-
-              {community.myPercent != null ? (
-                <View style={styles.progressBlock}>
-                  <View
-                    style={[
-                      styles.progressTrack,
-                      { backgroundColor: palette.surfaceHigh },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.progressFill,
-                        {
-                          width: `${community.myPercent}%`,
-                          backgroundColor:
-                            community.myPercent >= 100
-                              ? palette.success
-                              : palette.primary,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text
-                    style={[
-                      typography.smallStrong,
-                      { color: palette.textSecondary },
-                    ]}
-                  >
-                    You: {community.myProgress.toLocaleString()}
-                    {community.myTarget
-                      ? ` / ${community.myTarget.toLocaleString()}`
-                      : ''}{' '}
-                    {community.metric.unit}
-                  </Text>
-                </View>
-              ) : (
-                <Text
-                  style={[
-                    typography.smallStrong,
-                    { color: palette.textSecondary },
-                  ]}
-                >
-                  You: {community.myProgress.toLocaleString()}{' '}
-                  {community.metric.unit}
-                </Text>
-              )}
-            </Pressable>
+      <Eyebrow>Group challenges</Eyebrow>
+      <View style={styles.body}>
+        <View style={styles.rows}>
+          {rows.map((row) => (
+            <ArrowRow key={row.key} label={row.label} onPress={row.onPress} dot={palette.accent} />
           ))}
-        </ScrollView>
-      ) : null}
-
-      <View style={styles.actionsRow}>
+          <ArrowRow label="Join with a code" onPress={() => setCodeOpen(true)} />
+          <ArrowRow
+            label="Start a community"
+            onPress={() => router.push('/community/new')}
+            last
+          />
+        </View>
         <Pressable
-          onPress={() => {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-            router.push('/community/new')
-          }}
-          style={[
-            styles.actionCard,
-            { backgroundColor: palette.surface, borderColor: palette.border },
-          ]}
+          onPress={handlePlus}
           accessibilityRole="button"
-          accessibilityLabel="Start a community"
+          accessibilityLabel="Join or create a group challenge"
+          style={({ pressed }) => [styles.plusWrap, pressed && { opacity: 0.7 }]}
         >
-          <View
-            style={[styles.actionIcon, { backgroundColor: palette.primaryMuted }]}
+          <LinearGradient
+            colors={[...gradients.hero]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.plusRing}
           >
-            <IconSymbol name="person.2.fill" size={16} color={palette.primary} />
-          </View>
-          <Text style={[typography.smallStrong, { color: palette.textPrimary }]}>
-            Start a community
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            void Haptics.selectionAsync()
-            setCodeOpen(true)
-          }}
-          style={[
-            styles.actionCard,
-            { backgroundColor: palette.surface, borderColor: palette.border },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Join with a code"
-        >
-          <View
-            style={[styles.actionIcon, { backgroundColor: palette.successMuted }]}
-          >
-            <IconSymbol name="ticket.fill" size={16} color={palette.success} />
-          </View>
-          <Text style={[typography.smallStrong, { color: palette.textPrimary }]}>
-            Join with a code
-          </Text>
+            <View style={[styles.plusInner, { backgroundColor: palette.bg }]}>
+              <Text style={[styles.plus, { color: palette.primary }]}>+</Text>
+              <Text style={[styles.plusLabel, { color: palette.accent }]}>join / create</Text>
+            </View>
+          </LinearGradient>
         </Pressable>
       </View>
 
-      <Modal
+      <BottomSheet
         visible={codeOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCodeOpen(false)}
+        onClose={() => setCodeOpen(false)}
+        title="Join with a code"
+        subtitle="Paste the invite code a friend shared."
+        footer={
+          <PillButton
+            label={joining ? 'Joining' : 'Join'}
+            onPress={handleJoinWithCode}
+            disabled={!code.trim() || joining}
+            loading={joining}
+          />
+        }
       >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setCodeOpen(false)}
-        >
-          <Pressable
-            style={[
-              styles.modalSheet,
-              {
-                backgroundColor: palette.bgElevated,
-                borderColor: palette.border,
-              },
-            ]}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Text style={[typography.h3, { color: palette.textPrimary }]}>
-              Join with a code
-            </Text>
-            <TextInput
-              value={code}
-              onChangeText={setCode}
-              placeholder="e.g. em4k7t2p9x"
-              placeholderTextColor={palette.textTertiary}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoFocus
-              style={[
-                styles.codeInput,
-                {
-                  backgroundColor: palette.surface,
-                  borderColor: palette.border,
-                  color: palette.textPrimary,
-                },
-              ]}
-            />
-            <Pressable
-              onPress={handleJoinWithCode}
-              disabled={!code.trim() || joining}
-              style={[
-                styles.joinButton,
-                {
-                  backgroundColor: code.trim()
-                    ? palette.primary
-                    : palette.surfaceAlt,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Join community"
-            >
-              <Text
-                style={[
-                  typography.bodyStrong,
-                  { color: code.trim() ? '#FFFFFF' : palette.textTertiary },
-                ]}
-              >
-                {joining ? 'Joining\u2026' : 'Join'}
-              </Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        <TextInput
+          value={code}
+          onChangeText={setCode}
+          placeholder="e.g. em4k7t2p9x"
+          placeholderTextColor={palette.textTertiary}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoFocus
+          accessibilityLabel="Invite code"
+          style={[
+            styles.codeInput,
+            { backgroundColor: palette.surface, color: palette.textPrimary },
+          ]}
+        />
+      </BottomSheet>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   section: {
-    gap: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  cardsRow: {
+    marginTop: spacing.xxxl,
     gap: spacing.md,
   },
-  card: {
-    width: 230,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  avatarsRow: {
+  body: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  avatarWrap: {
-    borderWidth: 2,
-    borderRadius: 15,
-  },
-  progressBlock: {
-    gap: spacing.xs,
-  },
-  progressTrack: {
-    height: 7,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  actionCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.md,
-  },
-  actionIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  modalSheet: {
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    padding: spacing.xl,
     gap: spacing.lg,
+  },
+  rows: {
+    flex: 1,
+  },
+  plusWrap: {
+    width: 64,
+    height: 64,
+  },
+  plusRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    padding: 1.5,
+  },
+  plusInner: {
+    flex: 1,
+    borderRadius: 31,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  plus: {
+    fontFamily: fonts.displayRegular,
+    fontSize: 26,
+    lineHeight: 28,
+  },
+  plusLabel: {
+    fontFamily: fonts.uiRegular,
+    fontSize: 8,
+    lineHeight: 10,
   },
   codeInput: {
     ...typography.body,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
-    paddingVertical: 12,
-  },
-  joinButton: {
-    alignItems: 'center',
-    borderRadius: radius.pill,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
 })

@@ -306,7 +306,7 @@ export const sendCoachMessage = action({
       )
     }
 
-    const systemPrompt = `You are Embodi's strength & movement coach, chatting with a client about ONE specific exercise: "${exerciseName}".
+    const systemPrompt = `You are Bodfit's strength & movement coach, chatting with a client about ONE specific exercise: "${exerciseName}".
 
 You have their profile, today's check-in, this exercise's personal records and recent history, and any active goal. Ground every answer in those real numbers when relevant (e.g. suggest a load based on their heaviest set or estimated 1RM).
 

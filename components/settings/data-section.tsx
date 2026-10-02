@@ -45,7 +45,7 @@ export function DataSection() {
       }
       await Share.share({
         message: json,
-        title: 'Embodi data export',
+        title: 'Bodfit data export',
       })
     } catch (err) {
       console.error('Export failed', err)

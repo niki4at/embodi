@@ -1,6 +1,6 @@
 import { useMutation } from 'convex/react'
 import * as Haptics from 'expo-haptics'
-import { router, type Href } from 'expo-router'
+import { router, useLocalSearchParams, type Href } from 'expo-router'
 import React, { useCallback, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -46,13 +46,23 @@ const DEADLINES: { id: string; label: string; weeks: number | null }[] = [
 export default function NewChallengeScreen() {
   const { palette, resolved, shadows } = useTheme()
   const createChallenge = useMutation(api.challenges.createChallenge)
+  const params = useLocalSearchParams<{ category?: string; title?: string }>()
+  const initialCategory: ChallengeCategory =
+    typeof params.category === 'string' && params.category in CATEGORY_META
+      ? (params.category as ChallengeCategory)
+      : 'endurance'
+  const initialMeta = CATEGORY_META[initialCategory]
 
-  const [category, setCategory] = useState<ChallengeCategory>('endurance')
-  const [title, setTitle] = useState(CATEGORY_META.endurance.defaultTitle)
+  const [category, setCategory] = useState<ChallengeCategory>(initialCategory)
+  const [title, setTitle] = useState(
+    typeof params.title === 'string' && params.title.trim()
+      ? params.title
+      : initialMeta.defaultTitle,
+  )
   const [description, setDescription] = useState('')
-  const [unit, setUnit] = useState(CATEGORY_META.endurance.defaultMetric.unit)
+  const [unit, setUnit] = useState(initialMeta.defaultMetric.unit)
   const [direction, setDirection] = useState<MetricDirection>(
-    CATEGORY_META.endurance.defaultMetric.direction,
+    initialMeta.defaultMetric.direction,
   )
   const [startValue, setStartValue] = useState('')
   const [targetValue, setTargetValue] = useState('')

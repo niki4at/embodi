@@ -252,7 +252,7 @@ export function SettingsPanel({
         iconTint={palette.textPrimary}
         iconBg={palette.surfaceAlt}
         title="Text size"
-        subtitle="Embodi follows your device text size. Adjust it in system settings."
+        subtitle="Bodfit follows your device text size. Adjust it in system settings."
         onPress={() => {
           Haptics.selectionAsync()
           Linking.openSettings().catch(() => {})

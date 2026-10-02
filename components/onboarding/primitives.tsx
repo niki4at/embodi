@@ -71,7 +71,7 @@ export function Input({
         styles.inputContainer,
         {
           backgroundColor: palette.surface,
-          borderColor: focused ? palette.primary : palette.borderStrong,
+          borderColor: focused ? palette.primary : 'transparent',
         },
         multiline && styles.inputContainerMultiline,
       ]}
@@ -116,7 +116,7 @@ export function OptionRow({
       style={[
         styles.optionRow,
         {
-          backgroundColor: selected ? palette.primaryMuted : palette.surface,
+          backgroundColor: selected ? palette.primaryMuted : 'transparent',
           borderColor: selected ? palette.primary : palette.border,
         },
       ]}
@@ -137,13 +137,13 @@ export function OptionRow({
         <Text
           style={[
             styles.optionLabel,
-            { color: selected ? palette.primary : palette.textPrimary },
+            { color: palette.textPrimary },
           ]}
         >
           {label}
         </Text>
         {description ? (
-          <Text style={[styles.optionDescription, { color: palette.textTertiary }]}>
+          <Text style={[styles.optionDescription, { color: palette.textSecondary }]}>
             {description}
           </Text>
         ) : null}
@@ -167,17 +167,19 @@ export function Chip({
       style={[
         styles.chip,
         {
-          backgroundColor: selected ? palette.primaryMuted : palette.surface,
-          borderColor: selected ? palette.primary : palette.borderStrong,
+          backgroundColor: selected ? palette.textPrimary : 'transparent',
+          borderColor: selected ? palette.textPrimary : palette.borderStrong,
         },
       ]}
       onPress={onPress}
       activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
     >
       <Text
         style={[
           styles.chipText,
-          { color: selected ? palette.primary : palette.textSecondary },
+          { color: selected ? palette.bg : palette.textPrimary },
         ]}
       >
         {label}
@@ -203,7 +205,7 @@ export function ToggleRow({
       style={[
         styles.toggleRow,
         {
-          backgroundColor: selected ? palette.primaryMuted : palette.surface,
+          backgroundColor: selected ? palette.primaryMuted : 'transparent',
           borderColor: selected ? palette.primary : palette.border,
         },
       ]}
@@ -295,16 +297,16 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   label: {
-    ...typography.smallStrong,
+    ...typography.eyebrow,
   },
   hint: {
     ...typography.small,
   },
   inputContainer: {
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     borderWidth: 1,
     paddingHorizontal: spacing.lg,
-    height: 56,
+    height: 54,
     justifyContent: 'center',
   },
   inputContainerMultiline: {
@@ -322,10 +324,10 @@ const styles = StyleSheet.create({
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     borderWidth: 1,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingVertical: 14,
     gap: spacing.md,
   },
   radioOuter: {
@@ -353,12 +355,14 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
+    minHeight: 40,
+    justifyContent: 'center',
     borderRadius: radius.pill,
     borderWidth: 1,
   },
   chipText: {
     ...typography.smallStrong,
+    fontSize: 14,
   },
   toggleRow: {
     flexDirection: 'row',
@@ -391,8 +395,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    borderRadius: radius.md,
+    borderWidth: 0,
     padding: spacing.md,
     marginBottom: spacing.lg,
   },
