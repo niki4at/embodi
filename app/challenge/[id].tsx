@@ -146,7 +146,7 @@ export default function ChallengeDetailScreen() {
   const currentWeek = weeks[currentWeekIndex]
   const nextCardBg = resolved === 'dark' ? palette.surface : 'rgba(217, 217, 217, 0.6)'
 
-  const current = latestValue ?? m.startValue ?? (m.targetValue !== undefined ? 0 : null)
+  const current = latestValue ?? m.startValue ?? null
   const progressLine = (() => {
     const parts: string[] = []
     if (current !== null && m.targetValue !== undefined) {
@@ -431,10 +431,6 @@ const NODE = 27
 const NODE_PITCH = 44
 const NODE_XS = [0.055, 0.375, 0.123, 0.49, 0.806]
 const FINAL_X = 0.395
-const CHEER_TOP = 22
-const CHEER_WIDTH = 77
-const CHEER_BOTTOM = CHEER_TOP + 38 - 2 + 36
-const CHEER_RESERVE = 3 + 71 + 36 + 4
 
 function ProgramPath({
   weeks,
@@ -503,19 +499,15 @@ function ProgramPath({
             const active = !isFinal && i === currentIndex
             const glyph = isFinal ? '' : done ? '\u2713' : active ? '\u25B6' : ''
             const nodeLeft = p.x - half
-            const labelLeft = nodeLeft + NODE + 4
-            const besideCheer = p.y - half < CHEER_BOTTOM
-            const labelRoom = width - labelLeft - (besideCheer ? CHEER_RESERVE : 0)
-            const finalOnLeft = isFinal && nodeLeft >= 90
             return (
               <View key={i} style={[styles.node, { left: nodeLeft, top: p.y - half }]} pointerEvents="none">
                 <Text style={[active ? styles.nodePlay : styles.nodeTick, { color: palette.white }]}>{glyph}</Text>
                 <View
                   style={[
                     styles.nodeLabel,
-                    finalOnLeft
-                      ? { right: NODE + 6, width: nodeLeft - 6, alignItems: 'flex-end' }
-                      : { left: NODE + 4, width: Math.max(60, labelRoom) },
+                    isFinal
+                      ? { right: NODE + 6, width: Math.max(80, nodeLeft - 6), alignItems: 'flex-end' }
+                      : { left: NODE + 4, width: Math.max(60, width - nodeLeft - NODE - 4) },
                   ]}
                 >
                   <Text
@@ -715,11 +707,11 @@ const styles = StyleSheet.create({
   cheer: {
     position: 'absolute',
     right: -3,
-    top: CHEER_TOP,
+    top: 22,
     alignItems: 'flex-end',
   },
   cheerBubble: {
-    width: CHEER_WIDTH,
+    width: 77,
     height: 38,
     borderWidth: 1,
     borderRadius: 19,

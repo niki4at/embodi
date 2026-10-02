@@ -548,13 +548,13 @@ const styles = StyleSheet.create({
   },
   row: {
     paddingTop: 19,
-    paddingBottom: 21.5,
+    paddingBottom: 22,
     paddingLeft: 20,
     paddingRight: 31,
     marginRight: 15,
   },
   rowWithBadge: {
-    paddingBottom: 9.5,
+    paddingBottom: 10,
   },
   rowTop: {
     flexDirection: 'row',
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
     lineHeight: 9,
   },
   cta: {
-    marginTop: 11.5,
+    marginTop: 11,
     marginLeft: 24,
     marginRight: 61,
     height: 34,
