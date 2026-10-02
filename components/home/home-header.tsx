@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxxl + spacing.sm,
+    paddingTop: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   tabs: {
