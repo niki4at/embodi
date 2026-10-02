@@ -358,7 +358,7 @@ export default function CheckInScreen() {
       !workoutType ||
       trainingContext?.suggestionSource === 'manual' ||
       equipmentInventory === undefined ||
-      contextSuggestion === undefined
+      contextSuggestion == null
     ) {
       return
     }

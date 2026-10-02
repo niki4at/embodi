@@ -35,9 +35,7 @@ export const listRoutines = query({
   ),
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity()
-    if (!identity) {
-      throw new Error('Not authenticated')
-    }
+    if (!identity) return []
     const routines = await ctx.db
       .query('workout_routines')
       .withIndex('by_userId', (q) => q.eq('userId', identity.subject))

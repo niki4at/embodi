@@ -89,7 +89,7 @@ export const get = query({
   returns: v.union(preferencesDocument, v.null()),
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Not authenticated')
+    if (!identity) return null
 
     const preferences = await ctx.db
       .query('training_preferences')

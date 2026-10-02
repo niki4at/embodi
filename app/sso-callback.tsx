@@ -1,17 +1,20 @@
 import { getClerkInstance, useClerk, useSignIn, useSignUp } from '@clerk/clerk-expo'
-import { useRouter, type Href } from 'expo-router'
-import * as WebBrowser from 'expo-web-browser'
+import { useRouter } from 'expo-router'
 import { useEffect, useRef } from 'react'
-import { Platform } from 'react-native'
+import { Platform, StyleSheet, Text, View } from 'react-native'
 
-import LoadingScreen from '@/components/loading-screen'
+import { safeAppUrl } from '@/utils/safeAppUrl'
 
-function completePopupAuthSession() {
-  try {
-    WebBrowser.maybeCompleteAuthSession()
-  } catch {
-    // Cross-origin opener after the Google redirect. The page below finishes sign-in.
-  }
+// Survives React strict-mode remounts. A second run calls handleRedirectCallback
+// again after the session is already active and sends the browser away.
+let webCallbackStarted = false
+
+function SigningIn() {
+  return (
+    <View style={styles.fill}>
+      <Text style={styles.title}>Signing you in</Text>
+    </View>
+  )
 }
 
 export default function SSOCallback() {
@@ -22,27 +25,52 @@ export default function SSOCallback() {
   const startedRef = useRef(false)
 
   useEffect(() => {
-    if (startedRef.current || !signInLoaded || !signUpLoaded || !clerk.loaded) return
-    startedRef.current = true
-
-    const goHome = () => {
-      router.replace('/')
+    if (!signInLoaded || !signUpLoaded || !clerk.loaded) return
+    if (Platform.OS === 'web') {
+      if (webCallbackStarted) return
+      webCallbackStarted = true
+    } else if (startedRef.current) {
+      return
+    } else {
+      startedRef.current = true
     }
 
-    const finish = async () => {
-      completePopupAuthSession()
+    if (Platform.OS !== 'web' || typeof window === 'undefined') {
+      router.replace('/')
+      return
+    }
 
-      // Native deep links are completed by the screen that opened the browser.
-      if (Platform.OS !== 'web' || typeof window === 'undefined') {
-        goHome()
+    let redirected = false
+    const hardRedirect = (to?: string | null) => {
+      if (redirected) return
+      redirected = true
+      window.location.replace(safeAppUrl(to, window.location.origin))
+    }
+
+    const timeout = window.setTimeout(() => hardRedirect('/'), 12000)
+
+    const finish = async () => {
+      const params = new URL(window.location.href).searchParams
+      const nonce = params.get('rotating_token_nonce')?.split('#')[0]?.trim()
+      const clerkStatus = params.get('__clerk_status')
+      const createdFromUrl = params.get('__clerk_created_session')
+
+      const browserClerk = getClerkInstance()
+      if (!browserClerk) {
+        hardRedirect('/')
         return
       }
 
-      const params = new URL(window.location.href).searchParams
-      const nonce = params.get('rotating_token_nonce')?.split('#')[0]?.trim()
+      // Success calls this.navigate(), not the custom callback. Point that at
+      // a same-origin full page load so Expo Router is not left on an empty stack.
+      browserClerk.navigate = async (to: string) => {
+        hardRedirect(to)
+      }
 
-      if (!nonce && !signIn?.status && !signUp?.status) {
-        goHome()
+      // Handshake already activated the session. A client-side replace here
+      // would drop it; a full load of Home keeps the dev-browser cookie.
+      if (browserClerk.session) {
+        hardRedirect('/')
         return
       }
 
@@ -52,42 +80,43 @@ export default function SSOCallback() {
           if (signIn.firstFactorVerification.status === 'transferable') {
             await signUp?.create({ transfer: true })
           }
-          const sessionId = signUp?.createdSessionId ?? signIn.createdSessionId
-          if (sessionId) {
-            const setActive = signUp?.createdSessionId ? setSignUpActive : setSignInActive
-            await setActive?.({ session: sessionId })
-            goHome()
-            return
-          }
         } catch (error) {
-          console.error('Could not finish the Google sign-in', error)
+          console.error('Could not reload the Google sign-in', error)
         }
       }
 
-      const stayInApp = (to: string) => {
-        if (!to || to.includes('accounts.dev') || to.includes('accounts.google.com')) {
-          goHome()
-          return
-        }
+      const sessionId =
+        signUp?.createdSessionId ?? signIn?.createdSessionId ?? createdFromUrl
+      const sessionReady =
+        signIn?.status === 'complete' ||
+        signUp?.status === 'complete' ||
+        clerkStatus === 'verified'
+
+      if (sessionId && sessionReady) {
         try {
-          const url = new URL(to, window.location.origin)
-          if (url.origin === window.location.origin) {
-            const path = `${url.pathname}${url.search}` || '/'
-            router.replace(path as Href)
-            return
-          }
-        } catch {
-          goHome()
-          return
+          const setActive = signUp?.createdSessionId ? setSignUpActive : setSignInActive
+          await setActive?.({ session: sessionId })
+        } catch (error) {
+          console.error('Could not activate the Google session', error)
         }
-        goHome()
+        hardRedirect('/')
+        return
+      }
+
+      const hasAttempt =
+        Boolean(nonce) ||
+        Boolean(clerkStatus) ||
+        Boolean(createdFromUrl) ||
+        Boolean(signIn?.status) ||
+        Boolean(signUp?.status) ||
+        params.has('__clerk_handshake')
+
+      if (!hasAttempt) {
+        hardRedirect('/')
+        return
       }
 
       try {
-        // useClerk()'s wrapper drops the custom navigate argument. The browser
-        // instance accepts it, which is what keeps a failed attempt off the
-        // hosted account portal.
-        const browserClerk = getClerkInstance()
         await browserClerk.handleRedirectCallback(
           {
             signInForceRedirectUrl: '/',
@@ -96,21 +125,21 @@ export default function SSOCallback() {
             signUpFallbackRedirectUrl: '/',
           },
           async (to) => {
-            stayInApp(to)
+            hardRedirect(to)
           },
         )
       } catch (error) {
         console.error('Could not finish the sign-in redirect', error)
       }
 
-      if (window.location.pathname.includes('sso-callback')) {
-        goHome()
-      }
+      hardRedirect('/')
     }
 
-    void finish()
+    void finish().finally(() => {
+      window.clearTimeout(timeout)
+    })
   }, [
-    clerk,
+    clerk.loaded,
     router,
     setSignInActive,
     setSignUpActive,
@@ -120,5 +149,24 @@ export default function SSOCallback() {
     signUpLoaded,
   ])
 
-  return <LoadingScreen message="Completing sign in..." />
+  return <SigningIn />
 }
+
+const styles = StyleSheet.create({
+  fill: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  title: {
+    color: '#111111',
+    fontSize: 22,
+    fontWeight: '700',
+  },
+})

@@ -15,6 +15,7 @@ import { useEffect } from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated'
 
+import { AppErrorBoundary } from '@/components/app-error-boundary'
 import { ConvexClientProvider } from '@/components/ConvexClientProvider'
 import { SocialBootstrap } from '@/components/social/social-bootstrap'
 import RestTimerOverlay from '@/components/trainer/rest-timer/RestTimerOverlay'
@@ -27,12 +28,25 @@ import {
 import { ThemeProvider, useTheme } from '@/constants/theme-context'
 import { tokenCache } from '@/utils/clerkTokenCache'
 
-// Google's redirect often leaves a cross-origin opener. maybeCompleteAuthSession
-// then reads parent.location and throws, which prevents the app from mounting.
-try {
-  WebBrowser.maybeCompleteAuthSession()
-} catch {
-  // The callback screen finishes the session itself.
+// ClerkProvider calls this on every web render. After Google, the opener is
+// gone and the stock helper throws while reading parent.location, which
+// unmounts the tree. Swallow that and let /sso-callback finish sign-in.
+const webBrowser = WebBrowser as {
+  maybeCompleteAuthSession?: (...args: unknown[]) => unknown
+}
+if (typeof webBrowser.maybeCompleteAuthSession === 'function') {
+  const completeAuthSession = webBrowser.maybeCompleteAuthSession.bind(WebBrowser)
+  webBrowser.maybeCompleteAuthSession = (...args: unknown[]) => {
+    try {
+      return completeAuthSession(...args)
+    } catch {
+      return {
+        type: 'failed',
+        message: 'Auth session could not be completed in this window.',
+      }
+    }
+  }
+  webBrowser.maybeCompleteAuthSession()
 }
 SplashScreen.preventAutoHideAsync().catch(() => {})
 
@@ -352,27 +366,29 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {head}
-      <ClerkProvider
-        publishableKey={publishableKey}
-        tokenCache={tokenCache}
-        signInForceRedirectUrl="/"
-        signUpForceRedirectUrl="/"
-        signInFallbackRedirectUrl="/"
-        signUpFallbackRedirectUrl="/"
-      >
-        {Platform.OS === 'web' ? (
-          <View nativeID="clerk-captcha" collapsable={false} />
-        ) : null}
-        <ConvexClientProvider>
-          <PreferencesProvider>
-            <ThemeProvider>
-              <RestTimerProvider>
-                <ThemedNavigation />
-              </RestTimerProvider>
-            </ThemeProvider>
-          </PreferencesProvider>
-        </ConvexClientProvider>
-      </ClerkProvider>
+      <AppErrorBoundary>
+        <ClerkProvider
+          publishableKey={publishableKey}
+          tokenCache={tokenCache}
+          signInForceRedirectUrl="/"
+          signUpForceRedirectUrl="/"
+          signInFallbackRedirectUrl="/"
+          signUpFallbackRedirectUrl="/"
+        >
+          {Platform.OS === 'web' ? (
+            <View nativeID="clerk-captcha" collapsable={false} />
+          ) : null}
+          <ConvexClientProvider>
+            <PreferencesProvider>
+              <ThemeProvider>
+                <RestTimerProvider>
+                  <ThemedNavigation />
+                </RestTimerProvider>
+              </ThemeProvider>
+            </PreferencesProvider>
+          </ConvexClientProvider>
+        </ClerkProvider>
+      </AppErrorBoundary>
     </GestureHandlerRootView>
   )
 }

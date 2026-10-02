@@ -77,6 +77,7 @@ describe('training context backend', () => {
       ],
     })
     expect(equipment[0]?.equipment._id).toBe(equipmentId)
+    if (!suggestion) throw new Error('Expected a training suggestion')
     expect(suggestion.environment.value).toBe('gym')
     expect(suggestion.activeEquipmentKeys).toContain('dumbbell')
   })
@@ -118,6 +119,7 @@ describe('training context backend', () => {
       timeOfDay: 'morning',
     })
 
+    if (!suggestion) throw new Error('Expected a training suggestion')
     expect(suggestion.environment.value).toBe('home')
     expect(suggestion.equipmentIntent.value).toBe('treadmill')
   })
@@ -133,6 +135,7 @@ describe('training context backend', () => {
       timeOfDay: 'morning',
     })
 
+    if (!suggestion) throw new Error('Expected a training suggestion')
     expect(suggestion.environment.value).toBe('outdoors')
     expect(suggestion.equipmentIntent.value).toBe('bodyweight')
   })
