@@ -7,8 +7,9 @@ type BoundaryState = {
 
 /**
  * A Convex query throw or a render crash used to unmount the tree and leave
- * a blank document. This keeps a real screen up, with the message, so the
- * session can be reloaded instead of dying on white.
+ * a blank document. This keeps a real screen up so the session can be
+ * reloaded instead of dying on white. Convex errors embed whole documents and
+ * validators, so the raw message is only shown in development.
  */
 export class AppErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -18,6 +19,10 @@ export class AppErrorBoundary extends React.Component<
 
   static getDerivedStateFromError(error: Error): BoundaryState {
     return { error }
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('Bodfit screen crashed', error, info.componentStack)
   }
 
   private recover = () => {
@@ -35,7 +40,15 @@ export class AppErrorBoundary extends React.Component<
     return (
       <View style={styles.fill}>
         <Text style={styles.title}>Bodfit couldn&apos;t open this screen</Text>
-        <Text style={styles.message}>{error.message}</Text>
+        <Text style={styles.message}>
+          Something went wrong while loading your data. Head back to Home and
+          try again.
+        </Text>
+        {__DEV__ ? (
+          <Text style={styles.devDetails} numberOfLines={6}>
+            {error.message}
+          </Text>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           onPress={this.recover}
@@ -70,6 +83,13 @@ const styles = StyleSheet.create({
     color: '#444444',
     fontSize: 15,
     lineHeight: 22,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  devDetails: {
+    color: '#888888',
+    fontSize: 12,
+    lineHeight: 16,
     textAlign: 'center',
     marginTop: 12,
   },
