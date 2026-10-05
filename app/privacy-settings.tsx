@@ -22,6 +22,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol'
 import { radius, spacing, typography } from '@/constants/design'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
+import { useTrainingPreferences } from '@/hooks/use-training-preferences'
 
 type VisibilityKey =
   | 'publicActivity'
@@ -73,7 +74,7 @@ export default function PrivacySettingsScreen() {
   const settings = useQuery(api.userSettings.get)
   const updateSettings = useMutation(api.userSettings.update)
   const myProfile = useQuery(api.profiles.getMyProfile)
-  const trainingPreferences = useQuery(api.trainingPreferences.get)
+  const trainingPreferences = useTrainingPreferences()
   const updatePreferences = useMutation(api.trainingPreferences.update)
 
   const sharingDefault = trainingPreferences?.sharingDefault ?? 'private'

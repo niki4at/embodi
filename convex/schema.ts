@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
+import { workStyle } from './lib/workStyle'
+
 const citationRef = v.object({
   id: v.string(),
   title: v.string(),
@@ -224,6 +226,14 @@ export default defineSchema({
     // the session is completed. Actual duration = completedAt - startedAt.
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
+    // Set when "Adjust for today" retuned the planned moves in place.
+    retune: v.optional(
+      v.object({
+        title: v.string(),
+        note: v.string(),
+        at: v.number(),
+      })
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -663,6 +673,7 @@ export default defineSchema({
     ),
     shareGenericLocation: v.optional(v.boolean()),
     defaultContext: trainingContextSelection,
+    workStyle: v.optional(workStyle),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index('by_userId', ['userId']),
@@ -750,6 +761,10 @@ export default defineSchema({
     ),
     painLevel: v.number(), // 0-10
     painAreas: v.optional(v.array(v.string())), // body areas if pain > 3
+    // Per-spot ratings from the body map (area id -> 0-10)
+    painRatings: v.optional(
+      v.array(v.object({ area: v.string(), level: v.number() }))
+    ),
     stressLevel: v.number(), // 1-5
     // Session preferences
     workoutType: v.union(
@@ -767,9 +782,13 @@ export default defineSchema({
       v.literal('challenging')
     ),
     timeAvailable: v.union(
+      v.literal('10'),
       v.literal('15'),
+      v.literal('20'),
       v.literal('30'),
+      v.literal('40'),
       v.literal('45'),
+      v.literal('50'),
       v.literal('60')
     ),
     trainingEnvironment: v.optional(trainingEnvironment),

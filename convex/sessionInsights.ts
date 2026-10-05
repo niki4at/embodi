@@ -422,7 +422,7 @@ export const generateSessionNote = action({
       )
     }
 
-    const instructions = `You are Embodi's strength & movement coach reacting to a client who just finished a workout.
+    const instructions = `You are Bodfit's strength & movement coach reacting to a client who just finished a workout.
 Write ONE or TWO short sentences (max ~40 words) celebrating what they did and, if there's a record, calling it out specifically.
 Be warm, direct, and specific to the numbers. No emojis, no medical claims, no generic filler, no lists. Speak to them as "you".`
 

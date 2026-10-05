@@ -6,6 +6,8 @@ import {
 } from '@react-navigation/native'
 import { useFonts } from 'expo-font'
 import { Stack } from 'expo-router'
+import { Platform, Text, View } from 'react-native'
+import Head from 'expo-router/head'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import * as WebBrowser from 'expo-web-browser'
@@ -13,6 +15,7 @@ import { useEffect } from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated'
 
+import { AppErrorBoundary } from '@/components/app-error-boundary'
 import { ConvexClientProvider } from '@/components/ConvexClientProvider'
 import { SocialBootstrap } from '@/components/social/social-bootstrap'
 import RestTimerOverlay from '@/components/trainer/rest-timer/RestTimerOverlay'
@@ -25,7 +28,26 @@ import {
 import { ThemeProvider, useTheme } from '@/constants/theme-context'
 import { tokenCache } from '@/utils/clerkTokenCache'
 
-WebBrowser.maybeCompleteAuthSession()
+// ClerkProvider calls this on every web render. After Google, the opener is
+// gone and the stock helper throws while reading parent.location, which
+// unmounts the tree. Swallow that and let /sso-callback finish sign-in.
+const webBrowser = WebBrowser as {
+  maybeCompleteAuthSession?: (...args: unknown[]) => unknown
+}
+if (typeof webBrowser.maybeCompleteAuthSession === 'function') {
+  const completeAuthSession = webBrowser.maybeCompleteAuthSession.bind(WebBrowser)
+  webBrowser.maybeCompleteAuthSession = (...args: unknown[]) => {
+    try {
+      return completeAuthSession(...args)
+    } catch {
+      return {
+        type: 'failed',
+        message: 'Auth session could not be completed in this window.',
+      }
+    }
+  }
+  webBrowser.maybeCompleteAuthSession()
+}
 SplashScreen.preventAutoHideAsync().catch(() => {})
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
@@ -295,13 +317,14 @@ function ThemedNavigation() {
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Sora_400Regular: require('@expo-google-fonts/sora/400Regular/Sora_400Regular.ttf'),
+    Sora_500Medium: require('@expo-google-fonts/sora/500Medium/Sora_500Medium.ttf'),
     Sora_600SemiBold: require('@expo-google-fonts/sora/600SemiBold/Sora_600SemiBold.ttf'),
     Sora_700Bold: require('@expo-google-fonts/sora/700Bold/Sora_700Bold.ttf'),
     Sora_800ExtraBold: require('@expo-google-fonts/sora/800ExtraBold/Sora_800ExtraBold.ttf'),
-    PlusJakartaSans_400Regular: require('@expo-google-fonts/plus-jakarta-sans/400Regular/PlusJakartaSans_400Regular.ttf'),
-    PlusJakartaSans_500Medium: require('@expo-google-fonts/plus-jakarta-sans/500Medium/PlusJakartaSans_500Medium.ttf'),
-    PlusJakartaSans_600SemiBold: require('@expo-google-fonts/plus-jakarta-sans/600SemiBold/PlusJakartaSans_600SemiBold.ttf'),
-    PlusJakartaSans_700Bold: require('@expo-google-fonts/plus-jakarta-sans/700Bold/PlusJakartaSans_700Bold.ttf'),
+    IntelOneMono_400Regular: require('@expo-google-fonts/intel-one-mono/400Regular/IntelOneMono_400Regular.ttf'),
+    IntelOneMono_500Medium: require('@expo-google-fonts/intel-one-mono/500Medium/IntelOneMono_500Medium.ttf'),
+    IntelOneMono_700Bold: require('@expo-google-fonts/intel-one-mono/700Bold/IntelOneMono_700Bold.ttf'),
+    ArchivoBlack_400Regular: require('@expo-google-fonts/archivo-black/400Regular/ArchivoBlack_400Regular.ttf'),
   })
 
   useEffect(() => {
@@ -310,21 +333,62 @@ export default function RootLayout() {
     }
   }, [fontsLoaded])
 
-  if (!fontsLoaded) return null
+  const head = (
+    <Head>
+      <title>Bodfit</title>
+      <meta
+        name="description"
+        content="Bodfit: a coach that builds every session around how you feel today."
+      />
+    </Head>
+  )
+
+  if (!fontsLoaded) {
+    return (
+      <>
+        {head}
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#FFFFFF',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: '#111111', fontSize: 22, fontWeight: '700' }}>
+            Bodfit
+          </Text>
+        </View>
+      </>
+    )
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-        <ConvexClientProvider>
-          <PreferencesProvider>
-            <ThemeProvider>
-              <RestTimerProvider>
-                <ThemedNavigation />
-              </RestTimerProvider>
-            </ThemeProvider>
-          </PreferencesProvider>
-        </ConvexClientProvider>
-      </ClerkProvider>
+      {head}
+      <AppErrorBoundary>
+        <ClerkProvider
+          publishableKey={publishableKey}
+          tokenCache={tokenCache}
+          signInForceRedirectUrl="/"
+          signUpForceRedirectUrl="/"
+          signInFallbackRedirectUrl="/"
+          signUpFallbackRedirectUrl="/"
+        >
+          {Platform.OS === 'web' ? (
+            <View nativeID="clerk-captcha" collapsable={false} />
+          ) : null}
+          <ConvexClientProvider>
+            <PreferencesProvider>
+              <ThemeProvider>
+                <RestTimerProvider>
+                  <ThemedNavigation />
+                </RestTimerProvider>
+              </ThemeProvider>
+            </PreferencesProvider>
+          </ConvexClientProvider>
+        </ClerkProvider>
+      </AppErrorBoundary>
     </GestureHandlerRootView>
   )
 }

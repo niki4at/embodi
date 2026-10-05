@@ -381,7 +381,7 @@ export const listActive = query({
   returns: v.array(equipmentResult),
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Not authenticated')
+    if (!identity) return []
 
     const rows = await ctx.db
       .query('user_equipment')

@@ -38,9 +38,9 @@ export function ProfileHeader({ profile, fallbackName }: ProfileHeaderProps) {
   const handleShare = useCallback(async () => {
     await Haptics.selectionAsync()
     try {
-      const handle = profile ? `@${profile.username}` : 'Embodi'
+      const handle = profile ? `@${profile.username}` : 'Bodfit'
       await Share.share({
-        message: `Follow my training on Embodi ${handle ? `(${handle})` : ''}`.trim(),
+        message: `Follow my training on Bodfit ${handle ? `(${handle})` : ''}`.trim(),
       })
     } catch {
       // User dismissed the share sheet.

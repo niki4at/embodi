@@ -176,7 +176,7 @@ export async function notify(
   })
   await ctx.scheduler.runAfter(0, internal.notifications.sendPush, {
     userId: args.userId,
-    title: 'Embodi',
+    title: 'Bodfit',
     body: args.message,
     type: args.type,
     postId: args.postId ? String(args.postId) : undefined,

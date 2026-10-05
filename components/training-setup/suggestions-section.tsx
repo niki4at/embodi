@@ -67,7 +67,7 @@ export function SuggestionsSection({
   const confirmReset = () => {
     Alert.alert(
       'Reset learned patterns?',
-      'Embodi will forget recent Home and Gym corrections. Your equipment, places, and weekly rhythm stay saved.',
+      'Bodfit will forget recent Home and Gym corrections. Your equipment, places, and weekly rhythm stay saved.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -91,7 +91,7 @@ export function SuggestionsSection({
     <SectionShell
       icon="sparkles"
       title="Suggestions & privacy"
-      description="Control which signals Embodi can use and what appears when you share."
+      description="Control which signals Bodfit can use and what appears when you share."
     >
       <PreferenceRow
         icon="target"

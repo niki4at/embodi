@@ -1,39 +1,50 @@
 import { useMutation, useQuery } from 'convex/react'
 import * as Haptics from 'expo-haptics'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import Svg, { Circle, Path } from 'react-native-svg'
 
-import { IconSymbol } from '@/components/ui/icon-symbol'
+import { BodfitWordmark } from '@/components/ui/bodfit-logo'
+import { BottomSheet } from '@/components/ui/bottom-sheet'
+import { PillButton } from '@/components/ui/pill-button'
+import { CoachAvatar, Eyebrow } from '@/components/ui/primitives'
 import { CATEGORY_META } from '@/constants/challenge-meta'
 import { motion, radius, spacing, typography } from '@/constants/design'
+import { fonts } from '@/constants/fonts'
 import { useTheme } from '@/constants/theme-context'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
 
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
+
+type Week = {
+  weekNumber: number
+  focus: string
+  summary: string
+  target: string
+}
+
 export default function ChallengeDetailScreen() {
-  const { palette, resolved, shadows } = useTheme()
+  const { palette } = useTheme()
   const params = useLocalSearchParams<{ id: string }>()
   const challengeId = params.id as Id<'challenges'>
 
   const detail = useQuery(api.challenges.getChallengeDetail, { challengeId })
   const logProgress = useMutation(api.challenges.logProgress)
   const archiveChallenge = useMutation(api.challenges.archiveChallenge)
+  const unarchiveChallenge = useMutation(api.challenges.unarchiveChallenge)
   const deleteChallenge = useMutation(api.challenges.deleteChallenge)
 
   const [logVisible, setLogVisible] = useState(false)
@@ -42,7 +53,7 @@ export default function ChallengeDetailScreen() {
   const [isLogging, setIsLogging] = useState(false)
 
   const handleBack = useCallback(() => {
-    Haptics.selectionAsync()
+    Haptics.selectionAsync().catch(() => {})
     if (router.canGoBack()) router.back()
     else router.replace('/challenges' as Href)
   }, [])
@@ -52,11 +63,7 @@ export default function ChallengeDetailScreen() {
     if (!Number.isFinite(value) || isLogging) return
     setIsLogging(true)
     try {
-      await logProgress({
-        challengeId,
-        value,
-        note: logNote.trim() || undefined,
-      })
+      await logProgress({ challengeId, value, note: logNote.trim() || undefined })
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       setLogValue('')
       setLogNote('')
@@ -70,20 +77,16 @@ export default function ChallengeDetailScreen() {
   }, [logValue, logNote, isLogging, logProgress, challengeId])
 
   const handleArchive = useCallback(() => {
-    Alert.alert(
-      'Archive challenge',
-      'It will be hidden from your list but kept in your data.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive',
-          onPress: async () => {
-            await archiveChallenge({ challengeId })
-            router.back()
-          },
+    Alert.alert('Archive goal', 'It will be hidden from your list but kept in your data.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Archive',
+        onPress: async () => {
+          await archiveChallenge({ challengeId })
+          router.back()
         },
-      ],
-    )
+      },
+    ])
   }, [archiveChallenge, challengeId])
 
   const handleDelete = useCallback(() => {
@@ -104,778 +107,633 @@ export default function ChallengeDetailScreen() {
     )
   }, [deleteChallenge, challengeId])
 
+  const currentWeekIndex = useMemo(() => {
+    const weeks = detail?.challenge.program?.weeks ?? []
+    if (weeks.length === 0 || !detail) return 0
+    const elapsed = Math.floor((Date.now() - detail.challenge.createdAt) / MS_PER_WEEK)
+    return Math.min(weeks.length - 1, Math.max(0, elapsed))
+  }, [detail])
+
   if (detail === undefined) {
     return (
-      <SafeAreaView
-        style={[styles.safeArea, styles.centered, { backgroundColor: palette.bg }]}
-      >
+      <SafeAreaView style={[styles.safeArea, styles.centered, { backgroundColor: palette.bg }]}>
         <ActivityIndicator size="large" color={palette.primary} />
       </SafeAreaView>
     )
   }
-
   if (detail === null) {
     return (
-      <SafeAreaView
-        style={[styles.safeArea, styles.centered, { backgroundColor: palette.bg }]}
-      >
-        <Text style={[styles.errorText, { color: palette.textSecondary }]}>
-          Challenge not found.
-        </Text>
-        <Pressable onPress={handleBack} style={styles.errorBack}>
-          <Text style={[styles.errorBackText, { color: palette.primary }]}>
-            Go back
-          </Text>
-        </Pressable>
+      <SafeAreaView style={[styles.safeArea, styles.centered, { backgroundColor: palette.bg }]}>
+        <Text style={[styles.errorText, { color: palette.textSecondary }]}>Challenge not found.</Text>
+        <PillButton label="Go back" variant="secondary" fullWidth={false} onPress={handleBack} />
       </SafeAreaView>
     )
   }
 
   const { challenge, entries, latestValue, completedSessions, percent } = detail
   const meta = CATEGORY_META[challenge.category]
-  const accent = palette[meta.accent]
+  const accent =
+    challenge.category === 'endurance' || challenge.category === 'weight_loss'
+      ? palette.primary
+      : palette.accent
   const manualEntries = entries.filter((e) => e.source === 'manual')
   const isGenerating = challenge.status === 'generating'
   const isFailed = challenge.status === 'failed'
   const isCompleted = challenge.status === 'completed'
+  const isArchived = challenge.status === 'archived'
   const m = challenge.metric
+  const weeks: Week[] = challenge.program?.weeks ?? []
+  const currentWeek = weeks[currentWeekIndex]
 
-  const targetLabel =
-    m.targetValue != null
-      ? `${m.direction === 'decrease' ? 'Down to' : m.direction === 'increase' ? 'Up to' : 'Hold at'} ${m.targetValue} ${m.unit}`
-      : `${m.direction} ${m.unit}`
+  const current = latestValue ?? m.startValue ?? null
+  const progressLine = (() => {
+    const parts: string[] = []
+    if (current !== null && m.targetValue !== undefined) {
+      parts.push(`${current.toLocaleString()} ${m.unit} out of ${m.targetValue.toLocaleString()} ${m.unit} done`)
+    } else if (completedSessions > 0) {
+      parts.push(`${completedSessions} sessions logged`)
+    }
+    return parts.join(' \u00b7 ')
+  })()
+  const targetDateLabel = challenge.targetDate
+    ? new Date(challenge.targetDate).toLocaleDateString(undefined, {
+        month: 'long',
+        day: 'numeric',
+      })
+    : null
+
+  const handleStartNext = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
+    const seed = {
+      title: currentWeek?.target ?? challenge.title,
+      modality: meta.label,
+      durationMin: 40,
+      moveCount: 6,
+      description: currentWeek?.summary ?? challenge.description,
+      reasoning: `Week ${currentWeek?.weekNumber ?? 1} of your ${challenge.title} program.`,
+      tags: [challenge.category],
+      source: 'aligned' as const,
+    }
+    router.push({
+      pathname: '/checkin',
+      params: { rec: JSON.stringify(seed) },
+    } as unknown as Href)
+  }
 
   return (
-    <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: palette.bg }]}
-      edges={['top']}
-    >
-      <View style={styles.header}>
-        <Pressable
-          onPress={handleBack}
-          hitSlop={12}
-          style={[
-            styles.iconButton,
-            { backgroundColor: palette.surface, borderColor: palette.border },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <IconSymbol
-            name="arrow.left"
-            size={18}
-            color={resolved === 'dark' ? palette.white : palette.textPrimary}
-          />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.bg }]} edges={['top']}>
+      <View style={styles.topBar}>
+        <Pressable onPress={handleBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back to challenges">
+          <Text style={[styles.back, { color: palette.textSecondary }]}>{'\u2190'} Back to Challenges</Text>
         </Pressable>
-        <Pressable
-          onPress={handleArchive}
-          hitSlop={12}
-          style={[
-            styles.iconButton,
-            { backgroundColor: palette.surface, borderColor: palette.border },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Archive challenge"
-        >
-          <IconSymbol
-            name="trash"
-            size={18}
-            color={resolved === 'dark' ? palette.white : palette.textPrimary}
-          />
-        </Pressable>
+        <BodfitWordmark variant="header" />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInUp.duration(motion.duration.base)}>
-          <View style={styles.titleRow}>
-            <View style={[styles.titleIcon, { backgroundColor: accent + '22' }]}>
-              <IconSymbol
-                name={isCompleted ? 'trophy.fill' : meta.icon}
-                size={26}
-                color={isCompleted ? palette.success : accent}
-              />
-            </View>
-            <View style={styles.titleText}>
-              <Text style={[styles.title, { color: palette.textPrimary }]}>
+          <View style={styles.headRow}>
+            <View style={styles.headCopy}>
+              <Eyebrow color={accent}>
+                {`${meta.label} \u00b7 ${
+                  isArchived
+                    ? 'Archived'
+                    : weeks.length > 0
+                      ? `Week ${currentWeekIndex + 1} of ${weeks.length}`
+                      : isGenerating
+                        ? 'Planning'
+                        : 'Active'
+                }`}
+              </Eyebrow>
+              <Text style={[styles.title, { color: palette.textPrimary }]} accessibilityRole="header">
                 {challenge.title}
               </Text>
-              <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
-                {meta.label} · {targetLabel}
-              </Text>
             </View>
-          </View>
-        </Animated.View>
-
-        {!isGenerating && !isFailed ? (
-          <Animated.View
-            entering={FadeInDown.duration(motion.duration.base).delay(40)}
-            style={[
-              styles.progressCard,
-              { backgroundColor: palette.surface, borderColor: palette.border },
-            ]}
-          >
-            <View style={styles.progressHeader}>
-              <Text style={[styles.progressPct, { color: palette.textPrimary }]}>
+            {!isGenerating ? (
+              <Text style={[styles.percent, { color: isCompleted ? palette.success : accent }]}>
                 {percent}%
               </Text>
-              <Text
-                style={[styles.progressCaption, { color: palette.textSecondary }]}
-              >
-                {isCompleted ? 'Goal reached' : 'toward your goal'}
-              </Text>
-            </View>
+            ) : null}
+          </View>
+          {!isGenerating ? (
             <View
-              style={[
-                styles.progressTrack,
-                { backgroundColor: palette.surfaceHigh },
-              ]}
+              style={[styles.track, { backgroundColor: palette.surfaceHigh }]}
+              accessibilityRole="progressbar"
+              accessibilityValue={{ min: 0, max: 100, now: percent }}
             >
               <View
                 style={[
-                  styles.progressFill,
-                  {
-                    width: `${percent}%`,
-                    backgroundColor: isCompleted ? palette.success : accent,
-                  },
+                  styles.fill,
+                  { width: `${Math.max(2, Math.min(100, percent))}%`, backgroundColor: isCompleted ? palette.success : accent },
                 ]}
               />
             </View>
-            <View style={styles.statsRow}>
-              <Stat
-                label="Latest"
-                value={
-                  latestValue != null ? `${latestValue} ${m.unit}` : '—'
-                }
-              />
-              <Stat label="Sessions" value={`${completedSessions}`} />
-              <Stat
-                label="Logs"
-                value={`${manualEntries.length}`}
-              />
-            </View>
-          </Animated.View>
-        ) : null}
+          ) : null}
+          <Text style={[styles.progressLine, { color: palette.textSecondary }]}>
+            {progressLine}
+            {targetDateLabel ? (
+              <Text style={{ fontFamily: fonts.uiSemiBold }}>
+                {progressLine ? ' \u00b7 ' : ''}
+                {meta.id === 'endurance' ? 'Race' : 'Target'} on {targetDateLabel}
+              </Text>
+            ) : null}
+          </Text>
+        </Animated.View>
 
         {isGenerating ? (
-          <Animated.View
-            entering={FadeInDown.duration(motion.duration.base).delay(40)}
-            style={[
-              styles.banner,
-              { backgroundColor: palette.surface, borderColor: palette.border },
-            ]}
-          >
+          <View style={[styles.nextCard, { backgroundColor: palette.surface }]}>
             <ActivityIndicator size="small" color={palette.primary} />
-            <Text style={[styles.bannerText, { color: palette.textSecondary }]}>
-              Your coach is building a multi-week program. This usually takes a
-              few seconds.
+            <Text style={[styles.nextSummary, { color: palette.textSecondary }]}>
+              Your coach is building a multi-week program. This usually takes a few seconds.
             </Text>
-          </Animated.View>
-        ) : null}
-
-        {isFailed ? (
+          </View>
+        ) : isFailed ? (
+          <View style={[styles.nextCard, { backgroundColor: palette.warningMuted }]}>
+            <Text style={[styles.nextSummary, { color: palette.textPrimary }]}>
+              We couldn&apos;t build the program{challenge.error ? `: ${challenge.error}` : ''}. Delete it and
+              create it again.
+            </Text>
+          </View>
+        ) : currentWeek ? (
           <Animated.View
             entering={FadeInDown.duration(motion.duration.base).delay(40)}
-            style={[
-              styles.banner,
-              {
-                backgroundColor: palette.warningMuted,
-                borderColor: palette.warning,
-              },
-            ]}
+            style={[styles.nextCard, { backgroundColor: palette.surface }]}
           >
-            <IconSymbol
-              name="exclamationmark.triangle.fill"
-              size={18}
-              color={palette.warning}
-            />
-            <Text style={[styles.bannerText, { color: palette.textPrimary }]}>
-              We couldn&apos;t build the program{challenge.error ? `: ${challenge.error}` : ''}. Try
-              deleting and creating it again.
+            <Eyebrow color={palette.primary}>{`Next up \u00b7 week ${currentWeek.weekNumber}`}</Eyebrow>
+            <Text style={[styles.nextTitle, { color: palette.textPrimary }]}>{currentWeek.target}</Text>
+            <Text style={[styles.nextSummary, { color: palette.textSecondary }]} numberOfLines={2}>
+              {currentWeek.summary}
             </Text>
-          </Animated.View>
-        ) : null}
-
-        {challenge.description ? (
-          <Text style={[styles.description, { color: palette.textSecondary }]}>
-            {challenge.description}
-          </Text>
-        ) : null}
-
-        {challenge.program ? (
-          <Animated.View
-            entering={FadeInDown.duration(motion.duration.base).delay(80)}
-            style={styles.section}
-          >
-            <Text style={[styles.sectionLabel, { color: palette.textTertiary }]}>
-              PROGRAM
-            </Text>
-            <View
-              style={[
-                styles.overviewCard,
-                {
-                  backgroundColor: palette.surface,
-                  borderColor: palette.border,
-                },
-              ]}
-            >
-              <Text
-                style={[styles.overviewText, { color: palette.textPrimary }]}
+            <View style={styles.nextActions}>
+              <Pressable
+                onPress={handleStartNext}
+                accessibilityRole="button"
+                accessibilityLabel="Start this week's session"
+                style={({ pressed }) => [styles.smallCta, { backgroundColor: palette.primary }, pressed && { opacity: 0.85 }]}
               >
-                {challenge.program.overview}
-              </Text>
-              <View style={styles.overviewMeta}>
-                <IconSymbol
-                  name="calendar"
-                  size={14}
-                  color={palette.textTertiary}
-                />
-                <Text
-                  style={[
-                    styles.overviewMetaText,
-                    { color: palette.textSecondary },
-                  ]}
-                >
-                  {challenge.program.weeks.length} weeks ·{' '}
-                  {challenge.program.weeklySessions} sessions/week
-                </Text>
-              </View>
+                <Text style={[styles.smallCtaText, { color: palette.white }]}>Start</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/checkin' as Href)}
+                accessibilityRole="button"
+                accessibilityLabel="Adjust with a check-in"
+                style={({ pressed }) => [styles.smallCta, styles.smallCtaOutline, { borderColor: palette.primary }, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={[styles.smallCtaText, { color: palette.primary }]}>Adjust</Text>
+              </Pressable>
             </View>
-
-            {challenge.program.weeks.map((week) => (
-              <View
-                key={week.weekNumber}
-                style={[
-                  styles.weekCard,
-                  {
-                    backgroundColor: palette.surface,
-                    borderColor: palette.border,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.weekBadge,
-                    { backgroundColor: accent + '22' },
-                  ]}
-                >
-                  <Text style={[styles.weekBadgeText, { color: accent }]}>
-                    W{week.weekNumber}
-                  </Text>
-                </View>
-                <View style={styles.weekBody}>
-                  <Text
-                    style={[styles.weekFocus, { color: palette.textPrimary }]}
-                  >
-                    {week.focus}
-                  </Text>
-                  <Text
-                    style={[styles.weekSummary, { color: palette.textSecondary }]}
-                  >
-                    {week.summary}
-                  </Text>
-                  <Text style={[styles.weekTarget, { color: accent }]}>
-                    {week.target}
-                  </Text>
-                </View>
-              </View>
-            ))}
           </Animated.View>
         ) : null}
 
-        {manualEntries.length > 0 ? (
-          <Animated.View
-            entering={FadeInDown.duration(motion.duration.base).delay(120)}
-            style={styles.section}
-          >
-            <Text style={[styles.sectionLabel, { color: palette.textTertiary }]}>
-              PROGRESS
-            </Text>
-            <ProgressChart
-              values={manualEntries.map((e) => e.value)}
+        {weeks.length > 0 ? (
+          <Animated.View entering={FadeInDown.duration(motion.duration.base).delay(80)} style={styles.section}>
+            <Eyebrow>Program</Eyebrow>
+            <ProgramPath
+              weeks={weeks}
+              currentIndex={currentWeekIndex}
               accent={accent}
+              finalLabel={
+                meta.id === 'endurance' ? `${challenge.title.split(' ')[0]} day!` : 'Goal day!'
+              }
+              finalDate={targetDateLabel}
             />
-            {manualEntries
-              .slice()
-              .reverse()
-              .map((entry) => (
-                <View
-                  key={entry._id}
-                  style={[
-                    styles.logRow,
-                    { borderBottomColor: palette.divider },
-                  ]}
-                >
-                  <Text
-                    style={[styles.logValue, { color: palette.textPrimary }]}
-                  >
-                    {entry.value} {entry.unit}
-                  </Text>
-                  <Text
-                    style={[styles.logNote, { color: palette.textSecondary }]}
-                    numberOfLines={1}
-                  >
-                    {entry.note || new Date(entry.recordedAt).toDateString()}
-                  </Text>
-                </View>
-              ))}
           </Animated.View>
         ) : null}
 
-        <TouchableOpacity onPress={handleDelete} style={styles.deleteLink}>
-          <Text style={[styles.deleteLinkText, { color: palette.danger }]}>
-            Delete challenge
-          </Text>
-        </TouchableOpacity>
+        {!isGenerating && !isFailed ? (
+          <Animated.View entering={FadeInDown.duration(motion.duration.base).delay(120)} style={styles.section}>
+            <Eyebrow>Progress log</Eyebrow>
+            <View style={[styles.logCard, { borderColor: palette.border }]}>
+              <View style={styles.logHead}>
+                <View style={styles.logCopy}>
+                  <Text style={[styles.logValue, { color: palette.textPrimary }]}>
+                    {current !== null ? `${current.toLocaleString()} ${m.unit}` : `${completedSessions} sessions`}
+                  </Text>
+                  <Text style={[styles.logHint, { color: palette.textSecondary }]}>
+                    {m.targetValue !== undefined
+                      ? `of ${m.targetValue.toLocaleString()} ${m.unit} target \u00b7 ${manualEntries.length} logs`
+                      : `${manualEntries.length} logs so far`}
+                  </Text>
+                </View>
+                <MiniBars values={manualEntries.map((e) => e.value)} accent={accent} />
+              </View>
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync().catch(() => {})
+                  setLogVisible(true)
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Log progress"
+                style={({ pressed }) => [styles.logCta, { borderColor: palette.primary }, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={[styles.smallCtaText, { color: palette.primary }]}>Log Progress</Text>
+              </Pressable>
+              {manualEntries
+                .slice()
+                .reverse()
+                .slice(0, 4)
+                .map((entry) => (
+                  <View key={entry._id} style={[styles.logRow, { borderTopColor: palette.divider }]}>
+                    <Text style={[styles.logRowValue, { color: palette.textPrimary }]}>
+                      {entry.value} {entry.unit}
+                    </Text>
+                    <Text style={[styles.logRowNote, { color: palette.textSecondary }]} numberOfLines={1}>
+                      {entry.note || new Date(entry.recordedAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                ))}
+            </View>
+          </Animated.View>
+        ) : null}
 
-        <View style={styles.bottomSpacing} />
-      </ScrollView>
-
-      {!isGenerating && !isFailed ? (
-        <View
-          style={[
-            styles.footer,
-            {
-              backgroundColor: palette.bgElevated,
-              borderTopColor: palette.divider,
-            },
-          ]}
-        >
+        <View style={styles.footerActions}>
           <Pressable
-            onPress={() => {
-              Haptics.selectionAsync()
-              setLogVisible(true)
-            }}
-            style={({ pressed }) => [
-              styles.logCta,
-              { backgroundColor: palette.primary, opacity: pressed ? 0.92 : 1 },
-              resolved === 'dark' ? shadows.primaryDark : shadows.primary,
-            ]}
+            onPress={() =>
+              Alert.alert(
+                'Edit target',
+                'Targets are locked once the coach has built the program. Create a new version with the updated target and archive this one?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'New version',
+                    onPress: () =>
+                      router.push({
+                        pathname: '/challenge/new',
+                        params: { category: challenge.category, title: challenge.title },
+                      } as unknown as Href),
+                  },
+                ],
+              )
+            }
             accessibilityRole="button"
-            accessibilityLabel="Log progress"
+            accessibilityLabel="Edit target"
+            style={({ pressed }) => [styles.footerButton, { borderColor: palette.borderStrong }, pressed && { opacity: 0.7 }]}
           >
-            <IconSymbol name="plus" size={18} color="#FFFFFF" />
-            <Text style={styles.logCtaText}>Log progress</Text>
+            <Text style={[styles.footerButtonText, { color: palette.textPrimary }]}>Edit Target</Text>
+          </Pressable>
+          <Pressable
+            onPress={
+              isArchived
+                ? () => {
+                    Haptics.selectionAsync().catch(() => {})
+                    void unarchiveChallenge({ challengeId })
+                  }
+                : handleArchive
+            }
+            accessibilityRole="button"
+            accessibilityLabel={isArchived ? 'Restore goal' : 'Archive goal'}
+            style={({ pressed }) => [styles.footerButton, { borderColor: palette.borderStrong }, pressed && { opacity: 0.7 }]}
+          >
+            <Text style={[styles.footerButtonText, { color: isArchived ? palette.primary : palette.textSecondary }]}>
+              {isArchived ? 'Restore goal' : 'Archive goal'}
+            </Text>
           </Pressable>
         </View>
-      ) : null}
+        <Pressable onPress={handleDelete} style={styles.deleteLink} accessibilityRole="button" accessibilityLabel="Delete challenge">
+          <Text style={[styles.deleteText, { color: palette.danger }]}>Delete challenge</Text>
+        </Pressable>
+      </ScrollView>
 
-      <Modal
+      <BottomSheet
         visible={logVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setLogVisible(false)}
-      >
-        <KeyboardAvoidingView
-          style={styles.modalBackdrop}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <Pressable
-            style={styles.modalDismiss}
-            onPress={() => setLogVisible(false)}
+        onClose={() => setLogVisible(false)}
+        title="Log progress"
+        subtitle={`Where are you now, in ${m.unit}?`}
+        footer={
+          <PillButton
+            label="Save"
+            onPress={handleLog}
+            disabled={isLogging || !logValue.trim()}
+            loading={isLogging}
           />
-          <View
-            style={[
-              styles.modalSheet,
-              { backgroundColor: palette.bgElevated },
-            ]}
-          >
-            <Text style={[styles.modalTitle, { color: palette.textPrimary }]}>
-              Log progress
-            </Text>
-            <Text style={[styles.modalHint, { color: palette.textSecondary }]}>
-              Where are you now, in {m.unit}?
-            </Text>
-            <TextInput
-              style={[
-                styles.modalInput,
-                {
-                  backgroundColor: palette.surface,
-                  borderColor: palette.borderStrong,
-                  color: palette.textPrimary,
-                },
-              ]}
-              value={logValue}
-              onChangeText={setLogValue}
-              placeholder={`e.g. 12 ${m.unit}`}
-              placeholderTextColor={palette.textTertiary}
-              keyboardType="numeric"
-              autoFocus
-            />
-            <TextInput
-              style={[
-                styles.modalInput,
-                {
-                  backgroundColor: palette.surface,
-                  borderColor: palette.borderStrong,
-                  color: palette.textPrimary,
-                },
-              ]}
-              value={logNote}
-              onChangeText={setLogNote}
-              placeholder="Add a note (optional)"
-              placeholderTextColor={palette.textTertiary}
-            />
-            <Pressable
-              onPress={handleLog}
-              disabled={isLogging || !logValue.trim()}
-              style={({ pressed }) => [
-                styles.modalCta,
-                {
-                  backgroundColor: logValue.trim()
-                    ? palette.primary
-                    : palette.surfaceHigh,
-                  opacity: pressed ? 0.92 : 1,
-                },
-              ]}
-            >
-              {isLogging ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text
-                  style={[
-                    styles.modalCtaText,
-                    {
-                      color: logValue.trim() ? '#FFFFFF' : palette.textTertiary,
-                    },
-                  ]}
-                >
-                  Save
-                </Text>
-              )}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        }
+      >
+        <TextInput
+          style={[styles.input, { backgroundColor: palette.surface, color: palette.textPrimary }]}
+          value={logValue}
+          onChangeText={setLogValue}
+          placeholder={`e.g. 12 ${m.unit}`}
+          placeholderTextColor={palette.textTertiary}
+          keyboardType="numeric"
+          autoFocus
+          accessibilityLabel={`Progress in ${m.unit}`}
+        />
+        <TextInput
+          style={[styles.input, { backgroundColor: palette.surface, color: palette.textPrimary }]}
+          value={logNote}
+          onChangeText={setLogNote}
+          placeholder="Add a note (optional)"
+          placeholderTextColor={palette.textTertiary}
+          accessibilityLabel="Note"
+        />
+      </BottomSheet>
     </SafeAreaView>
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+/**
+ * Winding program path: one node per week snaking left-right down the card,
+ * ticks for finished weeks, a play glyph for the current one, hollow rings
+ * ahead, and a final "goal day" node. The coach cheers from the side.
+ */
+function ProgramPath({
+  weeks,
+  currentIndex,
+  accent,
+  finalLabel,
+  finalDate,
+}: {
+  weeks: Week[]
+  currentIndex: number
+  accent: string
+  finalLabel: string
+  finalDate: string | null
+}) {
   const { palette } = useTheme()
+  const [width, setWidth] = useState(0)
+  const nodes = [...weeks.map((w) => ({ kind: 'week' as const, week: w })), { kind: 'final' as const }]
+  const rowHeight = 64
+  const height = nodes.length * rowHeight + 24
+  const xs = [0.12, 0.42, 0.2, 0.55, 0.85, 0.35]
+  const points = nodes.map((_, i) => ({
+    x: width * xs[i % xs.length],
+    y: 24 + i * rowHeight,
+  }))
+  const path = points
+    .map((p, i) => {
+      if (i === 0) return `M ${p.x} ${p.y}`
+      const prev = points[i - 1]
+      const cx = (prev.x + p.x) / 2
+      return `C ${cx} ${prev.y + rowHeight * 0.55}, ${cx} ${p.y - rowHeight * 0.55}, ${p.x} ${p.y}`
+    })
+    .join(' ')
+
   return (
-    <View style={styles.stat}>
-      <Text style={[styles.statValue, { color: palette.textPrimary }]}>
-        {value}
-      </Text>
-      <Text style={[styles.statLabel, { color: palette.textTertiary }]}>
-        {label}
-      </Text>
+    <View
+      style={[styles.path, { height }]}
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      accessible
+      accessibilityLabel={`Program path: week ${currentIndex + 1} of ${weeks.length} is current.`}
+    >
+      {width > 0 ? (
+        <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+          <Path d={path} stroke={palette.textSecondary} strokeWidth={1.2} fill="none" />
+          {points.map((p, i) => {
+            const isFinal = i === nodes.length - 1
+            const done = !isFinal && i < currentIndex
+            const active = !isFinal && i === currentIndex
+            return (
+              <Circle
+                key={i}
+                cx={p.x}
+                cy={p.y}
+                r={14}
+                fill={done || active ? accent : palette.bg}
+                stroke={isFinal ? palette.accent : accent}
+                strokeWidth={done || active ? 0 : 1.2}
+              />
+            )
+          })}
+        </Svg>
+      ) : null}
+      {width > 0
+        ? nodes.map((node, i) => {
+            const p = points[i]
+            const isFinal = node.kind === 'final'
+            const done = !isFinal && i < currentIndex
+            const active = !isFinal && i === currentIndex
+            const glyph = isFinal ? '' : done ? '\u2713' : active ? '\u25B6' : ''
+            const labelLeft = p.x + 22
+            return (
+              <View key={i} style={[styles.node, { left: p.x - 14, top: p.y - 14 }]} pointerEvents="none">
+                <Text style={[styles.nodeGlyph, { color: palette.white }]}>{glyph}</Text>
+                <View style={[styles.nodeLabel, { left: 28, width: Math.max(80, width - labelLeft - 8) }]}>
+                  <Text
+                    style={[
+                      styles.nodeTitle,
+                      { color: isFinal ? palette.accent : palette.textPrimary },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {isFinal ? finalLabel : node.week.focus}
+                  </Text>
+                  <Text style={[styles.nodeMeta, { color: palette.textSecondary }]} numberOfLines={1}>
+                    {isFinal
+                      ? finalDate ?? ''
+                      : `${node.week.target}${active ? ' \u00b7 THIS WEEK' : ''}`}
+                  </Text>
+                </View>
+              </View>
+            )
+          })
+        : null}
+      <View style={styles.cheer} pointerEvents="none">
+        <View style={[styles.cheerBubble, { borderColor: palette.accent }]}>
+          <Text style={[styles.cheerText, { color: palette.accent }]}>keep going, you&apos;ve got this!</Text>
+        </View>
+        <CoachAvatar size={34} />
+      </View>
     </View>
   )
 }
 
-function ProgressChart({
-  values,
-  accent,
-}: {
-  values: number[]
-  accent: string
-}) {
+function MiniBars({ values, accent }: { values: number[]; accent: string }) {
   const { palette } = useTheme()
-  const max = Math.max(...values, 1)
-  const min = Math.min(...values, 0)
-  const range = max - min || 1
+  const recent = values.slice(-8)
+  if (recent.length === 0) {
+    return <Text style={[styles.logHint, { color: palette.textTertiary }]}>No logs yet</Text>
+  }
+  const max = Math.max(...recent, 1)
   return (
-    <View
-      style={[
-        styles.chart,
-        { backgroundColor: palette.surface, borderColor: palette.border },
-      ]}
-    >
-      {values.map((value, index) => {
-        const heightPct = 12 + ((value - min) / range) * 76
-        return (
-          <View key={index} style={styles.chartBarWrap}>
-            <View
-              style={[
-                styles.chartBar,
-                { height: `${heightPct}%`, backgroundColor: accent },
-              ]}
-            />
-          </View>
-        )
-      })}
+    <View style={styles.bars} accessibilityLabel={`${recent.length} recent logs`}>
+      {recent.map((v, i) => (
+        <View
+          key={i}
+          style={[styles.bar, { height: 6 + (v / max) * 18, backgroundColor: accent }]}
+        />
+      ))}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  centered: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  errorText: {
-    ...typography.body,
-  },
-  errorBack: {
-    padding: spacing.sm,
-  },
-  errorBackText: {
-    ...typography.bodyStrong,
-  },
-  header: {
+  safeArea: { flex: 1 },
+  centered: { alignItems: 'center', justifyContent: 'center', gap: spacing.lg },
+  errorText: { ...typography.body },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
   },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
+  back: { ...typography.smallStrong },
   scrollContent: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
     paddingBottom: spacing.huge,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  titleIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleText: {
-    flex: 1,
-  },
-  title: {
-    ...typography.h1,
-    fontSize: 24,
-  },
-  subtitle: {
-    ...typography.small,
-    marginTop: 2,
-  },
-  progressCard: {
-    marginTop: spacing.xl,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.sm,
-  },
-  progressPct: {
-    ...typography.metric,
-  },
-  progressCaption: {
-    ...typography.small,
-  },
-  progressTrack: {
-    height: 10,
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 5,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    ...typography.h3,
-  },
-  statLabel: {
-    ...typography.small,
-    marginTop: 2,
-  },
-  banner: {
-    marginTop: spacing.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.lg,
-  },
-  bannerText: {
-    ...typography.small,
-    flex: 1,
-  },
-  description: {
-    ...typography.body,
-    marginTop: spacing.lg,
-  },
-  section: {
-    marginTop: spacing.xxl,
-    gap: spacing.sm,
-  },
-  sectionLabel: {
-    ...typography.caption,
-  },
-  overviewCard: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  overviewText: {
-    ...typography.body,
-  },
-  overviewMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  overviewMetaText: {
-    ...typography.smallStrong,
-  },
-  weekCard: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.lg,
-  },
-  weekBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  weekBadgeText: {
-    ...typography.smallStrong,
-  },
-  weekBody: {
-    flex: 1,
-    gap: 2,
-  },
-  weekFocus: {
-    ...typography.bodyStrong,
-  },
-  weekSummary: {
-    ...typography.small,
-  },
-  weekTarget: {
-    ...typography.smallStrong,
-    marginTop: spacing.xs,
-  },
-  chart: {
+  headRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: spacing.xs,
-    height: 120,
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  headCopy: { flex: 1, gap: 4 },
+  title: { ...typography.h1, fontSize: 22 },
+  percent: {
+    fontFamily: fonts.displaySemiBold,
+    fontSize: 26,
+    lineHeight: 32,
+  },
+  track: {
+    height: 3,
+    borderRadius: 2,
+    marginTop: spacing.md,
+    overflow: 'hidden',
+  },
+  fill: { height: 3, borderRadius: 2 },
+  progressLine: {
+    ...typography.small,
+    fontSize: 12,
+    marginTop: spacing.sm,
+  },
+  nextCard: {
+    marginTop: spacing.xl,
+    marginHorizontal: spacing.lg,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.md,
+    padding: spacing.lg,
+    gap: 6,
   },
-  chartBarWrap: {
+  nextTitle: { ...typography.bodyStrong, fontSize: 17 },
+  nextSummary: { ...typography.small },
+  nextActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  smallCta: {
     flex: 1,
-    height: '100%',
-    justifyContent: 'flex-end',
+    minHeight: 36,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  chartBar: {
-    borderRadius: radius.xs,
-    minHeight: 6,
+  smallCtaOutline: {
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
+  smallCtaText: { ...typography.smallStrong },
+  section: {
+    marginTop: spacing.xxl,
+    gap: spacing.md,
+  },
+  path: {
+    position: 'relative',
+  },
+  node: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nodeGlyph: {
+    ...typography.smallStrong,
+    fontSize: 12,
+  },
+  nodeLabel: {
+    position: 'absolute',
+    top: -2,
+    gap: 1,
+  },
+  nodeTitle: { ...typography.smallStrong, fontSize: 12 },
+  nodeMeta: { ...typography.mono, fontSize: 9 },
+  cheer: {
+    position: 'absolute',
+    right: 0,
+    top: 40,
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  cheerBubble: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    maxWidth: 120,
+  },
+  cheerText: {
+    fontFamily: fonts.uiRegular,
+    fontSize: 10,
+    lineHeight: 13,
+  },
+  logCard: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  logHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  logCopy: { flex: 1, gap: 2 },
+  logValue: { ...typography.h3, fontSize: 18 },
+  logHint: { ...typography.small, fontSize: 12 },
+  bars: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 3,
+  },
+  bar: {
+    width: 4,
+    borderRadius: 1,
+  },
+  logCta: {
+    minHeight: 36,
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  logValue: {
-    ...typography.bodyStrong,
-  },
-  logNote: {
-    ...typography.small,
-    flex: 1,
-    textAlign: 'right',
-  },
-  deleteLink: {
-    marginTop: spacing.xxl,
-    alignItems: 'center',
-    padding: spacing.md,
-  },
-  deleteLinkText: {
-    ...typography.bodyStrong,
-  },
-  bottomSpacing: {
-    height: spacing.huge,
-  },
-  footer: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xxl,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  logCta: {
-    height: 54,
-    borderRadius: radius.lg,
+  logRowValue: { ...typography.smallStrong },
+  logRowNote: { ...typography.small, flex: 1, textAlign: 'right' },
+  footerActions: {
     flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.xxl,
+    marginTop: spacing.xxxl,
+  },
+  footerButton: {
+    minWidth: 120,
+    minHeight: 36,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
-  logCtaText: {
-    ...typography.button,
-    color: '#FFFFFF',
+  footerButtonText: { ...typography.smallStrong, fontSize: 12 },
+  deleteLink: {
+    alignSelf: 'center',
+    marginTop: spacing.xl,
+    padding: spacing.sm,
   },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  modalDismiss: {
-    flex: 1,
-  },
-  modalSheet: {
-    borderTopLeftRadius: radius.xxl,
-    borderTopRightRadius: radius.xxl,
-    padding: spacing.xl,
-    paddingBottom: spacing.huge,
-    gap: spacing.md,
-  },
-  modalTitle: {
-    ...typography.h2,
-  },
-  modalHint: {
-    ...typography.small,
-  },
-  modalInput: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 14,
+  deleteText: { ...typography.small },
+  input: {
     ...typography.body,
-  },
-  modalCta: {
-    height: 52,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.sm,
-  },
-  modalCtaText: {
-    ...typography.button,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 14,
+    marginBottom: spacing.md,
   },
 })

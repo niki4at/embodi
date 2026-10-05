@@ -70,15 +70,18 @@ export const suggest = query({
       v.union(v.literal('morning'), v.literal('evening'))
     ),
   },
-  returns: v.object({
-    environment: environmentPrediction,
-    equipmentIntent: equipmentPrediction,
-    activeEquipmentKeys: v.array(v.string()),
-    recentEventCount: v.number(),
-  }),
+  returns: v.union(
+    v.object({
+      environment: environmentPrediction,
+      equipmentIntent: equipmentPrediction,
+      activeEquipmentKeys: v.array(v.string()),
+      recentEventCount: v.number(),
+    }),
+    v.null(),
+  ),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Not authenticated')
+    if (!identity) return null
     if ((args.workoutType?.length ?? 0) > 120 || (args.goal?.length ?? 0) > 240) {
       throw new Error('Workout type or goal is too long')
     }

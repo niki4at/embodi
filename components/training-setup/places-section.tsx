@@ -135,7 +135,7 @@ export function PlacesSection({
       <SectionShell
         icon="house.fill"
         title="Places"
-        description="Save one Home and multiple Gyms. Embodi checks proximity only while the app is open."
+        description="Save one Home and multiple Gyms. Bodfit checks proximity only while the app is open."
       >
         {!locationEnabled ? (
           <View style={[styles.notice, { backgroundColor: palette.warningMuted }]}>

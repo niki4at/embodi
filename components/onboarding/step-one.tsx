@@ -98,7 +98,7 @@ export default function StepOne({
       >
         <FieldLabel
           label="Handle"
-          hint="How friends find you on Embodi"
+          hint="How friends find you on Bodfit"
         />
         <Input
           focused={usernameFocused}

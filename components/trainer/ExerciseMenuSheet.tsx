@@ -43,6 +43,8 @@ type ExerciseMenuSheetProps = {
   hasLoggedSets: boolean
   onClose: () => void
   initialMode?: Mode
+  /** Pre-fills the "tell the trainer" prompt when opening in replace mode. */
+  initialPrompt?: string
 }
 
 const truncate = (value: string, max: number) =>
@@ -56,6 +58,7 @@ export default function ExerciseMenuSheet({
   hasLoggedSets,
   onClose,
   initialMode = 'main',
+  initialPrompt,
 }: ExerciseMenuSheetProps) {
   const { palette, shadows } = useTheme()
   const insets = useSafeAreaInsets()
@@ -79,6 +82,10 @@ export default function ExerciseMenuSheet({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
+    if (visible && initialPrompt) {
+      setPrompt(initialPrompt)
+      return
+    }
     if (!visible) {
       setMode(initialMode)
       setReplaceTab('ai')
@@ -90,7 +97,7 @@ export default function ExerciseMenuSheet({
       setIsRemoving(false)
       setErrorMessage(null)
     }
-  }, [visible, initialMode])
+  }, [visible, initialMode, initialPrompt])
 
   if (!visible || !exercise) return null
 

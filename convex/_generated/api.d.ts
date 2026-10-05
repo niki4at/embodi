@@ -26,6 +26,7 @@ import type * as exercises from "../exercises.js";
 import type * as flareUp from "../flareUp.js";
 import type * as healthContext from "../healthContext.js";
 import type * as lib_equipmentConstraints from "../lib/equipmentConstraints.js";
+import type * as lib_workStyle from "../lib/workStyle.js";
 import type * as messages from "../messages.js";
 import type * as notifications from "../notifications.js";
 import type * as onboarding from "../onboarding.js";
@@ -72,6 +73,7 @@ declare const fullApi: ApiFromModules<{
   flareUp: typeof flareUp;
   healthContext: typeof healthContext;
   "lib/equipmentConstraints": typeof lib_equipmentConstraints;
+  "lib/workStyle": typeof lib_workStyle;
   messages: typeof messages;
   notifications: typeof notifications;
   onboarding: typeof onboarding;

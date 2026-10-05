@@ -384,16 +384,17 @@ export const listChallenges = query({
       .order('desc')
       .collect()
 
-    const visible = challenges.filter((c) => c.status !== 'archived')
-
+    // Archived goals are returned too (the Archived tab lists them); the
+    // client splits by status.
     return await Promise.all(
-      visible.map(async (challenge) => {
+      challenges.map(async (challenge) => {
         const latestValue = await getLatestManualValue(ctx, challenge._id)
         const completedSessions = await countCompletedSessionsSince(
           ctx,
           identity.subject,
           challenge.createdAt
         )
+        const weeks = challenge.program?.weeks ?? []
         return {
           _id: challenge._id,
           title: challenge.title,
@@ -401,7 +402,11 @@ export const listChallenges = query({
           status: challenge.status,
           metric: challenge.metric,
           targetDate: challenge.targetDate,
-          weekCount: challenge.program?.weeks.length ?? 0,
+          createdAt: challenge.createdAt,
+          weekCount: weeks.length,
+          // Week focuses so clients can derive "this week" without the query
+          // depending on the clock.
+          weekFocuses: weeks.map((w) => w.focus),
           percent: computeProgressPercent(
             challenge,
             latestValue,
@@ -520,6 +525,22 @@ export const archiveChallenge = mutation({
     requireOwner(await ctx.db.get(challengeId), identity.subject)
     await ctx.db.patch(challengeId, {
       status: 'archived',
+      updatedAt: Date.now(),
+    })
+  },
+})
+
+export const unarchiveChallenge = mutation({
+  args: { challengeId: v.id('challenges') },
+  handler: async (ctx, { challengeId }) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) {
+      throw new Error('Not authenticated')
+    }
+    const challenge = requireOwner(await ctx.db.get(challengeId), identity.subject)
+    if (challenge.status !== 'archived') return
+    await ctx.db.patch(challengeId, {
+      status: challenge.program ? 'active' : 'generating',
       updatedAt: Date.now(),
     })
   },

@@ -124,7 +124,7 @@ export function FloatingTabBar({
             style={[
               styles.indicator,
               indicatorStyle,
-              { width: itemWidth, backgroundColor: palette.primaryMuted },
+              { width: itemWidth, backgroundColor: palette.surfaceAlt },
             ]}
           />
         ) : null}
@@ -158,7 +158,7 @@ export function FloatingTabBar({
               key={route.key}
               label={label}
               focused={isFocused}
-              activeColor={palette.primary}
+              activeColor={palette.textPrimary}
               inactiveColor={palette.textTertiary}
               icon={options.tabBarIcon}
               onPress={onPress}
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     gap: ITEM_GAP,
     paddingHorizontal: CARD_HORIZONTAL_PADDING,
     paddingVertical: CARD_VERTICAL_PADDING,
-    borderRadius: radius.xxl,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
   },
   indicator: {
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontFamily: fonts.uiBold,
+    fontFamily: fonts.uiSemiBold,
     fontSize: 11,
     lineHeight: 13,
     letterSpacing: 0.1,

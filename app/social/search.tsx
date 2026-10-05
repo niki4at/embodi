@@ -55,7 +55,7 @@ export default function SocialSearchScreen() {
     void Haptics.selectionAsync()
     const handle = myProfile ? `@${myProfile.username}` : 'me'
     void Share.share({
-      message: `Train with ${handle} on Embodi! Get the app and back me so we can cheer each other on: https://embodi.expo.app`,
+      message: `Train with ${handle} on Bodfit! Get the app and back me so we can cheer each other on: https://bodfit.expo.app`,
     })
   }
 
