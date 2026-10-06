@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BODFYT · Home B · Editorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#211F27; --cream:#FCFBF9; --coral:#FF687B; --lav:#B9ACE3;
+  --mint:#BDF3DB; --sky:#50BDF2; --sun:#FFD86B; --peach:#FFD1BD;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#151318;font-family:'Bricolage Grotesque',sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;gap:56px;align-items:center;justify-content:center;padding:48px;flex-wrap:wrap}
+.note{max-width:250px;color:#9b93a8;font-size:13px;line-height:1.7;font-family:'Space Mono',monospace}
+.note h2{font-family:'Fredoka';color:#fff;font-size:22px;margin-bottom:10px}
+.note em{color:var(--sun);font-style:normal}
+.phone{width:393px;height:852px;border-radius:54px;overflow:hidden;position:relative;background:var(--cream);
+  box-shadow:0 50px 120px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.5)}
+.island{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:118px;height:32px;border-radius:20px;background:var(--ink);z-index:40}
+.screen{height:100%;overflow-y:auto;scrollbar-width:none;padding:0 0 140px}
+.screen::-webkit-scrollbar{display:none}
+.pad{padding-left:28px;padding-right:28px}
+.mono{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;color:#a29aae}
+
+/* marquee manifesto */
+.marquee{overflow:hidden;white-space:nowrap;padding:14px 0;margin-top:64px}
+.marquee div{display:inline-block;animation:slide 19s linear infinite;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.34em;color:#b9b2c4}
+@keyframes slide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.marquee b{color:var(--coral);font-weight:400}
+
+.rise{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.d1{animation-delay:.1s}.d2{animation-delay:.22s}.d3{animation-delay:.34s}.d4{animation-delay:.46s}.d5{animation-delay:.6s}
+
+.masthead{margin-top:18px;display:flex;justify-content:space-between;align-items:baseline}
+.masthead .wm{font-family:'Fredoka';font-weight:700;font-size:20px;letter-spacing:.05em}
+
+h1.head{font-size:56px;font-weight:800;line-height:.98;letter-spacing:-.035em;margin-top:26px}
+h1.head .outline{color:transparent;-webkit-text-stroke:1.6px var(--ink)}
+h1.head .accent{color:var(--coral)}
+.sub{margin-top:16px;font-size:15px;color:#6f6680;max-width:290px;line-height:1.6}
+
+/* duotone editorial image spread */
+.spread{margin-top:36px;position:relative}
+.spread img{width:100%;height:320px;object-fit:cover;display:block;filter:saturate(.9) contrast(1.02)}
+.spread::after{content:"";position:absolute;inset:0;background:linear-gradient(20deg,rgba(255,104,123,.34),rgba(80,189,242,.18) 60%,transparent);mix-blend-mode:multiply}
+.spread .over{position:absolute;left:28px;bottom:24px;z-index:2;color:#fff}
+.spread .over .mono{color:rgba(255,255,255,.8)}
+.spread .over h3{font-size:32px;font-weight:800;letter-spacing:-.02em;text-shadow:0 4px 24px rgba(0,0,0,.35)}
+.spread .num{position:absolute;top:18px;right:22px;font-family:'Space Mono';color:#fff;font-size:12px;letter-spacing:.3em;z-index:2}
+
+/* numbered index menu — the Hevy-style start paths as an editorial table of contents */
+.toc{margin-top:44px}
+.item{display:flex;align-items:baseline;gap:18px;padding:20px 0;cursor:pointer;transition:padding-left .35s cubic-bezier(.2,.7,.2,1)}
+.item:hover{padding-left:12px}
+.item .no{font-family:'Space Mono';font-size:12px;color:#b6aec3}
+.item h4{font-size:27px;font-weight:800;letter-spacing:-.02em;flex:1}
+.item.hero h4{background:linear-gradient(95deg,var(--coral),#c99df1);-webkit-background-clip:text;background-clip:text;color:transparent}
+.item p{display:none}
+.item .tag{font-family:'Space Mono';font-size:10px;letter-spacing:.2em;padding:6px 11px;border-radius:14px}
+.t-coral{background:var(--peach)}.t-mint{background:var(--mint)}.t-lav{background:#e4dcf7}
+
+/* context strip as running text */
+.ticker{margin-top:40px}
+.ticker .row{display:flex;gap:34px;overflow-x:auto;scrollbar-width:none;padding:16px 28px 6px}
+.ticker .row::-webkit-scrollbar{display:none}
+.stat{flex:0 0 auto}
+.stat b{display:block;font-size:34px;font-weight:800;letter-spacing:-.03em}
+.stat b i{font-style:normal;font-size:15px;color:#a89fb5}
+.stat span{font-family:'Space Mono';font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#a89fb5}
+.stat.c b{color:var(--coral)}.stat.s b{color:#3aa5dc}.stat.m b{color:#39b98e}
+
+/* coach note as pull-quote */
+.quote{margin-top:44px;position:relative}
+.quote .bar{width:44px;height:5px;border-radius:4px;background:linear-gradient(90deg,var(--coral),var(--lav));margin-bottom:16px}
+.quote p{font-size:21px;font-weight:700;line-height:1.4;letter-spacing:-.01em}
+.quote p em{font-style:normal;color:var(--coral)}
+.quote .who{margin-top:12px;display:flex;align-items:center;gap:10px}
+.quote .who .mono{color:#a29aae}
+.quote svg{width:34px;height:32px}
+
+.wave{display:block;margin:40px auto 0}
+.wave path{stroke-dasharray:500;stroke-dashoffset:500;animation:draw 2.6s ease forwards .5s}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+.tabbar{position:absolute;left:24px;right:24px;bottom:22px;height:70px;border-radius:38px;display:flex;z-index:50;
+  background:rgba(33,31,39,.93);backdrop-filter:blur(12px);box-shadow:0 24px 44px -16px rgba(33,31,39,.6)}
+.tab{flex:1;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;color:#8d8496;font-size:10px;font-weight:700;cursor:pointer;font-family:'Bricolage Grotesque'}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.active{color:var(--sun)}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="note">
+    <h2>Home / B</h2>
+    <p><em>The Editorial.</em> Home as a daily magazine cover: giant black type, an outline-stroke headline, a duotone photo spread, and start paths presented as a numbered table of contents. Zero boxes — hierarchy comes purely from type scale. A manifesto marquee keeps it alive.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="screen">
+      <div class="marquee"><div>EVERY BODY MOVES DIFFERENTLY <b>●</b> ADAPTIVE BY AI, PERSONAL BY YOU <b>●</b> WED AUG 19 <b>●</b> EVERY BODY MOVES DIFFERENTLY <b>●</b> ADAPTIVE BY AI, PERSONAL BY YOU <b>●</b> WED AUG 19 <b>●</b>&nbsp;</div></div>
+
+      <div class="masthead pad rise">
+        <span class="wm">BODFYT</span>
+        <span class="mono">Issue №128 · You</span>
+      </div>
+
+      <h1 class="head pad rise d1">MOVE<br><span class="outline">LIKE</span> YOU<br><span class="accent">TODAY.</span></h1>
+      <p class="sub pad rise d1">Yesterday you pulled heavy. Tonight, your coach suggests going smooth and slow.</p>
+
+      <div class="spread rise d2">
+        <img src="https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80" alt="training">
+        <span class="num">CHAPTER 01</span>
+        <div class="over">
+          <span class="mono">Tonight's feature</span>
+          <h3>The Unwind Flow</h3>
+        </div>
+      </div>
+
+      <div class="toc pad rise d3">
+        <div class="item hero"><span class="no">01</span><h4>Start today's check-in</h4><span class="tag t-coral">60 SEC</span></div>
+        <div class="item"><span class="no">02</span><h4>Build your own</h4><span class="tag t-lav">FREEFORM</span></div>
+        <div class="item"><span class="no">03</span><h4>Your routines</h4><span class="tag t-mint">4 SAVED</span></div>
+      </div>
+
+      <div class="ticker rise d4">
+        <span class="mono pad">Today's context</span>
+        <div class="row">
+          <div class="stat c"><b>7<i>h</i>20</b><span>Sleep</span></div>
+          <div class="stat s"><b>High</b><span>Energy</span></div>
+          <div class="stat m"><b>2<i>/3</i></b><span>Week sessions</span></div>
+          <div class="stat"><b>12<i>d</i></b><span>Streak</span></div>
+        </div>
+      </div>
+
+      <div class="quote pad rise d5">
+        <div class="bar"></div>
+        <p>"Your shoulders carried Monday. <em>Let's give them a soft landing tonight.</em>"</p>
+        <div class="who">
+          <svg viewBox="0 0 120 110">
+            <path fill="#FFD86B" d="M60 6c26 0 50 16 50 44s-20 54-50 54S10 82 10 50 34 6 60 6z"/>
+            <circle cx="45" cy="48" r="5" fill="#211F27"/><circle cx="75" cy="48" r="5" fill="#211F27"/>
+            <path d="M47 64q13 10 26 0" stroke="#211F27" stroke-width="4" fill="none" stroke-linecap="round"/>
+          </svg>
+          <span class="mono">Your coach · just now</span>
+        </div>
+      </div>
+
+      <svg class="wave" width="220" height="24" viewBox="0 0 220 24">
+        <defs><linearGradient id="wg2" x1="0" x2="1"><stop offset="0" stop-color="#FF687B"/><stop offset="1" stop-color="#B9ACE3"/></linearGradient></defs>
+        <path d="M4 12 C 36 -2, 72 26, 110 12 S 184 -2, 216 12" stroke="url(#wg2)" stroke-width="3" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <nav class="tabbar">
+      <div class="tab"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 19c.7-3.2 3.4-5 6.5-5s5.8 1.8 6.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.8 14.4c2.7.3 4.8 1.8 5.5 4.6"/></svg>Social</div>
+      <div class="tab active"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4.6v-6H9.6v6H5a1 1 0 0 1-1-1z"/></svg>Home</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0zM7 5H4.2A2.8 2.8 0 0 0 7 8.6M17 5h2.8A2.8 2.8 0 0 1 17 8.6M12 13v3.4M8.5 21h7M9.8 17.6h4.4l.5 3.4H9.3z"/></svg>Challenges</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-3.8 4-5.7 7.5-5.7s6.5 1.9 7.5 5.7"/></svg>Profile</div>
+    </nav>
+  </div>
+</div>
+</body>
+</html>

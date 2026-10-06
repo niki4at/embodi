@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BODFYT · Challenges A · Quest Path</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Sora:wght@400;600;800&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#211F27; --cream:#FCFBF9; --coral:#FF687B; --lav:#B9ACE3;
+  --mint:#BDF3DB; --sky:#50BDF2; --sun:#FFD86B; --peach:#FFD1BD;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#151318;font-family:'Sora',sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;gap:56px;align-items:center;justify-content:center;padding:48px;flex-wrap:wrap}
+.note{max-width:250px;color:#9b93a8;font-size:13px;line-height:1.7}
+.note h2{font-family:'Fredoka';color:#fff;font-size:22px;margin-bottom:10px}
+.note em{color:var(--sky);font-style:normal}
+.phone{width:393px;height:852px;border-radius:54px;overflow:hidden;position:relative;
+  background:linear-gradient(180deg,#eaf5fd 0%,var(--cream) 42%,#fdf2ec 100%);
+  box-shadow:0 50px 120px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.6)}
+.island{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:118px;height:32px;border-radius:20px;background:var(--ink);z-index:40}
+.screen{height:100%;overflow-y:auto;scrollbar-width:none;padding:70px 0 140px}
+.screen::-webkit-scrollbar{display:none}
+.pad{padding-left:26px;padding-right:26px}
+.mono{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:#a29aae}
+
+.rise{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.d1{animation-delay:.1s}.d2{animation-delay:.24s}.d3{animation-delay:.4s}.d4{animation-delay:.55s}.d5{animation-delay:.7s}
+
+.top{display:flex;justify-content:space-between;align-items:center}
+.top h1{font-size:32px;font-weight:800;letter-spacing:-.02em}
+.newbtn{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;cursor:pointer;
+  background:linear-gradient(140deg,var(--coral),#c86fb4);box-shadow:0 14px 26px -10px rgba(255,104,123,.6);animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+.sub{color:#8b8298;font-size:13.5px;margin-top:6px}
+
+/* the quest header */
+.quest{margin-top:26px}
+.quest .mono{color:#5fa8d4}
+.quest h2{font-family:'Fredoka';font-size:27px;font-weight:700;margin-top:6px}
+.quest h2 small{font-family:'Sora';font-size:14px;font-weight:600;color:var(--coral)}
+
+/* winding path */
+.pathwrap{position:relative;margin-top:6px;height:560px}
+.pathwrap svg.trail{position:absolute;inset:0;width:100%;height:100%}
+.trail .done{stroke-dasharray:1200;stroke-dashoffset:1200;animation:draw 2.6s ease forwards .4s}
+@keyframes draw{to{stroke-dashoffset:0}}
+.node{position:absolute;display:flex;flex-direction:column;align-items:center;gap:6px;width:110px;text-align:center}
+.node .pin{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 10px 22px -8px rgba(33,31,39,.3)}
+.node.done .pin{background:var(--mint)}
+.node.now .pin{background:var(--sun);animation:pulse 2.4s ease-in-out infinite;position:relative}
+.node.now .pin::after{content:"";position:absolute;inset:-11px;border-radius:50%;border:3px solid rgba(255,216,107,.55);animation:ripple 2.4s ease-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+@keyframes ripple{0%{transform:scale(.7);opacity:1}100%{transform:scale(1.35);opacity:0}}
+.node.todo .pin{background:#eee9f4;color:#b1a7c2}
+.node b{font-size:12.5px;font-weight:700}
+.node span{font-family:'Space Mono';font-size:9.5px;letter-spacing:.14em;color:#a29aae}
+/* buddy character walking the path */
+.walker{position:absolute;width:74px;animation:floaty 3.6s ease-in-out infinite;z-index:5}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.flag{position:absolute;font-size:30px;animation:floaty 4s ease-in-out infinite}
+/* landscape photo blended at path end */
+.summit{position:absolute;right:-30px;bottom:-16px;width:230px;height:180px;overflow:hidden;opacity:.9;
+  -webkit-mask-image:radial-gradient(80% 80% at 60% 55%,#000 45%,transparent 78%);
+  mask-image:radial-gradient(80% 80% at 60% 55%,#000 45%,transparent 78%)}
+.summit img{width:100%;height:100%;object-fit:cover}
+
+/* together pool */
+.together{margin-top:26px}
+.pool{margin-top:16px;border-radius:44px 44px 120px 44px;padding:22px;position:relative;overflow:hidden;
+  background:linear-gradient(130deg,var(--mint) 0%,#d5f0fb 60%,#e6def7 100%)}
+.pool h3{font-family:'Fredoka';font-size:20px;font-weight:700}
+.pool p{font-size:13px;color:#57706a;margin-top:4px}
+.paddle{display:flex;margin-top:14px}
+.paddle img{width:44px;height:44px;border-radius:50%;object-fit:cover;border:3px solid #fff;margin-left:-10px}
+.paddle img:first-child{margin-left:0}
+.paddle .more{width:44px;height:44px;border-radius:50%;background:#fff;color:#7c6fa0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-left:-10px}
+.pool .join{position:absolute;right:20px;bottom:18px;font-family:'Fredoka';font-weight:600;font-size:14px;background:var(--ink);color:#fff;padding:11px 18px;border-radius:24px;cursor:pointer}
+.pool .wavebg{position:absolute;right:-20px;top:-30px;opacity:.5}
+
+.tabbar{position:absolute;left:24px;right:24px;bottom:22px;height:70px;border-radius:38px;display:flex;z-index:50;
+  background:rgba(33,31,39,.93);backdrop-filter:blur(12px);box-shadow:0 24px 44px -16px rgba(33,31,39,.6)}
+.tab{flex:1;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;color:#8d8496;font-size:10px;font-weight:600;cursor:pointer}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.active{color:var(--sun)}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="note">
+    <h2>Challenges / A</h2>
+    <p><em>Quest Path.</em> Your active challenge becomes a literal winding trail down the screen — completed weeks in mint, the current week a pulsing sun node, and your blob buddy hiking toward a summit photo that fades into the canvas. Together communities are a shared "pool" you dive into.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="screen">
+      <div class="top pad rise">
+        <div>
+          <h1>Challenges</h1>
+          <p class="sub">One quest at a time. You're mid-climb.</p>
+        </div>
+        <div class="newbtn">+</div>
+      </div>
+
+      <div class="quest pad rise d1">
+        <span class="mono">Active quest · Cardio</span>
+        <h2>Marathon by May <small>· 62%</small></h2>
+      </div>
+
+      <div class="pathwrap rise d2">
+        <svg class="trail" viewBox="0 0 393 560" fill="none">
+          <defs>
+            <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#50BDF2"/><stop offset="1" stop-color="#FF687B"/></linearGradient>
+          </defs>
+          <path d="M70 30 C 240 60, 330 110, 300 180 C 275 240, 90 230, 80 310 C 72 380, 260 380, 300 450 C 330 505, 220 540, 140 532"
+            stroke="#eae4f2" stroke-width="10" stroke-linecap="round"/>
+          <path class="done" d="M70 30 C 240 60, 330 110, 300 180 C 275 240, 90 230, 80 310"
+            stroke="url(#tg)" stroke-width="10" stroke-linecap="round"/>
+        </svg>
+
+        <div class="node done" style="left:16px;top:6px"><div class="pin">✓</div><b>Base week</b><span>12 KM</span></div>
+        <div class="node done" style="left:246px;top:120px"><div class="pin">✓</div><b>Tempo intro</b><span>18 KM</span></div>
+        <div class="node now" style="left:26px;top:276px"><div class="pin">▶</div><b>Long run 14k</b><span>THIS WEEK</span></div>
+        <div class="node todo" style="left:246px;top:396px"><div class="pin">🏔</div><b>Peak week</b><span>32 KM</span></div>
+        <div class="node todo" style="left:86px;top:492px"><div class="pin">🏁</div><b>Race day</b><span>MAY 3</span></div>
+
+        <svg class="walker" style="left:96px;top:216px" viewBox="0 0 120 110">
+          <path fill="#50BDF2" d="M60 6c26 0 50 16 50 44s-20 54-50 54S10 82 10 50 34 6 60 6z"/>
+          <circle cx="45" cy="48" r="5" fill="#211F27"/><circle cx="75" cy="48" r="5" fill="#211F27"/>
+          <path d="M47 64q13 12 26 0" stroke="#211F27" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <circle cx="34" cy="60" r="6" fill="#FF687B" opacity=".4"/><circle cx="86" cy="60" r="6" fill="#FF687B" opacity=".4"/>
+        </svg>
+        <span class="flag" style="left:150px;top:498px">🏁</span>
+        <div class="summit"><img src="https://images.unsplash.com/photo-1502904550040-7534597429ae?auto=format&fit=crop&w=700&q=80" alt="trail"></div>
+      </div>
+
+      <div class="together pad rise d3">
+        <span class="mono">Together</span>
+        <div class="pool">
+          <svg class="wavebg" width="200" height="120" viewBox="0 0 200 120"><path d="M0 30 C 40 10, 80 50, 120 30 S 200 10, 240 30 M0 70 C 40 50, 80 90, 120 70 S 200 50, 240 70" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+          <h3>Summer Move Club</h3>
+          <p>8 friends · 412 shared minutes this week</p>
+          <div class="paddle">
+            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80" alt="">
+            <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80" alt="">
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80" alt="">
+            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80" alt="">
+            <span class="more">+4</span>
+          </div>
+          <span class="join">Open board →</span>
+        </div>
+      </div>
+    </div>
+
+    <nav class="tabbar">
+      <div class="tab"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 19c.7-3.2 3.4-5 6.5-5s5.8 1.8 6.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.8 14.4c2.7.3 4.8 1.8 5.5 4.6"/></svg>Social</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4.6v-6H9.6v6H5a1 1 0 0 1-1-1z"/></svg>Home</div>
+      <div class="tab active"><svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0zM7 5H4.2A2.8 2.8 0 0 0 7 8.6M17 5h2.8A2.8 2.8 0 0 1 17 8.6M12 13v3.4M8.5 21h7M9.8 17.6h4.4l.5 3.4H9.3z"/></svg>Challenges</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-3.8 4-5.7 7.5-5.7s6.5 1.9 7.5 5.7"/></svg>Profile</div>
+    </nav>
+  </div>
+</div>
+</body>
+</html>

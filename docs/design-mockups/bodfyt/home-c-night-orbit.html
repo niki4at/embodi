@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BODFYT · Home C · Night Orbit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Sora:wght@400;600;800&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#211F27; --cream:#FCFBF9; --coral:#FF687B; --lav:#B9ACE3;
+  --mint:#BDF3DB; --sky:#50BDF2; --sun:#FFD86B; --peach:#FFD1BD;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0e0c12;font-family:'Sora',sans-serif;color:var(--cream)}
+.stage{min-height:100vh;display:flex;gap:56px;align-items:center;justify-content:center;padding:48px;flex-wrap:wrap}
+.note{max-width:250px;color:#9b93a8;font-size:13px;line-height:1.7}
+.note h2{font-family:'Fredoka';color:#fff;font-size:22px;margin-bottom:10px}
+.note em{color:var(--sky);font-style:normal}
+.phone{width:393px;height:852px;border-radius:54px;overflow:hidden;position:relative;
+  background:radial-gradient(140% 90% at 50% -10%,#3a3348 0%,#262130 42%,#1a1721 100%);
+  box-shadow:0 50px 120px rgba(0,0,0,.7), inset 0 0 0 1px rgba(255,255,255,.07)}
+.island{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:118px;height:32px;border-radius:20px;background:#000;z-index:40}
+.screen{height:100%;overflow-y:auto;scrollbar-width:none;padding:72px 26px 140px;position:relative}
+.screen::-webkit-scrollbar{display:none}
+.mono{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:#7d7490}
+
+/* starfield */
+.star{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;opacity:.35;animation:tw 3.4s ease-in-out infinite}
+@keyframes tw{0%,100%{opacity:.12}50%{opacity:.6}}
+
+.rise{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.d1{animation-delay:.1s}.d2{animation-delay:.24s}.d3{animation-delay:.4s}.d4{animation-delay:.55s}.d5{animation-delay:.7s}
+
+.topbar{display:flex;justify-content:space-between;align-items:center}
+.wordmark{font-family:'Fredoka';font-weight:700;font-size:18px;letter-spacing:.06em;color:var(--cream)}
+.greet{margin-top:30px;text-align:center}
+.greet h1{font-size:32px;font-weight:800;letter-spacing:-.02em}
+.greet p{margin-top:8px;color:#a79dbb;font-size:14px}
+
+/* orbit system: coach core with category moons */
+.system{position:relative;width:320px;height:320px;margin:28px auto 0}
+.orbitpath{position:absolute;inset:0;border-radius:50%;border:1px dashed rgba(185,172,227,.22);animation:spin 34s linear infinite}
+.orbitpath.inner{inset:42px;animation-duration:26s;animation-direction:reverse;border-color:rgba(80,189,242,.16)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.core{position:absolute;inset:88px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;cursor:pointer;
+  background:radial-gradient(circle at 34% 28%,#ffd1bd 0%,#ff687b 42%,#8d6fd8 100%);
+  box-shadow:0 0 70px rgba(255,104,123,.45), 0 0 130px rgba(141,111,216,.3);animation:pulse 5s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+.core b{font-family:'Fredoka';font-size:20px;color:#fff}
+.core span{font-size:11px;color:rgba(255,255,255,.85)}
+.core .eyes{display:flex;gap:12px;margin-bottom:2px}
+.core .eyes i{width:8px;height:8px;border-radius:50%;background:#fff;animation:blink 5.5s infinite}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+.moon{position:absolute;width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--ink);animation:floaty 5s ease-in-out infinite}
+.moon.str{background:var(--coral);color:#fff;top:-6px;left:130px}
+.moon.mob{background:var(--lav);top:120px;left:-14px;animation-delay:.8s}
+.moon.car{background:var(--sky);color:#fff;top:126px;right:-14px;animation-delay:1.6s}
+.moon.rec{background:var(--mint);bottom:-8px;left:132px;animation-delay:2.4s}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+
+/* conversational context */
+.convo{margin-top:40px;display:flex;flex-direction:column;gap:12px}
+.msg{max-width:86%;padding:14px 17px;border-radius:24px;font-size:14px;line-height:1.5}
+.msg.coach{background:rgba(185,172,227,.16);border-radius:24px 24px 24px 6px;color:#e6dff5}
+.msg.coach b{color:var(--sun)}
+.msg.you{align-self:flex-end;background:linear-gradient(120deg,var(--coral),#c86fb4);border-radius:24px 24px 6px 24px;color:#fff;cursor:pointer}
+.msg.you.alt{background:rgba(252,251,249,.1);color:#cfc7dd}
+
+/* context as glowing numbers */
+.glowrow{display:flex;justify-content:space-between;margin-top:44px;text-align:center}
+.g b{display:block;font-size:26px;font-weight:800;letter-spacing:-.02em}
+.g span{font-family:'Space Mono';font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:#7d7490}
+.g.a b{color:var(--sun);text-shadow:0 0 22px rgba(255,216,107,.5)}
+.g.b b{color:var(--mint);text-shadow:0 0 22px rgba(189,243,219,.4)}
+.g.c b{color:var(--sky);text-shadow:0 0 22px rgba(80,189,242,.45)}
+.g.d b{color:var(--peach);text-shadow:0 0 22px rgba(255,209,189,.4)}
+
+/* image horizon */
+.horizon{margin:46px -26px 0;position:relative}
+.horizon img{width:100%;height:230px;object-fit:cover;display:block;opacity:.8;
+  -webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 30%,#000 78%,transparent 100%);
+  mask-image:linear-gradient(180deg,transparent 0%,#000 30%,#000 78%,transparent 100%)}
+.horizon .lab{position:absolute;left:26px;bottom:34px}
+.horizon .lab h3{font-family:'Fredoka';font-size:22px;color:#fff;text-shadow:0 2px 16px rgba(0,0,0,.6)}
+.quick{display:flex;gap:12px;margin-top:6px}
+.quick span{font-size:13px;font-weight:600;padding:11px 18px;border-radius:22px;background:rgba(252,251,249,.09);color:#d8d1e6;cursor:pointer}
+.quick span.hot{background:var(--sun);color:var(--ink)}
+
+.tabbar{position:absolute;left:24px;right:24px;bottom:22px;height:70px;border-radius:38px;display:flex;z-index:50;
+  background:rgba(14,12,18,.85);backdrop-filter:blur(14px);box-shadow:0 24px 44px -16px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.06)}
+.tab{flex:1;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;color:#6e6580;font-size:10px;font-weight:600;cursor:pointer}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.active{color:var(--sun)}
+.tab.active svg{filter:drop-shadow(0 0 8px rgba(255,216,107,.8))}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="note">
+    <h2>Home / C</h2>
+    <p><em>Night Orbit.</em> AI-first: the coach is a glowing orb at the center of the screen with the four BODFYT movement types orbiting as moons. The check-in becomes a conversation — tap a reply bubble instead of a form. Context stats glow like constellation readings.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="screen">
+      <span class="star" style="top:90px;left:40px"></span>
+      <span class="star" style="top:150px;right:60px;animation-delay:1s"></span>
+      <span class="star" style="top:320px;left:70px;animation-delay:2s"></span>
+      <span class="star" style="top:520px;right:40px;animation-delay:.5s"></span>
+      <span class="star" style="top:640px;left:120px;animation-delay:1.6s"></span>
+
+      <div class="topbar rise">
+        <span class="mono">Wed · Aug 19</span>
+        <span class="wordmark">BODFYT</span>
+        <span class="mono" style="color:var(--sun)">🔥 12</span>
+      </div>
+
+      <div class="greet rise d1">
+        <h1>Evening, Nina.</h1>
+        <p>Your coach has been thinking about today.</p>
+      </div>
+
+      <div class="system rise d2">
+        <div class="orbitpath"></div>
+        <div class="orbitpath inner"></div>
+        <div class="core">
+          <div class="eyes"><i></i><i></i></div>
+          <b>Check in</b>
+          <span>tell me how you feel</span>
+        </div>
+        <span class="moon str">STRENGTH</span>
+        <span class="moon mob">MOBILITY</span>
+        <span class="moon car">CARDIO</span>
+        <span class="moon rec">RECOVERY</span>
+      </div>
+
+      <div class="convo rise d3">
+        <div class="msg coach"><b>Coach</b> — you logged 2 strength days already this week and slept 7h20 last night. Feeling up for movement tonight?</div>
+        <div class="msg you">Yes — something light ✨</div>
+        <div class="msg you alt">Ask me the full check-in</div>
+      </div>
+
+      <div class="glowrow rise d4">
+        <div class="g a"><b>12d</b><span>Streak</span></div>
+        <div class="g b"><b>2/3</b><span>Sessions</span></div>
+        <div class="g c"><b>84m</b><span>This week</span></div>
+        <div class="g d"><b>Day 12</b><span>Cycle</span></div>
+      </div>
+
+      <div class="horizon rise d5">
+        <img src="https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=900&q=80" alt="evening yoga">
+        <div class="lab">
+          <span class="mono" style="color:#cbc2dd">If you'd rather freestyle</span>
+          <h3>Build your own · Routines</h3>
+          <div class="quick">
+            <span class="hot">Build session</span>
+            <span>Push day ×3</span>
+            <span>Mobility</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="tabbar">
+      <div class="tab"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 19c.7-3.2 3.4-5 6.5-5s5.8 1.8 6.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.8 14.4c2.7.3 4.8 1.8 5.5 4.6"/></svg>Social</div>
+      <div class="tab active"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4.6v-6H9.6v6H5a1 1 0 0 1-1-1z"/></svg>Home</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0zM7 5H4.2A2.8 2.8 0 0 0 7 8.6M17 5h2.8A2.8 2.8 0 0 1 17 8.6M12 13v3.4M8.5 21h7M9.8 17.6h4.4l.5 3.4H9.3z"/></svg>Challenges</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-3.8 4-5.7 7.5-5.7s6.5 1.9 7.5 5.7"/></svg>Profile</div>
+    </nav>
+  </div>
+</div>
+</body>
+</html>

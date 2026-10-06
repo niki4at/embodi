@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BODFYT · Profile B · Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,800&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#211F27; --cream:#FCFBF9; --coral:#FF687B; --lav:#B9ACE3;
+  --mint:#BDF3DB; --sky:#50BDF2; --sun:#FFD86B; --peach:#FFD1BD;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#151318;font-family:'Bricolage Grotesque',sans-serif;color:var(--ink)}
+.stage{min-height:100vh;display:flex;gap:56px;align-items:center;justify-content:center;padding:48px;flex-wrap:wrap}
+.note{max-width:250px;color:#9b93a8;font-size:13px;line-height:1.7}
+.note h2{font-family:'Fredoka';color:#fff;font-size:22px;margin-bottom:10px}
+.note em{color:var(--sun);font-style:normal}
+.phone{width:393px;height:852px;border-radius:54px;overflow:hidden;position:relative;background:var(--cream);
+  box-shadow:0 50px 120px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.5)}
+.island{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:118px;height:32px;border-radius:20px;background:rgba(0,0,0,.85);z-index:40}
+.screen{height:100%;overflow-y:auto;scrollbar-width:none;padding-bottom:140px}
+.screen::-webkit-scrollbar{display:none}
+.pad{padding-left:26px;padding-right:26px}
+.mono{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:#a29aae}
+
+.rise{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.d1{animation-delay:.12s}.d2{animation-delay:.26s}.d3{animation-delay:.42s}.d4{animation-delay:.58s}.d5{animation-delay:.74s}
+
+/* full-bleed hero photo with masked bottom, identity overlapping */
+.cover{position:relative;height:360px}
+.cover img{width:100%;height:100%;object-fit:cover;display:block;
+  -webkit-mask-image:linear-gradient(180deg,#000 62%,transparent 100%);
+  mask-image:linear-gradient(180deg,#000 62%,transparent 100%)}
+.cover .gear{position:absolute;top:62px;right:22px;width:42px;height:42px;border-radius:50%;background:rgba(14,12,18,.4);backdrop-filter:blur(8px);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;z-index:5}
+.cover .grad{position:absolute;inset:0;background:linear-gradient(200deg,rgba(255,104,123,.25),transparent 55%)}
+.id{margin-top:-92px;position:relative;z-index:3}
+.id h1{font-size:52px;font-weight:800;letter-spacing:-.04em;line-height:.95}
+.id h1 em{font-style:normal;color:var(--coral)}
+.id .row{display:flex;align-items:center;gap:12px;margin-top:10px}
+.id .row img{width:52px;height:52px;border-radius:50%;object-fit:cover;outline:3px solid var(--sun);outline-offset:2px}
+.id .row .mono{letter-spacing:.2em}
+.id .row .fl{background:linear-gradient(120deg,var(--peach),var(--sun));font-family:'Space Mono';font-size:11px;padding:8px 13px;border-radius:18px;font-weight:700}
+
+/* stat strip: giant type overlapping, no boxes */
+.strip{display:flex;gap:30px;overflow-x:auto;scrollbar-width:none;margin-top:34px;padding:6px 26px 14px}
+.strip::-webkit-scrollbar{display:none}
+.st{flex:0 0 auto}
+.st b{font-size:46px;font-weight:800;letter-spacing:-.04em;line-height:1;display:block}
+.st b i{font-style:normal;font-size:19px;color:#b1a7c2}
+.st span{font-family:'Space Mono';font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:#a29aae}
+.st.a b{color:var(--coral)}.st.b b{color:#3aa5dc}.st.c b{color:#33ac82}.st.d b{color:#8d78c8}
+
+/* mini heatmap wave: bars of varying height on a curve */
+.pulse{margin-top:34px}
+.bars{display:flex;align-items:flex-end;gap:5px;height:74px;margin-top:14px}
+.bars i{flex:1;border-radius:6px 6px 0 0;background:linear-gradient(180deg,var(--coral),var(--peach));transform-origin:bottom;animation:grow .9s cubic-bezier(.2,.8,.3,1.2) both}
+.bars i:nth-child(2n){background:linear-gradient(180deg,var(--sky),#bfe7fa)}
+.bars i:nth-child(3n){background:linear-gradient(180deg,#57c89d,var(--mint))}
+.bars i:nth-child(1){height:32%;animation-delay:.05s}.bars i:nth-child(2){height:58%;animation-delay:.1s}.bars i:nth-child(3){height:26%;animation-delay:.15s}
+.bars i:nth-child(4){height:74%;animation-delay:.2s}.bars i:nth-child(5){height:48%;animation-delay:.25s}.bars i:nth-child(6){height:12%;animation-delay:.3s}
+.bars i:nth-child(7){height:66%;animation-delay:.35s}.bars i:nth-child(8){height:88%;animation-delay:.4s}.bars i:nth-child(9){height:38%;animation-delay:.45s}
+.bars i:nth-child(10){height:56%;animation-delay:.5s}.bars i:nth-child(11){height:20%;animation-delay:.55s}.bars i:nth-child(12){height:70%;animation-delay:.6s}
+.bars i:nth-child(13){height:44%;animation-delay:.65s}.bars i:nth-child(14){height:92%;animation-delay:.7s}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+
+/* moments masonry with organic masks */
+.moments{margin-top:36px}
+.mas{display:flex;gap:12px;margin-top:16px;padding:0 26px}
+.mcol{flex:1;display:flex;flex-direction:column;gap:12px}
+.m{position:relative;overflow:hidden;cursor:pointer}
+.m img{width:100%;display:block;object-fit:cover;transition:transform .6s}
+.m:hover img{transform:scale(1.07)}
+.m1 img{height:200px;border-radius:90px 26px 26px 26px}
+.m2 img{height:140px;border-radius:26px 26px 26px 80px}
+.m3 img{height:140px;border-radius:26px 80px 26px 26px}
+.m4 img{height:200px;border-radius:26px 26px 90px 26px}
+.m .lab{position:absolute;left:12px;bottom:12px;font-family:'Space Mono';font-size:9px;letter-spacing:.2em;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.65)}
+.m .pr{position:absolute;top:10px;right:10px;background:var(--sun);font-family:'Fredoka';font-size:11px;font-weight:700;padding:6px 11px;border-radius:14px;transform:rotate(5deg)}
+
+/* routine ribbons */
+.ribbons{margin-top:36px;padding-bottom:8px}
+.rib{display:flex;justify-content:space-between;align-items:center;padding:15px 0;cursor:pointer;transition:transform .3s}
+.rib:hover{transform:translateX(6px)}
+.rib b{font-family:'Fredoka';font-size:19px;font-weight:600}
+.rib .mono{letter-spacing:.16em}
+
+.tabbar{position:absolute;left:24px;right:24px;bottom:22px;height:70px;border-radius:38px;display:flex;z-index:50;
+  background:rgba(33,31,39,.93);backdrop-filter:blur(12px);box-shadow:0 24px 44px -16px rgba(33,31,39,.6)}
+.tab{flex:1;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;color:#8d8496;font-size:10px;font-weight:700;cursor:pointer}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.active{color:var(--sun)}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="note">
+    <h2>Profile / B</h2>
+    <p><em>The Gallery.</em> Photo-led identity: a full-bleed cover that dissolves into the page, your name in poster type overlapping it, giant loose stats, a bar-wave month pulse, and a masonry of workout moments with organic corner radii. Feels like a personal exhibition, not a dashboard.</p>
+  </div>
+  <div class="phone">
+    <div class="island"></div>
+    <div class="screen">
+      <div class="cover rise">
+        <img src="https://images.unsplash.com/photo-1552196563-55cd4e45efb3?auto=format&fit=crop&w=900&q=80" alt="cover">
+        <div class="grad"></div>
+        <span class="gear">⚙</span>
+      </div>
+
+      <div class="id pad rise d1">
+        <h1>NINA<br><em>IN MOTION.</em></h1>
+        <div class="row">
+          <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80" alt="avatar">
+          <span class="mono">@nina.moves</span>
+          <span class="fl">🔥 12</span>
+        </div>
+      </div>
+
+      <div class="strip rise d2">
+        <div class="st a"><b>214<i>min</i></b><span>This month</span></div>
+        <div class="st b"><b>16</b><span>Sessions</span></div>
+        <div class="st c"><b>48<i>k kg</i></b><span>Volume</span></div>
+        <div class="st d"><b>3</b><span>New PRs</span></div>
+      </div>
+
+      <div class="pulse pad rise d3">
+        <span class="mono">August pulse · tap a day</span>
+        <div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+
+      <div class="moments rise d4">
+        <span class="mono pad">Moments</span>
+        <div class="mas">
+          <div class="mcol">
+            <div class="m m1"><img src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=600&q=80" alt=""><span class="pr">PR ✦</span><span class="lab">AUG 4 · SQUAT 85KG</span></div>
+            <div class="m m2"><img src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=600&q=80" alt=""><span class="lab">AUG 11 · FLOW</span></div>
+          </div>
+          <div class="mcol">
+            <div class="m m3"><img src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=600&q=80" alt=""><span class="lab">AUG 9 · FIRST 10K</span></div>
+            <div class="m m4"><img src="https://images.unsplash.com/photo-1518310383802-640c2de311b2?auto=format&fit=crop&w=600&q=80" alt=""><span class="lab">AUG 15 · STRETCH</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ribbons pad rise d5">
+        <span class="mono">Keep exploring</span>
+        <div class="rib"><b>Journey &amp; milestones</b><span class="mono">12 →</span></div>
+        <div class="rib"><b>Past workouts</b><span class="mono">106 →</span></div>
+        <div class="rib"><b>Your routines</b><span class="mono">4 →</span></div>
+        <div class="rib"><b>Public profile</b><span class="mono">VIEW →</span></div>
+      </div>
+    </div>
+
+    <nav class="tabbar">
+      <div class="tab"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.5 19c.7-3.2 3.4-5 6.5-5s5.8 1.8 6.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.8 14.4c2.7.3 4.8 1.8 5.5 4.6"/></svg>Social</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4.6v-6H9.6v6H5a1 1 0 0 1-1-1z"/></svg>Home</div>
+      <div class="tab"><svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0zM7 5H4.2A2.8 2.8 0 0 0 7 8.6M17 5h2.8A2.8 2.8 0 0 1 17 8.6M12 13v3.4M8.5 21h7M9.8 17.6h4.4l.5 3.4H9.3z"/></svg>Challenges</div>
+      <div class="tab active"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-3.8 4-5.7 7.5-5.7s6.5 1.9 7.5 5.7"/></svg>Profile</div>
+    </nav>
+  </div>
+</div>
+</body>
+</html>
