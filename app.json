@@ -58,6 +58,8 @@
       [
         "expo-audio",
         {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
           "enableBackgroundRecording": false
         }
       ],
