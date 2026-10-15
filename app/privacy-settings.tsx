@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import React from 'react'
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -68,6 +69,16 @@ const AUDIENCES = [
   { value: 'backers', label: 'Backers' },
   { value: 'private', label: 'Private' },
 ] as const
+
+const OPERATOR_LINE = 'Bodfit is operated by QUESTION 42 LTD'
+const PRIVACY_EMAIL = 'privacy@question42.co.uk'
+const PRIVACY_MAILTO = `mailto:${PRIVACY_EMAIL}`
+const PRIVACY_POLICY_URL = 'https://question42.co.uk/privacy'
+const TERMS_URL = 'https://question42.co.uk/terms'
+
+function openExternal(url: string) {
+  void Linking.openURL(url).catch(() => {})
+}
 
 export default function PrivacySettingsScreen() {
   const { palette } = useTheme()
@@ -209,6 +220,42 @@ export default function PrivacySettingsScreen() {
               router.push('/social/edit-profile')
             }}
           />
+
+          <View style={styles.legal}>
+            <Text style={[styles.legalText, { color: palette.textTertiary }]}>
+              {OPERATOR_LINE}
+            </Text>
+            <Text style={[styles.legalText, { color: palette.textTertiary }]}>
+              Privacy contact{' '}
+              <Text
+                accessibilityRole="link"
+                accessibilityLabel={`Email ${PRIVACY_EMAIL}`}
+                onPress={() => openExternal(PRIVACY_MAILTO)}
+                style={[styles.legalLink, { color: palette.textSecondary }]}
+              >
+                {PRIVACY_EMAIL}
+              </Text>
+            </Text>
+            <Text style={[styles.legalText, { color: palette.textTertiary }]}>
+              <Text
+                accessibilityRole="link"
+                accessibilityLabel="Privacy policy"
+                onPress={() => openExternal(PRIVACY_POLICY_URL)}
+                style={[styles.legalLink, { color: palette.textSecondary }]}
+              >
+                Privacy policy
+              </Text>
+              {' · '}
+              <Text
+                accessibilityRole="link"
+                accessibilityLabel="Terms"
+                onPress={() => openExternal(TERMS_URL)}
+                style={[styles.legalLink, { color: palette.textSecondary }]}
+              >
+                Terms
+              </Text>
+            </Text>
+          </View>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -246,5 +293,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radius.pill,
     paddingVertical: spacing.sm,
+  },
+  legal: {
+    marginTop: spacing.xxxl,
+    gap: spacing.xs,
+  },
+  legalText: {
+    ...typography.small,
+  },
+  legalLink: {
+    fontFamily: typography.smallStrong.fontFamily,
+    textDecorationLine: 'underline',
   },
 })
