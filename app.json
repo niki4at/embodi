@@ -55,11 +55,20 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-font",
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundRecording": false
+        }
+      ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Bodfit uses your location while the app is open to suggest whether you are training at Home or Gym. It does not keep a location history."
+          "locationWhenInUsePermission": "Bodfit uses your location while the app is open to suggest whether you are training at Home or Gym. It does not keep a location history.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
         }
       ],
       [
@@ -77,7 +86,8 @@
           ]
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "./plugins/withStripAndroidPermissions"
     ],
     "experiments": {
       "typedRoutes": true,
