@@ -13,7 +13,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.nick4eto.embodi",
+      "bundleIdentifier": "uk.co.question42.bodfit",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -27,7 +27,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.nick4eto.embodi"
+      "package": "uk.co.question42.bodfit"
     },
     "web": {
       "output": "static",
