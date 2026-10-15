@@ -8,10 +8,6 @@
       "developmentClient": true,
       "distribution": "internal",
       "environment": "development",
-      "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "$EXPO_PUBLIC_CONVEX_URL",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "$EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY"
-      },
       "android": {
         "image": "latest"
       },
@@ -29,10 +25,6 @@
       "distribution": "internal",
       "channel": "main",
       "environment": "preview",
-      "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "$EXPO_PUBLIC_CONVEX_URL",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "$EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY"
-      },
       "android": {
         "image": "latest"
       },
@@ -44,10 +36,6 @@
       "channel": "production",
       "autoIncrement": true,
       "environment": "production",
-      "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "$EXPO_PUBLIC_CONVEX_URL",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "$EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY"
-      },
       "android": {
         "image": "latest"
       },
